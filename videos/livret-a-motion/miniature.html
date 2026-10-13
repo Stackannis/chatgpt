@@ -1,0 +1,53 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@800;900&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><canvas id="c" width="1920" height="1080"></canvas>
+<script src="core.js"></script><script src="scenes.js"></script>
+<script>
+g = document.getElementById('c').getContext('2d');
+// texte « miniature » : contour épais + ombre dure, lisible en 168 × 94
+function gros(s, x, y, size, c, o = {}) {
+  g.save(); font(size); g.textAlign = o.align || 'left'; g.textBaseline = 'middle'; g.letterSpacing = (o.esp || 0) + 'px';
+  g.translate(x, y); if (o.rot) g.rotate(o.rot);
+  g.fillStyle = 'rgba(0,0,0,.55)'; g.fillText(s, 10, 14);
+  g.lineJoin = 'round'; g.lineWidth = o.contour ?? size * .12; g.strokeStyle = o.cc || K.ink; g.strokeText(s, 0, 0);
+  if (o.glow) { g.shadowColor = o.glow; g.shadowBlur = 50; }
+  g.fillStyle = c; g.fillText(s, 0, 0); g.restore();
+}
+const VAR = {
+  // A : la carte fissurée, « 20 ans = 155 € ? »
+  fissure() {
+    fond(K.ink); const h = g.createRadialGradient(1380, 560, 50, 1380, 560, 900); h.addColorStop(0, 'rgba(242,182,50,.55)'); h.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = h; g.fillRect(0, 0, W, H);
+    g.save(); g.translate(1480, 610); g.rotate(-.12); U = 0; carteLivret(0, 0, 1.2, 0, 1); g.restore();
+    const r = rng(7); for (let i = 0; i < 16; i++) { const a = r() * 7, d = 330 + r() * 420; piece(1480 + Math.cos(a) * d, 570 + Math.sin(a) * d * .7, 40 + r() * 40, r() * 7, 1, (r() - .5)); }
+    gros('20 ANS', 90, 300, 190, K.paper);
+    gros('= 155 €', 70, 540, 230, K.yel, { glow: 'rgba(242,182,50,.7)' });
+    g.save(); g.translate(620, 810); g.rotate(-.06); rr(-250, -80, 500, 160, 30); g.fillStyle = K.red; g.fill(); g.restore(); gros('SÉRIEUX ?', 620, 812, 88, K.paper, { align: 'center', contour: 0, rot: -.06 });
+  },
+  // B : le rouge de l'inflation, la pièce qui fond
+  fond() {
+    fond(K.red); g.save(); g.globalAlpha = .12; g.fillStyle = K.ink; for (let x = -W; x < W * 2; x += 90) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 45, 0); g.lineTo(x + 45 - H * .6, H); g.lineTo(x - H * .6, H); g.fill(); } g.restore();
+    // pièce géante qui fond
+    const cx = 1560, cy = 470; g.fillStyle = '#C9921A'; g.beginPath(); g.ellipse(cx, cy + 330, 330, 60, 0, 0, 7); g.fill();
+    [[-150, 180], [-40, 260], [90, 210], [190, 150]].forEach(([dx, l]) => { g.beginPath(); g.moveTo(cx + dx - 34, cy + 150); g.lineTo(cx + dx + 34, cy + 150); g.lineTo(cx + dx + 22, cy + 150 + l); g.arc(cx + dx, cy + 150 + l, 22, 0, Math.PI); g.closePath(); g.fillStyle = '#E0A92A'; g.fill(); });
+    piece(cx, cy, 280, .15, 1, -.08);
+    gros('20 ANS', 80, 330, 200, K.paper);
+    gros('POUR RIEN ?', 70, 580, 160, K.yel);
+    gros('LIVRET A', 90, 810, 110, K.ink, { cc: K.paper, contour: 16 });
+  },
+  // C : avant / après, 13 965 € qui devient 10 155 €
+  duel() {
+    fond(K.ink); g.fillStyle = K.yel; g.beginPath(); g.moveTo(0, 0); g.lineTo(1080, 0); g.lineTo(840, H); g.lineTo(0, H); g.fill();
+    gros('LIVRET A', 90, 150, 100, K.ink, { cc: K.yel, contour: 0 });
+    gros('13 965 €', 70, 450, 170, K.ink, { cc: K.paper, contour: 14 });
+    gros('SUR TON COMPTE', 90, 600, 54, K.ink, { contour: 0 });
+    fleche(780, 640, 1180, 640, K.red, 34, 1);
+    gros('10 155 €', 1860, 560, 170, K.paper, { align: 'right' });
+    gros('LA VRAIE VALEUR', 1860, 760, 70, K.red, { align: 'right', contour: 0 });
+    g.save(); g.translate(1640, 230); g.rotate(.08); rr(-200, -70, 400, 140, 70); g.fillStyle = K.red; g.fill(); g.restore(); gros('20 ANS', 1640, 234, 80, K.paper, { align: 'center', contour: 0, rot: .08 });
+  },
+};
+window.dessiner = v => { g.resetTransform(); g.globalAlpha = 1; VAR[v](); };
+Promise.all(['900 100px "Unbounded"', '800 20px "JetBrains Mono"'].map(f => document.fonts.load(f))).then(() => window.READY = true);
+</script></body></html>
