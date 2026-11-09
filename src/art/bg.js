@@ -800,8 +800,8 @@ G.defineArt('bg', G => {
   function makeJungle() {
     const L = layer(768, 128), TAU = Math.PI * 2;
     const SETS = { A: [JA[0], JA[1], JA[1], JA[2], JA[2]], H: [J[3], J[3], J[3], J[4], J[4]], B: J, S: [J[2], J[3], J[3], J[4], J[4]] };
-    const PN = { tl: C('#8eaca4'), td: C('#527882'), f: [[J[2], J[3]], [J[1], J[3]], [J[0], J[2]]] };
-    const PF = { tl: C('#9ab8b0'), td: C('#648e96'), f: [[JA[2], C('#5c9a9c')], [JA[1], JA[2]], [JA[0], JA[2]]] };
+    const PN = { tl: C('#8eaca4'), td: C('#4f747e'), f: [[J[3], J[4]], [J[2], J[3]], [J[1], J[3]]] };
+    const PF = { tl: C('#96b4ac'), td: C('#5f8a92'), f: [[JA[2], C('#5a9698')], [JA[1], JA[2]], [JA[1], C('#5a9698')]] };
     const back = x => 51 + 4 * Math.sin((x / 768) * TAU * 3 + 1) + 2 * Math.sin((x / 768) * TAU * 7);
     const q = rng(77);
     // far treeline (hazier, flatter)

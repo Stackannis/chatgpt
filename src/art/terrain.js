@@ -43,8 +43,8 @@ G.defineArt('terrain', G => {
   // map drawn with a ramp one step darker and more purple (no highlights).
   // ------------------------------------------------------------------
   // ramp index:       0 seam     1 crack    2 dk shade 3 shade    4 base B   5 base A   6 light    7 hilite   8 glint
-  const DIRT_RAMP = ['#5a2a2a', '#73372b', '#8a4532', '#a9602f', '#b76c37', '#c47a3c', '#d8944c', '#eab368', '#ffe0a0'];
-  const DEEP_RAMP = ['#46202c', '#5a2a30', '#6c3432', '#8c4a36', '#99533a', '#a65d39', '#b86e40', '#ca8349', '#ca8349'];
+  const DIRT_RAMP = ['#5a2a2a', '#73372b', '#8a4532', '#a9602f', '#b26736', '#c47a3c', '#d8944c', '#eab368', '#ffe0a0'];
+  const DEEP_RAMP = ['#46202c', '#5a2a30', '#6c3432', '#8c4a36', '#965038', '#a65d39', '#b86e40', '#ca8349', '#ca8349'];
   const DI = { k: 0, D: 1, d: 2, s: 3, n: 4, m: 5, L: 6, H: 7, W: 8 };
   // 64-long seam profile from [length, step] runs: the seam moves 1px down (step > 0)
   // or up (step < 0) every |step| px, or stays flat (step 0).
@@ -64,9 +64,9 @@ G.defineArt('terrain', G => {
   ];
   const CRACK = [                                   // per stratum: [x at the top, lean in px]
     [[9, 4], [30, -5], [55, 3]],
-    [[19, 2], [36, -3], [0, 2]],
+    [[19, 2], [45, -3]],
     [[6, -4], [27, 5], [46, -3]],
-    [[16, 3], [38, -3], [50, -2]],
+    [[16, 3], [50, -2]],
   ];
   const BASE = [5, 4, 5, 4];                         // base tone of each stratum
   function dirtIndex(x, y) {
@@ -94,6 +94,7 @@ G.defineArt('terrain', G => {
     if (db === 0) return dr < w * 0.62 ? DI.d : DI.s;
     if (dl === 0) return dt < h * 0.45 ? DI.H : dt < h * 0.7 ? DI.L : base;
     if (dr === 0) return db < h * 0.55 ? DI.d : DI.s;
+    if (dt === 1 && dl < w * 0.22) return DI.H;
     if (dt === 1 && dl < w * (tall ? 0.8 : 0.6)) return DI.L;
     if (dl === 1 && dt < h * 0.4) return DI.L;
     if (db === 1 && dr < w * 0.8) return DI.s;
@@ -184,6 +185,10 @@ G.defineArt('terrain', G => {
   dstamp(ROOT, 34, 20);                                                    // root crossing the thin stratum
   dstamp(PEB_A, 48, 40); dstamp(PEB_B, 54, 42); dstamp(PEBBLE, 50, 45);     // pebble group
   dstamp(SHELL, 25, 56);                                                   // fossil shell
+  // hairline cracks and a chipped ledge in the big slabs
+  dstamp(['.D', '.D', 'D.', 's.', 's.'], 43, 5);
+  dstamp(['..s', '.s.', '.D.', 'D..'], 34, 45);
+  dstamp(['LLLLL.', 'ssssss'], 8, 44);
   function paintDirt(ramp) {
     const c = G.cv(64, 64);
     for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) R(c, x, y, 1, 1, ramp[dirtMap[y][x]]);
@@ -342,7 +347,7 @@ G.defineArt('terrain', G => {
         R(c, 0, y, 1, 1, BR[1]);
         const A = [[0.46, 0.2], [0.6, 0.36, 0.16], [0.7, 0.48, 0.28, 0.12]][lv];
         A.forEach((a, i) => R(c, 1 + i, y, 1, 1, 'rgba(255,236,176,' + a + ')'));
-        if (d >= 6.5) R(c, 1, y, 1, 1, BR[5]);        // crisp glint on the belly of the big slabs
+        if (d >= 8) R(c, 1, y, 1, 1, BR[5]);        // crisp glint on the belly of the big slabs
       } else {
         // face turned away from the sun: ink outline at x=7 behind a dark purple shade
         R(c, 7, y, 1, 1, P.ink);
@@ -364,25 +369,22 @@ G.defineArt('terrain', G => {
     let x = 0;
     for (const w of LUMPS) {
       for (let i = 0; i < w; i++, x++) {
-        R(c, x, 7, 1, 1, P.ink);
-        if (i === 0) {                                // crevice between two lumps
-          R(c, x, 4, 1, 3, P.ink); R(c, x, 3, 1, 1, BR[0]); R(c, x, 2, 1, 1, U2); R(c, x, 1, 1, 1, U1);
-          continue;
-        }
-        const t = i / (w - 1), th = t < 0.34 ? 2 : t < 0.72 ? 3 : 4, top = 7 - th;
+        // ink wedge between two lumps: 5px wide at the bottom, closing 3 rows up
+        const e = Math.min(i, w - i);                 // 0 on the crevice column, 1 / 2 beside it
+        const ink = e === 0 ? 4 : e === 1 ? 2 : e === 2 ? 1 : 0;
+        const t = i / (w - 1), th = Math.max(ink + 1, t < 0.34 ? 2 : t < 0.72 ? 3 : 4), top = 7 - th;
         for (let y = top; y <= 6; y++)
-          R(c, x, y, 1, 1, y === 6 || (y === 5 && th === 4) ? BR[0] : y === top && th >= 3 ? '#73372b' : BR[1]);
-        if (x % 16 === 15) R(c, x, top, 1, th, BR[0]); // never lighter than a wall outline it may cover
-        if (i === 1 || i === w - 1) R(c, x, 6, 1, 1, P.ink); // rounded lump corners
+          R(c, x, y, 1, 1, y > 6 - ink ? P.ink : y === 6 || (y === 5 && th === 4) || x % 16 === 15 ? BR[0] : y === top && th >= 3 ? '#73372b' : BR[1]);
+        R(c, x, 7, 1, 1, P.ink);
         R(c, x, top - 1, 1, 1, U2); R(c, x, top - 2, 1, 1, U1);
       }
     }
     if (x !== 64) throw new Error('under lumps cover ' + x);
-    // pale roots dangling over the dark band, moss drips
-    stamp(c, ['r.', 'r.', '.q', '.q', '.p'], 6, 2, { r: BR[3], q: '#a9602f', p: BR[2] });
-    stamp(c, ['.r', '.q', 'q.', 'p.'], 41, 3, { r: BR[3], q: '#a9602f', p: BR[2] });
-    stamp(c, ['.b.', 'cbb', 'bab'], 26, 4, { c: GR[2], b: GR[1], a: GR[0] });
-    stamp(c, ['c.', 'bb', 'ab'], 55, 4, { c: GR[2], b: GR[1], a: GR[0] });
+    // pale roots dangling in front of the dark band
+    const rp = { r: BR[4], q: BR[3], p: '#a9602f' };
+    stamp(c, ['r.', 'q.', '.q', '.q', '.p'], 5, 1, rp);
+    stamp(c, ['.r', '.q', 'q.', 'q.', 'p.'], 42, 2, rp);
+    stamp(c, ['r', 'q', 'q', 'p'], 29, 2, rp);
     return c;
   }
   const under = makeUnder();
