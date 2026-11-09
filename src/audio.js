@@ -22,7 +22,7 @@
   A.init = A.music = A.stopMusic = A.sfx = A.setMuted = nop; // real ones are installed at the bottom
 
   // ------------------------------------------------------------------ mix
-  const MIX = { master: 0.85, music: 0.5, sfx: 0.8 };
+  const MIX = { master: 0.85, music: 0.42, sfx: 0.9 };
   // per-instrument strip levels (music)
   const LV = { lead: 0.2, brass: 0.2, flute: 0.26, pan: 0.2, bass: 0.34, stab: 0.085, pad: 0.06, drum: 0.5, hat: 0.2, perc: 0.3 };
 
