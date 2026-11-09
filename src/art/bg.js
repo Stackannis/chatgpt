@@ -1,7 +1,8 @@
-// SUNFOX — parallax backdrop for Emerald Coast: sky + 6 layers (far -> near).
-// Everything is plotted as indexed pixels (no blending): banded sky with ordered
-// dither, puff-sculpted cumulus, faceted islands, line-scroll sea strips with glitter,
-// mid headlands with cliffs + waterfalls over a lagoon, near palm/jungle treeline.
+// SUNFOX — parallax backdrop for Emerald Coast: sky + 7 layers (far -> near).
+// Everything is plotted as indexed pixels (no blending): banded sky with ordered dither,
+// a far field of small flat clouds, big sculpted cumulus, a far sea with the old volcano,
+// line-scrolled sea + lagoon strips, headlands with faceted cliffs and waterfalls (their
+// reflections ride on the lagoon layer behind them), and a hazy blue-teal jungle treeline.
 G.defineArt('bg', G => {
   const W = G.W, H = G.H;
 
@@ -135,7 +136,7 @@ G.defineArt('bg', G => {
         for (let y = ya; y <= yb && y < yc; y++) {
           const dy = (y + 0.5 - cy) / ry, q = dx * dx + dy * dy;
           if (q > 1) continue;
-          const nz = Math.sqrt(1 - q) * fl;
+          const nz = Math.sqrt(1 - q) * (o.round && rx >= o.round[0] ? o.round[1] : fl);
           v[(y - y0) * bw + (x - x0)] = (dx * lx + dy * ly + nz * lz) / Math.sqrt(q + nz * nz);
         }
       }
@@ -248,7 +249,7 @@ G.defineArt('bg', G => {
     let top = 1e9;
     for (const b of lobes) {
       const cx = ox + b[0], cy = oy - b[1], r = b[2];
-      if (typeof b[3] === 'number') { list.push([cx, cy, r, b[3]]); continue; }
+      if (typeof b[3] === 'number') { list.push([cx, cy, r, b[3]]); top = Math.min(top, cy - b[3]); continue; }
       for (const bp of b[3] || []) {
         const a = (bp[0] * Math.PI) / 180, d = r - bp[1] * 0.35;
         list.push([cx + Math.cos(a) * d, cy - Math.sin(a) * d, bp[1]]);
@@ -259,30 +260,23 @@ G.defineArt('bg', G => {
     const clip = x => { let d = 0; for (const g of sag || []) if (x >= ox + g[0] && x < ox + g[1]) d = Math.max(d, g[2]); return oy + d; };
     puffs(L, list, Object.assign({ top, base: oy, clip }, o));
   }
-  // dissolve the lower rows of a layer into haze colour c (ordered 25/50/75%)
-  function fade(L, ya, yb, c) {
-    for (let y = ya; y < L.h; y++) {
-      const f = Math.min(1, (Math.floor(((y - ya) / (yb - ya)) * 4) + 1) / 4);
-      for (let x = 0; x < L.w; x++) if (L.d[y * L.w + x] && f > d2(x, y)) L.d[y * L.w + x] = c;
-    }
-  }
-
   // Near clouds: a dominant tower with shoulders and small satellite puffs, the light side
   // white, the body turning lavender toward the lower right, a flat darker shelf underneath.
-  const HERO = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0', '#869fe6']), thr: [0.76, 0.36, -0.06, -0.5], grad: [0.4, -0.75], gx: 0.5, flat: 1.5, local: 0.6, shelf: 5, blob: 10 };
+  const HERO = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0', '#869fe6']), thr: [0.76, 0.36, -0.06, -0.5], grad: [0.4, -0.75], gx: 0.5, flat: 2.3, round: [13, 1.45], local: 0.6, shelf: 5, blob: 10 };
   const SMALL = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0']), thr: [0.7, 0.3, -0.2], grad: [0.35, -0.6], gx: 0.4, flat: 1.6, local: 0.7, shelf: 2, blob: 5 };
   // Far clouds: small, flat, pale and close to the sky's own colour.
   const FAR = { tones: CS(['#f9fcf2', '#e2f1f9', '#c6e3f8']), thr: [0.62, 0.1], grad: [0.3, -0.5], gx: 0.3, flat: 1.7, local: 0.7, shelf: 2, blob: 4 };
 
-  // small flat-based cumulus grown from a seed: w px wide, h px tall, standing on `base`
+  // small flat-based cumulus grown from a seed: w px wide, h px tall, standing on `base`:
+  // squashed lobes that all rise from one long flat slab, under a single clear high point
   function flatCloud(L, x, base, w, h, o, q) {
-    const n = Math.max(2, Math.round(w / (h * 0.9))), pk = 0.3 + q() * 0.4, lobes = [[w / 2, 1, w / 2, Math.max(2, h * 0.2)]];
+    const n = Math.max(2, Math.round(w / (h * 1.1))), pk = 0.3 + q() * 0.4, slab = Math.max(1.5, h * 0.2), lobes = [[w / 2, 1, w * 0.45, slab]];
     for (let i = 0; i < n; i++) {
-      const u = (i + 0.5 + (q() - 0.5) * 0.5) / n, prof = Math.pow(Math.max(0, 1 - Math.abs(u - pk) / (u < pk ? pk + 0.15 : 1.15 - pk)), 0.8);
-      const r = Math.max(2, h * (0.26 + 0.2 * q()) * (0.45 + 0.55 * prof));
-      lobes.push([u * w, Math.max(r * 0.7, h * prof - r), r]);
+      const u = (i + 0.5 + (q() - 0.5) * 0.5) / n, prof = Math.pow(Math.max(0, 1 - Math.abs(u - pk) / (u < pk ? pk + 0.1 : 1.1 - pk)), 1.2);
+      const top = h * (0.34 + 0.66 * prof) * (0.85 + 0.15 * q()), ry = Math.max(1.5, top / 2), rx = Math.min(w * 0.3, ry * (1.4 + q() * 0.6));
+      lobes.push([w * (0.14 + u * 0.72), ry, rx, ry]);
     }
-    cumulus(L, x, base, lobes, o);
+    cumulus(L, x, base, lobes, Object.assign({}, o, { shelf: h < 9 ? 1 : o.shelf }));
   }
 
   function makeFloaters() {
@@ -293,8 +287,8 @@ G.defineArt('bg', G => {
       [106, 30, 20, [[70, 7], [25, 5]]], [28, 22, 15, [[155, 5], [110, 5]]],
       [64, 40, 30, [[168, 6], [138, 8], [104, 6], [66, 9], [30, 6]]],
       [130, 12, 11, [[50, 4]]], [18, 9, 10, [[145, 4]]],
-      [40, 16, 15, [[140, 4]]], [84, 18, 17, [[45, 5]]], [112, 12, 12],
-      [6, 4, 5], [150, 5, 7], [163, 3, 4], [60, 8, 10], [98, 6, 8], [30, 4, 6], [138, 4, 5],
+      [40, 16, 15, [[140, 4]]], [84, 17, 16, [[45, 5]]], [112, 12, 12],
+      [6, 4, 5], [150, 5, 7], [163, 3, 4], [62, 7, 9], [30, 4, 6], [138, 4, 5],
     ], HERO, [[30, 70, 1], [96, 132, 1], [104, 122, 2]]);
     // B — medium
     cumulus(L, 372, 50, [
@@ -306,9 +300,9 @@ G.defineArt('bg', G => {
     // C — long and low
     cumulus(L, 566, 38, [
       [62, 2, 60, 5],
-      [70, 12, 11, [[60, 4]]], [24, 9, 9, [[140, 3]]],
-      [44, 16, 14, [[150, 4], [105, 5], [55, 4]]],
-      [92, 8, 9, [[40, 3]]], [58, 6, 8], [108, 5, 6], [10, 4, 5], [36, 5, 7], [80, 5, 7], [120, 2, 3],
+      [72, 11, 11, [[60, 4], [20, 3]]], [24, 9, 9, [[140, 3]]],
+      [46, 15, 15, [[155, 4], [110, 5], [60, 4]]],
+      [94, 7, 8, [[40, 3]]], [10, 4, 5], [36, 4, 6], [84, 4, 6], [110, 4, 5], [120, 2, 3],
     ], HERO, [[30, 90, 1]]);
     // D — small
     cumulus(L, 262, 28, [
@@ -406,7 +400,7 @@ G.defineArt('bg', G => {
     const rnd = rng(11);
     // islands (drawn first; the sea covers their feet)
     const far = { lit: C('#c9def6'), shade: C('#b3cdf0'), haze: C('#dcebf6') };
-    const mid = { lit: C('#b9d2f4'), mid: C('#a6c3ee'), shade: C('#8aa9e3'), haze: C('#cbdff5'), snow: C('#f6f8f0'), snowSh: C('#c4d8f6') };
+    const mid = { lit: C('#aecbf0'), mid: C('#9bbcea'), shade: C('#82a2df'), haze: C('#c6dcf4'), snow: C('#f8f9ee'), snowSh: C('#bfd4f5') };
     // two tiny islets on the horizon, a long twin-humped island...
     mountain(L, HZ, [[4, 0], [14, 3], [22, 6, 'p'], [30, 4, 'v'], [38, 5, 'p'], [50, 2], [60, 0]], far);
     mountain(L, HZ, [[292, 0], [302, 2], [310, 5, 'p'], [322, 2], [330, 0]], far);
@@ -484,7 +478,7 @@ G.defineArt('bg', G => {
   // right bevel and a crack line underneath. `recess` flips the bevels (an alcove: its left
   // wall in shade, its right wall catching the light).
   function slab(L, x0, x1, y0, y1, t, cap, recess, crack) {
-    const w = x1 - x0 + 1, bl = w >= 9 ? 2 : 1, br = w >= 7 ? 2 : 1;
+    const w = x1 - x0 + 1, bl = w >= 9 ? 2 : 1, br = w >= 7 ? 2 : 1, ch = !recess && w >= 8 && y1 - y0 >= 7 ? Math.min(4, 2 + ((x0 + y0) % 3)) : 0;
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
       const i = x - x0, j = y - y0;
       let c = t;
@@ -494,7 +488,9 @@ G.defineArt('bg', G => {
         if (j < cap) c = i >= w - br ? t - 1 : t - 2;
         else if (i < bl) c = t - 1;
         else if (i >= w - br) c = t + 1;
-        if (crack && y === y1) c = Math.max(c, t) + 1;
+        if (ch && i + j < ch + 1) c = t - 2;                                  // lit facet, top left
+        else if (ch && w - 1 - i + (y1 - y) < ch) c = t + 2;                  // shaded facet, bottom right
+        else if (crack && y === y1) c = Math.max(c, t) + 1;
       }
       L.set(x, y, ROCK[clamp(c, 0, 5)]);
     }
@@ -674,11 +670,11 @@ G.defineArt('bg', G => {
     ROCK.forEach((c, i) => RF.set(c, RR[i < 3 ? 0 : 1]));
     RF.set(SAND, C('#ccf4de')); RF.set(SAND2, C('#ccf4de')); RF.set(C('#fff8d2'), C('#ccf4de'));
     FALL.forEach(c => RF.set(c, C('#eafdfb')));
-    for (let r = 0; r < 20; r++) {
+    for (let r = 0; r < 15; r++) {
       const wob = r % 4 === 1 ? 1 : r % 4 === 3 ? -1 : 0;
       let on = false, n = 0;
       for (let x = 0; x < L.w; x++) {
-        if (n-- <= 0) { on = !on; n = on ? 3 + Math.floor(rnd() * Math.max(2, 9 - r * 0.4)) : Math.floor(rnd() * (1.5 + r * 0.45)); }
+        if (n-- <= 0) { on = !on; n = on ? 3 + Math.floor(rnd() * Math.max(2, 9 - r * 0.5)) : Math.floor(rnd() * (1.5 + r * 0.6)); }
         const c = RF.get(L.get(x + wob, WL - 1 - Math.floor(r * 1.5)));
         if (c && (r < 2 || on)) L.set(x, WL + r, c);
       }
@@ -691,7 +687,7 @@ G.defineArt('bg', G => {
   // Sits right behind the action, so it is a hazy blue-teal silhouette: big rounded crowns with a
   // thin light rim, flat bodies, dark hollows between them, sinking into one quiet tone.
   const J = CS(['#8bccb1', '#6bb29e', '#569c91', '#488c8c', '#3f737d']);
-  const JA = CS(['#a6dccb', '#86c4b6', '#74b2ac']);
+  const JA = CS(['#9ed6c2', '#7cbcae', '#68a8a4']);
   const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
   const d4 = (x, y) => (B4[(x & 3) | ((y & 3) << 2)] + 0.5) / 16;
 
@@ -726,9 +722,10 @@ G.defineArt('bg', G => {
       if (!ins(i, x - 1, y - 1) && a <= i) {
         const outer = a < 0 || all[a].g !== c.g;
         t = lit > 0.55 ? (outer ? 0 : 1) : lit > 0.2 && outer ? 1 : shade ? 3 : 2;
-      } else if (!ins(i, x - 1, y - 1)) t = 3;
+      } else if (!ins(i, x - 1, y - 1)) t = 2;
       else if (!ins(i, x - 1, y - 2) && b <= i && lit > 0.62 && (b < 0 || all[b].g !== c.g)) t = 1;
       else if (cast || shade) t = 3;
+      else if (c.lc && lit > 0.35 && !ins(i, x - c.lc * 0.5, y - c.lc) && !(at(Math.round(x - c.lc * 0.5), y - c.lc) > i)) t = 1;
       out[y * W + x] = sets[c.set][t];
     }
     melt(out, W, bh, 5, 2);
@@ -747,7 +744,7 @@ G.defineArt('bg', G => {
         if (q() < 0.5) { const a2 = ang + (q() - 0.5) * 1.2, rt = 2.4 + q() * 1.2; list.push({ x: bx + Math.cos(a2) * rb * 0.9, y: by - Math.sin(a2) * rb * 0.8, rx: rt * 1.2, ry: rt, g, set: bs }); }
         list.push({ x: bx, y: by, rx: rb * 1.15, ry: rb, g, set: bs });
       }
-      list.push({ x, y, rx: a, ry: b, g, set: s, sh });
+      list.push({ x, y, rx: a, ry: b, g, set: s, sh, lc: simple ? 0 : clamp(Math.round(b * 0.2), 2, 5) });
       // a few leaf clusters on its face
       if (simple) return;
       for (let m = Math.round((a * b) / (s === dark ? 420 : 210)); m > 0; m--) {
@@ -803,8 +800,8 @@ G.defineArt('bg', G => {
   function makeJungle() {
     const L = layer(768, 128), TAU = Math.PI * 2;
     const SETS = { A: [JA[0], JA[1], JA[1], JA[2], JA[2]], H: [J[3], J[3], J[3], J[4], J[4]], B: J, S: [J[2], J[3], J[3], J[4], J[4]] };
-    const PN = { tl: C('#8eaca4'), td: C('#527882'), f: [[J[2], J[3]], [J[1], J[2]], [J[0], J[1]]] };
-    const PF = { tl: C('#a3bfb6'), td: C('#6e969c'), f: [[JA[2], C('#68a6a6')], [JA[1], JA[2]], [JA[1], JA[2]]] };
+    const PN = { tl: C('#8eaca4'), td: C('#527882'), f: [[J[2], J[3]], [J[1], J[3]], [J[0], J[2]]] };
+    const PF = { tl: C('#9ab8b0'), td: C('#648e96'), f: [[JA[2], C('#5c9a9c')], [JA[1], JA[2]], [JA[0], JA[2]]] };
     const back = x => 51 + 4 * Math.sin((x / 768) * TAU * 3 + 1) + 2 * Math.sin((x / 768) * TAU * 7);
     const q = rng(77);
     // far treeline (hazier, flatter)

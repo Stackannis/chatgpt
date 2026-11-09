@@ -180,11 +180,10 @@ G.defineArt('terrain', G => {
     '..dLLsk..',
     '...kkk...',
   ];
-  dstamp(BOULDER, 15, 6); dstamp(STONE, 25, 12); dstamp(PEBBLE, 12, 14);
-  dstamp(ROOT, 34, 20);
-  dstamp(PEB_A, 10, 40); dstamp(PEB_B, 16, 42); dstamp(PEBBLE, 12, 45);
-  dstamp(STONE, 44, 55);
-  dstamp(SHELL, 52, 38);
+  dstamp(BOULDER, 15, 6); dstamp(STONE, 25, 12); dstamp(PEBBLE, 12, 14);   // boulder cluster wedged in the tall stratum
+  dstamp(ROOT, 34, 20);                                                    // root crossing the thin stratum
+  dstamp(PEB_A, 48, 40); dstamp(PEB_B, 54, 42); dstamp(PEBBLE, 50, 45);     // pebble group
+  dstamp(SHELL, 25, 56);                                                   // fossil shell
   function paintDirt(ramp) {
     const c = G.cv(64, 64);
     for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) R(c, x, y, 1, 1, ramp[dirtMap[y][x]]);
@@ -341,8 +340,9 @@ G.defineArt('terrain', G => {
       if (!right) {
         // sunlit face: warm outline at x=0, then highlight / light / base ramp fading into the earth
         R(c, 0, y, 1, 1, BR[1]);
-        const A = [[0.42, 0.16], [0.56, 0.3, 0.12], [0.64, 0.42, 0.24, 0.1]][lv];
+        const A = [[0.46, 0.2], [0.6, 0.36, 0.16], [0.7, 0.48, 0.28, 0.12]][lv];
         A.forEach((a, i) => R(c, 1 + i, y, 1, 1, 'rgba(255,236,176,' + a + ')'));
+        if (d >= 6.5) R(c, 1, y, 1, 1, BR[5]);        // crisp glint on the belly of the big slabs
       } else {
         // face turned away from the sun: ink outline at x=7 behind a dark purple shade
         R(c, 7, y, 1, 1, P.ink);
@@ -542,13 +542,16 @@ G.defineArt('terrain', G => {
 
   // ------------------------------------------------------------------
   // SPRING — [idle, compressed, extended], 16x24 bottom-aligned
+  // The coil is a zigzag of lit front turns (cylinder-shaded, stepped up to
+  // the right) with the dark back of the wire showing between them once it
+  // stretches. The base plate (rows 21-23) is the same canvas in all frames.
   // ------------------------------------------------------------------
   const sprPad = px([
     '..kkkkkkkkkkkk..',
-    '.kUwwUUUUUUUTTk.',
-    'kUUTTTTTTTTTTTSk',
-    'kTTTSSSSSSSSSSRk',
-    'kIJJIIIIIIIIHHGk',
+    '.kUwwwUUUUUTTTk.',
+    'kUwwUUUTTTTTTTSk',
+    'kTUTTTTTTSSSSSRk',
+    'kJJJIIIIIIIHHHGk',
     '.kkkkkkkkkkkkkk.',
   ]);
   const sprBase = px([
@@ -556,45 +559,56 @@ G.defineArt('terrain', G => {
     '.kxvvvvvvvvuutk.',
     'kkkkkkkkkkkkkkkk',
   ]);
-  const coilF1 = px(['..kxxvvvvvvutk..']);
-  const coilF2 = px(['..kvuuuuuuttsk..']);
-  const coilB = px(['....kttttssk....']);
-  function makeSpring(padY, pattern) {
+  // tight turn (3 rows per turn): the front of the wire steps up 1px halfway along
+  const TIGHT = [
+    '...kkkkkvvuutk..',
+    '..kxxxxvuuttsk..',
+    '..kvvvuukkkkk...',
+  ];
+  // stretched turn (6 rows per turn): steeper front, dark back strand in the gap
+  const LOOSE = [
+    '......kkkvvuuk..',
+    '...kkkxxvuuttk..',
+    '..kxxxvvukkkk...',
+    '..kvvukkk.......',
+    '...kkktttk......',
+    '.....ksssk......',
+  ];
+  function makeSpring(padY, coil) {
     const c = G.cv(16, 24);
+    c.ctx.drawImage(px(coil), 0, 21 - coil.length);
     c.ctx.drawImage(sprBase, 0, 21);
-    let i = 0;
-    for (let y = padY + 6; y < 21; y++, i++) c.ctx.drawImage(pattern[i % pattern.length], 0, y);
     c.ctx.drawImage(sprPad, 0, padY);
     return c;
   }
   const spring = [
-    makeSpring(8, [coilB, coilF1, coilF2]),
-    makeSpring(13, [coilF1, coilF2]),
-    makeSpring(0, [coilB, coilF1, coilF2, coilB, coilB]),
+    makeSpring(8, [...TIGHT, ...TIGHT, TIGHT[0]]),
+    makeSpring(13, [TIGHT[1], TIGHT[2]]),
+    makeSpring(0, ['.....ktttk......', '.....kssskkkk...', ...LOOSE.slice(0, 5), '.....kssskkkk...', ...LOOSE.slice(0, 5), '.....kssskkkk...', LOOSE[0]]),
   ];
 
   // ------------------------------------------------------------------
-  // SPIKES — 16x16, two steel fangs per tile
+  // SPIKES — 16x16: three needle-sharp steel cones on a dark stone plate
+  // (white-yellow lit face, blue-violet shade, full ink outline)
   // ------------------------------------------------------------------
-  const spikeRows = [
-    '........',
-    '........',
-    '........',
-    '...kk...',
-    '..kwtk..',
-    '..kxtk..',
-    '..kxtk..',
-    '.kxvutk.',
-    '.kxvutk.',
-    '.kxvutk.',
-    '.kxvutk.',
-    'kxxvuttk',
-    'kxvvuttk',
-    'kxvvutsk',
-    'kvvuutsk',
-    'kkkkkkkk',
-  ];
-  const spikes = px(spikeRows.map(r => r + r));
+  const spikes = px([
+    '.......k........',
+    '......kwk.......',
+    '..k...kwk...k...',
+    '.kwk..kwmk.kwk..',
+    '.kwk..kwmk.kwk..',
+    '.kwmk.kwmk.kwmk.',
+    '.kwmkkwvmk.kwmk.',
+    '.kwmkkwvmk.kwmk.',
+    'kwvmkkwvmkkwvmk.',
+    'kwvmkkwvmdkwvmk.',
+    'kxvmdkxvmdkxvmdk',
+    'kxvmdkxvmdkxvmdk',
+    'kxvmdkxvmdkxvmdk',
+    'kvuuuuvuuuuvuutk',
+    'ktttttttttttttsk',
+    'kkkkkkkkkkkkkkkk',
+  ], { k: P.ink, w: '#fff8d0', x: ST[4], v: '#b4bce0', m: '#7c7cc4', d: '#4c4690', u: '#666a96', t: '#3e3c68', s: ST[0] });
 
   // ------------------------------------------------------------------
   // CHECKPOINT — sun-stone lantern post, 16x32
@@ -663,65 +677,55 @@ G.defineArt('terrain', G => {
   const checkpoint = { off: [makeCheckpoint(-1)], on: [0, 1, 2, 3].map(makeCheckpoint) };
 
   // ------------------------------------------------------------------
-  // GOAL — ancient sun gate, 4 frames 32x48 (glyphs charge up, light pours out)
+  // GOAL — ancient sun gate, 4 frames 32x48
+  // One bold carved glyph per pillar block (sun, moon, eye) that flares up
+  // from the bottom block to the top one, then all at once; the portal is a
+  // set of crisp vertical light bands whose stepped edges scroll upward.
   // ------------------------------------------------------------------
   const GLYPHS = [
-    ['.ss.', 's..s', 's..s', '.ss.'],
-    ['sss.', '..s.', 's.s.', 'sss.'],
-    ['.ss.', 'ssss', '.ss.', '.ss.'],
+    ['..s..', '.sss.', 'sssss', '.sss.', '..s..'],   // sun
+    ['.sss.', 'sss..', 'ss...', 'sss..', '.sss.'],   // crescent moon
+    ['.sss.', 's...s', 's.s.s', 's...s', '.sss.'],   // eye of the sun
   ];
   function makeGoal(f) {
     const c = G.cv(32, 48), k = P.ink;
-    // portal light
-    const tones = [P.white, GO[3], GO[2], OR[3]];
-    const HW = [2, 2, 3, 3, 3, 2, 2, 2, 1, 1, 2, 2];
-    for (let y = 19; y <= 47; y++) {
-      const hw = HW[(y + f * 3) % 12];
-      for (let x = 9; x <= 22; x++) {
-        const i = x < 16 ? 15 - x : x - 16;
-        R(c, x, y, 1, 1, tones[i < hw ? 0 : i < hw + 2 ? 1 : i < 6 ? 2 : 3]);
-      }
-    }
-    R(c, 9, 19, 14, 1, GO[1]);
-    // rising motes of light in the golden flanks
-    const motes = [[10, 44], [20, 40], [10, 31], [20, 26]];
-    for (const [mx, my] of motes) {
-      const y = 20 + (((my - 20 - f * 7) % 28) + 28) % 28;
-      R(c, mx, y, 1, 2, P.white);
-      if (y < 46) R(c, mx, y + 2, 1, 1, GO[3]);
-    }
-    // pillars (three bevelled blocks each, glyphs light up from the bottom)
-    for (const x0 of [1, 23]) {
-      const inner = x0 === 1 ? x0 + 6 : x0 + 1;        // face turned to the portal
-      R(c, x0, 19, 8, 25, k);
-      R(c, x0 + 1, 19, 6, 25, ST[2]);
-      R(c, x0 + 1, 19, 1, 25, ST[4]);
-      R(c, x0 + 2, 19, 1, 25, ST[3]);
-      R(c, x0 + 5, 19, 2, 25, ST[1]);
-      R(c, inner, 19, 1, 25, GO[1]);
-      [27, 35].forEach(sy => {
-        R(c, x0 + 1, sy, 6, 1, k);
-        R(c, x0 + 1, sy - 1, 6, 1, ST[1]);
-        R(c, x0 + 1, sy + 1, 5, 1, ST[4]);
+    // portal light (x 10..21): white core, pale and golden flanks, orange rim
+    const BAND = [P.white, P.white, GO[3], GO[3], GO[2], OR[3]];
+    for (let x = 10; x <= 21; x++) R(c, x, 19, 1, 29, BAND[x < 16 ? 15 - x : x - 16]);
+    // rising steps of light: [x, tone, phase, length] — 12px period, 3px up per frame
+    const STEPS = [[13, P.white, 0, 6], [18, P.white, 6, 6], [11, GO[3], 3, 5], [20, GO[3], 9, 5], [10, GO[2], 7, 4], [21, GO[2], 1, 4]];
+    for (const [x, col, ph, len] of STEPS)
+      for (let y = 19; y <= 47; y++) if ((y + f * 3 + ph) % 12 < len) R(c, x, y, 1, 1, col);
+    R(c, 10, 21, 12, 1, GO[1]);                        // the lintel's shadow on the light
+    // pillars: three bevelled blocks each (rows 21-27, 29-35, 37-43)
+    for (const x0 of [1, 22]) {
+      const left = x0 === 1;
+      R(c, x0, 19, 9, 25, k);
+      [21, 29, 37].forEach((by, gi) => {
+        R(c, x0 + 1, by, 7, 7, ST[2]);
+        R(c, x0 + 1, by + 6, 7, 1, ST[1]);
+        R(c, x0 + 1, by, 7, 1, ST[4]);
+        R(c, x0 + 1, by + 1, 1, 6, left ? ST[4] : GO[2]);   // sunlit edge / glow of the portal
+        R(c, x0 + 7, by + 1, 1, 6, left ? GO[2] : ST[1]);
+        R(c, x0 + (left ? 6 : 2), by + 1, 1, 5, left ? ST[3] : ST[3]);
+        // carved glyph: dark groove, light catching its lower-right wall
+        const hot = f === 3 || gi === 2 - f;
+        const groove = hot ? GO[3] : ST[0], wall = hot ? OR[2] : ST[4];
+        const gl = GLYPHS[gi];
+        for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) {
+          if (gl[j][i] !== 's') continue;
+          if (i < 4 && j < 4 && gl[j + 1][i + 1] !== 's') R(c, x0 + 3 + i, by + 2 + j, 1, 1, wall);
+        }
+        for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++)
+          if (gl[j][i] === 's') R(c, x0 + 2 + i, by + 1 + j, 1, 1, groove);
       });
-      [22, 30, 38].forEach((gy, gi) => {
-        const lit = f >= 3 - gi;
-        stamp(c, GLYPHS[gi], x0 + 2, gy, { s: lit ? GO[2] : ST[0] });
-        if (lit) stamp(c, GLYPHS[gi], x0 + 2, gy + 1, { s: 'rgba(0,0,0,0)' });
-      });
+      // capital + plinth, one pixel wider than the shaft
+      R(c, x0 - 1, 19, 11, 2, k);
+      R(c, x0, 19, 9, 1, ST[3]); R(c, x0, 19, 3, 1, ST[4]); R(c, x0 + 7, 19, 2, 1, ST[2]);
+      R(c, x0 - 1, 44, 11, 4, k);
+      R(c, x0, 45, 9, 2, ST[2]); R(c, x0, 45, 9, 1, ST[3]); R(c, x0, 45, 3, 1, ST[4]); R(c, x0 + 6, 46, 3, 1, ST[1]);
     }
-    // plinths + capitals
-    for (const x0 of [0, 22]) {
-      R(c, x0, 44, 10, 4, k);
-      R(c, x0 + 1, 45, 8, 2, ST[2]);
-      R(c, x0 + 1, 45, 8, 1, ST[3]); R(c, x0 + 1, 45, 2, 1, ST[4]);
-      R(c, x0 + 7, 46, 2, 1, ST[1]);
-      R(c, x0, 19, 10, 3, k);
-      R(c, x0 + 1, 19, 8, 2, ST[2]);
-      R(c, x0 + 1, 19, 8, 1, ST[3]); R(c, x0 + 1, 19, 2, 1, ST[4]);
-      R(c, x0 + 7, 20, 2, 1, ST[1]);
-    }
-    // lintel
+    // lintel with a carved groove either side of the crown
     R(c, 0, 12, 32, 7, k);
     R(c, 1, 13, 30, 5, ST[2]);
     R(c, 1, 13, 30, 1, ST[4]);
@@ -729,13 +733,36 @@ G.defineArt('terrain', G => {
     R(c, 1, 17, 30, 1, ST[1]);
     R(c, 1, 13, 1, 4, ST[4]);
     R(c, 30, 14, 1, 4, ST[1]);
-    for (let x = 3; x < 29; x += 4) stamp(c, ['s.s', '.s.'], x, 15, { s: f === 3 ? GO[2] : ST[0] });
+    for (const gx of [4, 19]) {
+      R(c, gx, 15, 9, 1, f === 3 ? GO[3] : ST[0]);
+      R(c, gx + 1, 16, 9, 1, f === 3 ? OR[2] : ST[4]);
+    }
     // sun crown
     drawSun(c, 8, 0, f);
-    // moss draped over the lintel ends + a vine down the right pillar
-    c.ctx.drawImage(px(['.eed....', 'eddde...', 'dddccd..', 'cdccbcc.', 'abcbab..', '.a.ba...', '....a...']), 0, 10);
-    c.ctx.drawImage(px(['....dee.', '..deddde', '.dccdddd', 'ccbccdcc', '.babcbba', '..a.ab.b', '......a.']), 24, 10);
-    stamp(c, ['c.', 'bc', '.c', 'dc', '.b', 'c.', 'cb', '.c', '.cd', '.b', 'c.', 'b.'], 30, 17, { c: GR[2], b: GR[1], d: GR[3] });
+    // a three-leaf sprout on the lintel, a leafy vine trailing down its right end
+    const lp = { a: GR[0], b: GR[1], c: GR[2], d: GR[3], e: GR[4] };
+    stamp(c, [
+      '...e....',
+      '...ed...',
+      'e..dd..e',
+      'de.dc.ed',
+      '.dddcdd.',
+      '..cbcc..',
+    ], 0, 6, lp);
+    stamp(c, [
+      '..ee.',
+      '.eddc',
+      'edcbb',
+      'c.b.b',
+      '..b.b',
+      '.dc.b',
+      '.c..c',
+      '...db',
+      '..dcb',
+      '..c.b',
+      '...dc',
+      '...c.',
+    ], 27, 10, lp);
     return c;
   }
   const goal = [0, 1, 2, 3].map(makeGoal);

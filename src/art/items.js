@@ -2,10 +2,13 @@
 //   gem      6 x 16x16  sun-shard crystal (flat rhombic shard spinning about its vertical axis)
 //   bigCoin  6 x 24x24  star medallion (gold rim, emerald enamel, raised star)
 //   heart    2 x 16x16  · sparkle 4 x 16x16 · dust 4 x 16x16 · poof 5 x 24x24 · splash 5 x 32x24
-//   hud      {heart, heartEmpty, gem, coinOn, coinOff} 16x16
-//   font     char -> 8px tall glyph (outline baked in) · logo  "SUNFOX" title logo
+//   hud      {heart, heartEmpty, gem, coinOn, coinOff} 16x16 (coinOff = empty medal socket)
+//   font     char -> 8px tall glyph (outline baked in)
+//   logo     250x80 "SUNFOX" wordmark: bevelled banded letters, extruded shadow, sun crown, fox-tail swash
 // Everything is authored on small indexed buffers: hand-pixelled stamps plus integer-only
 // construction (no anti-aliasing anywhere). Light comes from the upper-left.
+// FX anchoring (how the engine draws them): sparkle / poof / gem / coin / heart are centred in
+// their frame, splash is bottom-aligned, dust has its ground line on row 8 (frame centre).
 G.defineArt('items', G => {
   'use strict';
   const P = G.PAL;
@@ -327,12 +330,14 @@ G.defineArt('items', G => {
     }
     if (edge) outline(b, edge);
   }
+  // The engine draws the dust frame with its vertical centre on the feet line, so the puff
+  // is born on rows 5-9 (ground line = row 8), swells, then lifts off and thins out.
   const DUSTC = [BR[3], BR[4], BR[5]];
   const dust = [
-    [[5, 11, 5], [8, 12, 4]],
-    [[2, 8, 6], [6, 9, 7], [10, 11, 5]],
-    [[0, 5, 6], [5, 6, 6], [10, 9, 5], [4, 11, 4]],
-    [[1, 4, 2], [6, 3, 4], [12, 7, 2], [4, 9, 2], [10, 2, 2]],
+    [[5, 5, 5], [8, 6, 4]],
+    [[2, 3, 6], [6, 3, 7], [10, 5, 5]],
+    [[0, 1, 6], [5, 1, 6], [10, 3, 5], [4, 6, 4]],
+    [[1, 1, 2], [6, 0, 4], [12, 3, 2], [4, 5, 2], [10, 0, 2]],
   ].map(l => { const b = B(16, 16); puffs(b, l, DUSTC); return out(b); });
 
   // =================================================================== POOF
@@ -834,8 +839,9 @@ G.defineArt('items', G => {
         if (d < bd) { bd = d; br = a[2] + (c[2] - a[2]) * u; ox = dx; oy = dy; ba = ARC[i] + Math.sqrt(l2) * u; tx = ex; ty = ey; }
       }
       if (Math.sqrt(bd) > br) return false;
-      // lit from above-left, the underside falls into shade
-      TL[y * LW + x] = -(0.447 * ox + 0.894 * oy) / br; TA[y * LW + x] = ba; TQ[y * LW + x] = (tx * oy - ty * ox) / Math.hypot(tx, ty);
+      // lit from above under the word (the underside falls into shade), swinging round to the left on the plume
+      const tt = Math.max(0, Math.min(1, (ba - 185) / 30));
+      TL[y * LW + x] = -((0.447 + 0.4 * tt) * ox + (0.894 - 0.37 * tt) * oy) / br; TA[y * LW + x] = ba; TQ[y * LW + x] = (tx * oy - ty * ox) / Math.hypot(tx, ty);
       return true;
     });
 
