@@ -336,10 +336,94 @@ G.defineArt('player', G => {
       [RUN_TORSO, 0, b], [LEG[i]], [HEAD, 2, 1 + b], [ARM[ARM_SEQ[i]], 0, b]));
   }
 
+  // ---------------------------------------------------------------- HEAD variants
+  const FACE = HEAD.slice(10);            // head rows 10..18 (eyes, muzzle, chin) shared by every profile head
+  // Ears swept flat along the skull (rising jump): starts at head row 4.
+  const HEAD_SWEPT = [3,
+    '.....kk......kk',
+    '....kDDk....kDDk',
+    '....kDddkk..kDdrkk',
+    '.....kdOqOkk.kdrrrkk',
+    '......kOOqpOkkkrrrOOkkk',
+    '.......kkOqqOyYYyyOOOOrk',
+    '.........kyYYyOKKKOOKKrk',
+  ].concat(FACE);
+
+  // ---------------------------------------------------------------- JUMP
+  const J0_TAIL = [19,
+    '.........kkk',
+    '........kOOOk',
+    '.......kOyOOOk',
+    '......kOyyOOOk',
+    '.....kOyyOOOOk',
+    '....kOyyOOOOrk',
+    '...kOyyOOOOrrk',
+    '...kOyOOOOrrk',
+    '..kcOOOOOrrk',
+    '..kccOOOrrk',
+    '..kwccccsk',
+    '...kwwcsk',
+    '....kkkk',
+  ];
+  const J0_RIBBON = [15,
+    '.........ggg',
+    '........gTTtg',
+    '.......gTTtg',
+    '......gtTtg',
+    '.....ghTtg',
+    '.....gTtg',
+    '....gTtg',
+    '....ggg',
+  ];
+  const J0_TORSO = [14,
+    '............gggggggggggg',
+    '............ThhTTTTttttg',
+    '...........gtTTttTTTtttg',
+    '.............kyyOOcwwck',
+    '.............kOyOOcwwwck',
+    '............kOOyOOccwwck',
+    '............kOOOOrccwcsk',
+    '...........kOOOOOrcccsk',
+    '...........krOOOOOrcsk',
+    '...........krrOOOOOkk',
+    '............kkkkkkk',
+  ];
+  const J0_LEG_NEAR = [22,
+    '.................kOOOOkk',
+    '.................kOyOOOOk',
+    '................kkrOOOOOk',
+    '...............kddkrrOOk',
+    '...............kdbdkkkk',
+    '...............kddbbdk',
+    '................kDdbbdk',
+    '.................kDDDDk',
+    '..................kkkk',
+  ];
+  const J0_LEG_FAR = [23,
+    '..........kOOOk',
+    '.........kOOOk',
+    '.........kOOOk',
+    '........kOOOk',
+    '........kdddk',
+    '.......kdbddk',
+    '.......kdbbdk',
+    '.......kDDDk',
+    '........kkk',
+  ];
+  const J0_ARM = [15,
+    '.......................kkk',
+    '......................kbbdk',
+    '.................oooookdddk',
+    '...............kyyyOOOokkk',
+    '................oOOOooo',
+    '.................ooo',
+  ];
+  const jump0 = frame([J0_TAIL], [J0_RIBBON], [J0_LEG_FAR, 0, 0, FAR], [J0_TORSO], [J0_LEG_NEAR], [HEAD_SWEPT, 2, -3], [J0_ARM]);
+
   const m = idle[0];
   return {
     idle, run,
-    jump: [m, m], fall: [m, m], skid: [m], hurt: [m], duck: [m],
+    jump: [jump0, jump0], fall: [m, m], skid: [m], hurt: [m], duck: [m],
     win: [m, m], icon: G.copy(m, 16, 16, -8, -3),
   };
 });
