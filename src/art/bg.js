@@ -45,6 +45,29 @@ G.defineArt('bg', G => {
   // 2x2 ordered-dither thresholds: 25% = sparse dots, 50% = checker, 75% = inverse dots.
   const M2 = [0.125, 0.625, 0.875, 0.375];
   const d2 = (x, y) => M2[(x & 1) | ((y & 1) << 1)];
+  // Melt same-colour specks smaller than minB px (4-connected, x wraps) into whatever surrounds
+  // them most — every cluster that survives is a deliberate one. 0 = empty, never touched.
+  function melt(buf, w, h, minB, passes) {
+    for (let pass = 0; pass < (passes || 2); pass++) {
+      const lab = new Uint8Array(w * h);
+      for (let s0 = 0; s0 < buf.length; s0++) {
+        if (!buf[s0] || lab[s0]) continue;
+        const c = buf[s0], comp = [s0], cnt = {};
+        lab[s0] = 1;
+        for (let k = 0; k < comp.length && comp.length < 4096; k++) {
+          const i = comp[k], x = i % w, y = (i / w) | 0;
+          for (const j of [y * w + ((x + w - 1) % w), y * w + ((x + 1) % w), y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) {
+            if (j < 0 || !buf[j]) continue;
+            if (buf[j] === c) { if (!lab[j]) { lab[j] = 1; comp.push(j); } } else cnt[buf[j]] = (cnt[buf[j]] || 0) + 1;
+          }
+        }
+        if (comp.length >= minB) continue;
+        let best = 0, bn = 0;
+        for (const k in cnt) if (cnt[k] > bn) { bn = cnt[k]; best = +k; }
+        if (best) for (const i of comp) buf[i] = best;
+      }
+    }
+  }
 
   // Vertical colour ramp: flat bands joined by 6-row ordered transitions (25/50/75%).
   const TR = [0.25, 0.25, 0.5, 0.5, 0.75, 0.75];
@@ -608,51 +631,72 @@ G.defineArt('bg', G => {
   const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
   const d4 = (x, y) => (B4[(x & 3) | ((y & 3) << 2)] + 0.5) / 16;
 
-  // Leaf masses. clumps: [cx, cy, rx, ry, group, set] in painter's order (later = nearer);
-  // sets[set] = tones [rim, rim2, body, shade, deep]. Graphic shading: a 1px light rim (plus a
-  // softer second row) on every exposed upper-left edge, a flat body, a shade crescent on the
-  // lower right, and a cast shadow under whatever clump is nearer. Wraps seamlessly.
+  // Leaf masses. clumps: {x, y, rx, ry, g (group), set, sh?} in painter's order (later = nearer);
+  // sets[set] = tones [rim, rim2, body, shade, deep]. Graphic shading: a light rim on every exposed
+  // edge that faces the light (2px where it faces it squarely, tapering out), a flat body, a
+  // shade crescent on the lower right, and a cast shadow under whatever clump is nearer.
   function foliage(L, clumps, sets) {
     const W = L.w, pad = 96, bw = W + pad * 2, bh = L.h, all = [];
-    clumps.forEach((c, i) => { for (const s of [-W, 0, W]) if (c[0] + s + c[2] >= -pad && c[0] + s - c[2] < W + pad) all.push([c[0] + s, c[1], c[2], c[3], c[4], c[5], i]); });
-    all.sort((a, b) => a[6] - b[6]);
+    clumps.forEach((c, i) => { for (const s of [-W, 0, W]) if (c.x + s + c.rx >= -pad && c.x + s - c.rx < W + pad) all.push(Object.assign({}, c, { x: c.x + s, o: i })); });
+    all.sort((a, b) => a.o - b.o);
     const own = new Int16Array(bw * bh).fill(-1);
-    const ins = (i, x, y) => { const c = all[i], dx = (x + 0.5 - c[0]) / c[2], dy = (y + 0.5 - c[1]) / c[3]; return dx * dx + dy * dy <= 1; };
+    const ins = (i, x, y) => { const c = all[i], dx = (x + 0.5 - c.x) / c.rx, dy = (y + 0.5 - c.y) / c.ry; return dx * dx + dy * dy <= 1; };
     all.forEach((c, i) => {
-      for (let y = Math.max(0, Math.floor(c[1] - c[3])); y <= Math.min(bh - 1, Math.ceil(c[1] + c[3])); y++)
-        for (let x = Math.max(-pad, Math.floor(c[0] - c[2])); x <= Math.min(W + pad - 1, Math.ceil(c[0] + c[2])); x++) if (ins(i, x, y)) own[y * bw + x + pad] = i;
+      for (let y = Math.max(0, Math.floor(c.y - c.ry)); y <= Math.min(bh - 1, Math.ceil(c.y + c.ry)); y++)
+        for (let x = Math.max(-pad, Math.floor(c.x - c.rx)); x <= Math.min(W + pad - 1, Math.ceil(c.x + c.rx)); x++) if (ins(i, x, y)) own[y * bw + x + pad] = i;
     });
     const at = (x, y) => (y < 0 || y >= bh || x < -pad || x >= W + pad ? -1 : own[y * bw + x + pad]);
+    const out = new Uint8Array(W * bh);
     for (let y = 0; y < bh; y++) for (let x = 0; x < W; x++) {
       const i = at(x, y);
       if (i < 0) continue;
-      const c = all[i], sh = clamp(Math.round(c[3] * 0.3), 2, 7);
+      const c = all[i], sh = c.sh || clamp(Math.round(c.ry * 0.3), 2, 7);
       const shade = !ins(i, x + sh * 0.5, y + sh);
       let cast = false;
-      for (let k = 1; k <= 4 && !cast; k++) { const j = at(x - Math.round(k * 0.6), y - k); cast = j > i && k <= clamp(Math.round(all[j][3] * 0.2), 2, 4); }
+      for (let k = 1; k <= 4 && !cast; k++) { const j = at(x - Math.round(k * 0.6), y - k); cast = j > i && k <= clamp(Math.round(all[j].ry * 0.2), 2, 4); }
+      // how squarely the edge here faces the light
+      let nx = (x + 0.5 - c.x) / (c.rx * c.rx), ny = (y + 0.5 - c.y) / (c.ry * c.ry);
+      const nl = Math.hypot(nx, ny) || 1, lit = (nx * -0.5 + ny * -0.866) / nl;
       const a = at(x - 1, y - 1), b = at(x - 1, y - 2);
       let t = 2;
-      if (!ins(i, x - 1, y - 1)) t = a > i ? 3 : a < 0 || all[a][4] !== c[4] ? 0 : 1;
-      else if (!ins(i, x - 1, y - 2) && !(b > i)) t = b < 0 || all[b][4] !== c[4] ? 1 : 2;
+      if (!ins(i, x - 1, y - 1) && a <= i) {
+        const outer = a < 0 || all[a].g !== c.g;
+        t = lit > 0.55 ? (outer ? 0 : 1) : lit > 0.2 && outer ? 1 : shade ? 3 : 2;
+      } else if (!ins(i, x - 1, y - 1)) t = 3;
+      else if (!ins(i, x - 1, y - 2) && b <= i && lit > 0.62 && (b < 0 || all[b].g !== c.g)) t = 1;
       else if (cast) t = shade ? 4 : 3;
       else if (shade) t = 3;
-      L.set(x, y, sets[c[5]][t]);
+      out[y * W + x] = sets[c.set][t];
     }
+    melt(out, W, bh, 5, 2);
+    for (let i = 0; i < out.length; i++) if (out[i]) L.d[i] = out[i];
   }
-  // A tree crown: dome [cx, top, rx, ry] with leafy bumps tucked behind its upper rim (they only
-  // break up the silhouette) and a few inner clumps in front of its lower half.
-  function crown(list, g, set, cx, top, rx, ry, q) {
-    const cy = top + ry, n = Math.max(4, Math.round(rx / 5.5));
-    for (let i = 0; i < n; i++) {
-      const a = Math.PI * (1.1 - 1.2 * ((i + 0.5 + (q() - 0.5) * 0.5) / n)), rb = clamp((0.16 + 0.2 * q()) * rx, 3.5, 11);
-      list.push([cx + Math.cos(a) * (rx - rb * 0.3), cy - Math.sin(a) * (ry - rb * 0.3), rb * 1.2, rb, g, set]);
-    }
-    list.push([cx, cy, rx, ry, g, set]);
-    const m = rx > 34 ? 3 : 2;
-    for (let i = 0; i < m; i++) {
-      const u = (i + 0.5) / m - 0.5 + (q() - 0.5) * 0.2, rr = rx * (0.36 + 0.14 * q());
-      list.push([cx + u * rx * 1.5, cy + ry * (0.2 + 0.3 * q()), rr, rr * 0.62, g, set]);
-    }
+  // A tree crown [cx, top, rx, ry]: a main dome with a lit left and a shaded right shoulder, each
+  // with small leafy bumps tucked behind its upper rim (they only break up the silhouette), and
+  // a lit clump riding the terminator.
+  function crown(list, g, set, dark, cx, top, rx, ry, q, simple) {
+    const cy = top + ry;
+    const lobe = (x, y, a, b, s, sh) => {
+      const n = Math.max(3, Math.round(a / 5));
+      for (let i = 0; i < n; i++) {
+        const ang = Math.PI * (1.12 - 1.24 * ((i + 0.5 + (q() - 0.5) * 0.6) / n)), rb = 4 + q() * 5, bs = ang < 0.9 ? dark : s;
+        const bx = x + Math.cos(ang) * (a - rb * 0.15), by = y - Math.sin(ang) * (b - rb * 0.15);
+        if (q() < 0.5) { const a2 = ang + (q() - 0.5) * 1.2, rt = 2.4 + q() * 1.2; list.push({ x: bx + Math.cos(a2) * rb * 0.9, y: by - Math.sin(a2) * rb * 0.8, rx: rt * 1.2, ry: rt, g, set: bs }); }
+        list.push({ x: bx, y: by, rx: rb * 1.15, ry: rb, g, set: bs });
+      }
+      list.push({ x, y, rx: a, ry: b, g, set: s, sh });
+      // a few leaf clusters on its face
+      if (simple) return;
+      for (let m = Math.round((a * b) / (s === dark ? 420 : 210)); m > 0; m--) {
+        const r = 4.5 + q() * 5, u = -0.62 + q() * 1.1, v = -0.3 + q() * 0.85;
+        if (u * u + v * v < 0.72) list.push({ x: x + u * a, y: y + v * b, rx: r * 1.3, ry: r * 0.8, g, set: s });
+      }
+    };
+    if (simple) return lobe(cx, cy, rx, ry, set);
+    lobe(cx + (q() - 0.5) * rx * 0.2, cy, rx * 0.74, ry, set, Math.round(ry * 0.55));
+    lobe(cx - rx * 0.52, cy + ry * (0.15 + q() * 0.25), rx * 0.48, ry * (0.6 + q() * 0.14), set);
+    lobe(cx + rx * 0.5, cy + ry * (0.2 + q() * 0.3), rx * 0.5, ry * (0.58 + q() * 0.14), dark);
+    list.push({ x: cx - rx * (0.05 + q() * 0.2), y: cy + ry * 0.4, rx: rx * 0.3, ry: rx * 0.19, g, set });
   }
 
   // Palm fronds per crown shape: [start angle, length factor, bend (deg, toward the ground;
@@ -661,7 +705,7 @@ G.defineArt('bg', G => {
     arch: [[200, 0.75, 45, 0], [-20, 0.75, 45, 0], [165, 1, 75, 1], [15, 1, 75, 1], [128, 1, 85, 2], [52, 1, 85, 2], [98, 0.6, 45, 2], [76, 0.55, 50, 1]],
     droop: [[195, 0.8, 60, 0], [-15, 0.8, 60, 0], [158, 1, 100, 1], [22, 1, 100, 1], [122, 0.95, 118, 2], [58, 0.95, 118, 2], [92, 0.5, 60, 2]],
     wind: [[168, 0.5, -30, 0], [142, 0.8, -70, 1], [112, 0.9, -80, 2], [84, 1, 70, 2], [52, 1.1, 55, 2], [24, 1.15, 40, 1], [-8, 0.9, 35, 0]],
-    fan: [[190, 0.6, 25, 0], [-10, 0.6, 25, 0], [162, 0.9, 30, 1], [18, 0.9, 30, 1], [138, 1, 26, 2], [42, 1, 26, 2], [112, 1, 18, 2], [68, 1, 18, 2], [90, 0.9, 0, 2]],
+    fan: [[186, 0.7, 35, 0], [-6, 0.7, 35, 0], [156, 0.95, 45, 1], [24, 0.95, 45, 1], [126, 1, 40, 2], [54, 1, 40, 2], [92, 0.85, 12, 2]],
   };
   function frond(L, x0, y0, a0, len, bend, cs, cl, R) {
     const sign = a0 > 90 && a0 < 270 ? 1 : -1, lmax = Math.max(2, R * 0.2);
@@ -695,49 +739,52 @@ G.defineArt('bg', G => {
 
   function makeJungle() {
     const L = layer(768, 128), TAU = Math.PI * 2;
-    const SETS = { A: [JA[0], JA[1], JA[1], JA[2], JA[2]], H: [J[3], J[3], J[3], J[4], J[4]], B: J, C: [J[1], J[2], J[3], J[4], J[4]] };
-    const PN = { tl: C('#a9c1b4'), td: C('#5c838c'), f: [[J[2], J[3]], [J[1], J[2]], [J[0], J[1]]] };
-    const PF = { tl: C('#b9d2c6'), td: C('#7ea4a8'), f: [[JA[1], JA[2]], [JA[0], JA[1]], [JA[0], JA[1]]] };
+    const SETS = { A: [JA[0], JA[1], JA[1], JA[2], JA[2]], H: [J[3], J[3], J[3], J[4], J[4]], B: J, S: [J[2], J[3], J[3], J[4], J[4]] };
+    const PN = { tl: C('#8eaca4'), td: C('#527882'), f: [[J[2], J[3]], [J[1], J[2]], [J[0], J[1]]] };
+    const PF = { tl: C('#a3bfb6'), td: C('#6e969c'), f: [[JA[2], C('#68a6a6')], [JA[1], JA[2]], [JA[1], JA[2]]] };
     const back = x => 51 + 4 * Math.sin((x / 768) * TAU * 3 + 1) + 2 * Math.sin((x / 768) * TAU * 7);
     const q = rng(77);
     // far treeline (hazier, flatter)
     for (let x = 0; x < 768; x++) L.col(x, Math.round(back(x)) + 5, L.h - 1, JA[2]);
     const rowA = [];
-    for (let i = 0; i < 34; i++) {
-      const cx = (i + 0.5 + (q() - 0.5) * 0.5) * (768 / 34), rx = 10 + q() * 10;
-      crown(rowA, i, 'A', cx, back(cx) - 2 + q() * 5, rx, rx * 0.62, q);
+    for (let i = 0; i < 30; i++) {
+      const cx = (i + 0.5 + (q() - 0.5) * 0.5) * (768 / 30), rx = 11 + q() * 10;
+      crown(rowA, i, 'A', 'A', cx, back(cx) - 2 + q() * 5, rx, rx * 0.62, q, true);
     }
     foliage(L, rowA, SETS);
-    // palms: [x, base y, height, lean, frond radius, shape, flip, far?]
+    // palms: [x, base y, height, lean, frond radius, shape, flip, far?] — two tall heroes, small clusters
     for (const [x, y, h, lean, R, kind, flip, far] of [
-      [116, 70, 56, 7, 19, 'arch', 0, 0], [516, 68, 50, -6, 18, 'wind', 1, 0],
-      [252, 70, 34, -4, 13, 'droop', 0, 0], [270, 72, 26, 3, 10, 'fan', 0, 1], [288, 72, 38, 6, 13, 'wind', 0, 0],
-      [402, 66, 24, -3, 10, 'arch', 1, 1], [420, 66, 36, 4, 13, 'fan', 0, 0],
-      [640, 72, 30, -4, 11, 'arch', 0, 1], [660, 72, 42, 5, 14, 'droop', 0, 0], [684, 72, 28, 5, 10, 'wind', 0, 1],
-      [18, 70, 28, -3, 10, 'fan', 0, 1], [36, 70, 38, 5, 13, 'arch', 1, 0],
+      [116, 72, 60, 7, 21, 'arch', 0, 0], [508, 72, 54, -6, 20, 'wind', 1, 0],
+      [226, 74, 30, -4, 11, 'droop', 0, 1], [246, 74, 42, 3, 14, 'arch', 1, 0], [262, 74, 24, 4, 9, 'fan', 0, 1],
+      [322, 72, 28, -3, 10, 'wind', 1, 1], [344, 72, 40, 5, 13, 'droop', 0, 0],
+      [600, 76, 44, 5, 15, 'fan', 0, 0], [668, 76, 34, -5, 12, 'wind', 0, 0], [690, 76, 26, 3, 9, 'droop', 0, 1],
+      [748, 72, 36, 4, 12, 'arch', 0, 0], [764, 72, 26, -3, 9, 'fan', 1, 1],
     ]) palm(L, x, y, h, lean, R, kind, far ? PF : PN, flip);
     // dark hollows behind the main crowns
     const hol = x => back(x) + 13 + 2 * Math.sin((x / 768) * TAU * 11);
     for (let x = 0; x < 768; x++) L.col(x, Math.round(hol(x)) + 4, L.h - 1, J[4]);
     const rowH = [];
-    for (let i = 0; i < 26; i++) { const cx = (i + 0.5 + (q() - 0.5) * 0.4) * (768 / 26), rx = 13 + q() * 8; rowH.push([cx, hol(cx) + rx * 0.5, rx, rx * 0.6, i, 'H']); }
+    for (let i = 0; i < 26; i++) { const cx = (i + 0.5 + (q() - 0.5) * 0.4) * (768 / 26), rx = 13 + q() * 8; rowH.push({ x: cx, y: hol(cx) + rx * 0.5, rx, ry: rx * 0.6, g: i, set: 'H' }); }
     foliage(L, rowH, SETS);
     // main crowns [cx, top, rx, ry], taller ones behind
     const rowB = [];
     [[34, 52, 40, 24], [98, 42, 26, 20], [150, 44, 44, 28], [214, 58, 24, 16], [268, 62, 40, 20], [334, 56, 28, 20],
       [396, 42, 46, 30], [462, 36, 26, 22], [516, 48, 38, 24], [580, 60, 26, 16], [640, 64, 44, 20], [716, 54, 36, 24]]
-      .map((c, i) => [c, i]).sort((a, b) => a[0][1] - b[0][1]).forEach(([c, i]) => crown(rowB, 100 + i, 'B', c[0], c[1], c[2], c[3], q));
+      .map((c, i) => [c, i]).sort((a, b) => a[0][1] - b[0][1]).forEach(([c, i]) => crown(rowB, 100 + i, 'B', 'S', c[0], c[1], c[2], c[3], q));
     foliage(L, rowB, SETS);
-    // nearer, darker understory mounds
+    // nearer, darker understory, then everything sinks into one quiet tone
+    const und = x => 80 + 3 * Math.sin((x / 768) * TAU * 5 + 2);
+    for (let x = 0; x < 768; x++) L.col(x, Math.round(und(x)) + 6, L.h - 1, J[4]);
     const rowC = [];
-    [[14, 74, 52, 20], [108, 78, 46, 18], [196, 72, 56, 22], [300, 80, 50, 18], [398, 74, 54, 20], [492, 78, 48, 18], [588, 72, 56, 22], [690, 78, 50, 18]]
-      .forEach((c, i) => crown(rowC, 200 + i, 'C', c[0], c[1], c[2], c[3], q));
+    for (let i = 0; i < 20; i++) {
+      const cx = (i + 0.5 + (q() - 0.5) * 0.5) * (768 / 20), rx = 20 + q() * 12;
+      crown(rowC, 200 + i, 'S', 'S', cx, und(cx) - 5 + q() * 6, rx, rx * 0.5, q);
+    }
     foliage(L, rowC, SETS);
-    // ...and everything sinks into one quiet dark tone
-    const FADE = [1, 2, 4, 6, 8, 10, 12, 14];
-    for (let y = 82; y < L.h; y++) {
-      const k = (y - 82) >> 1, f = k < FADE.length ? FADE[k] / 16 : 1;
-      for (let x = 0; x < L.w; x++) if (L.d[y * L.w + x] && f > d4(x, y)) L.d[y * L.w + x] = J[4];
+    const FADE = [3, 6, 10, 13];
+    for (let x = 0; x < L.w; x++) {
+      const y0 = Math.round(89 + 2.5 * Math.sin((x / 768) * TAU * 9) + 1.5 * Math.sin((x / 768) * TAU * 23 + 2));
+      for (let y = y0; y < L.h; y++) { const k = y - y0, f = k < FADE.length ? FADE[k] / 16 : 1; if (L.d[y * L.w + x] && f > d4(x, y)) L.d[y * L.w + x] = J[4]; }
     }
     return L;
   }

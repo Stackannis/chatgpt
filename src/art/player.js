@@ -349,20 +349,21 @@ G.defineArt('player', G => {
   };
   const EYES_WIDE = {                     // small pupils, lots of white: looking down, alarmed
     10: '........kyyyyOKwwwKOKwKrk',
-    12: '........kyyOOKwwKKKOwKKOOk',
-    13: '........kOOOOKwwKKKOwKKwcckk',
+    11: '........kyyyOKwwwwKOwwKrk',
+    12: '........kyyOOKwwwKKOwKKOOk',
+    13: '........kOOOOKwwwKKOwKKwcckk',
   };
   const HEAD_JUMP = patch(HEAD, Object.assign({ 15: '.....kwwccrrOccKKKcccKcccck' }, EYES_UP, MOUTH_OPEN));
   const HEAD_FALL = patch(HEAD, Object.assign({}, EYES_WIDE, MOUTH_OPEN, { 16: '......kkwwccccccccccccKook', 17: '.......kkkk.......cssccck' }));
   // Ears swept flat along the skull (rising jump): replaces head rows 3..9.
   const sweep = head => [3,
-    '.........kkk',
-    '...kkk..kDdrkkk',
-    '..kDDdkkkkdrrrrkkk',
-    '..kDddOOOOkkkrrrOOkkkk',
-    '...kkdOqqqOOOkkkOOOOOOk',
-    '.....kkOOqqpOyYYyyOOOOrk',
-    '.......kkkyYYyOKKKOOKKrk',
+    '.....kkk.....kkk',
+    '....kDDdkk..kDDrkk',
+    '....kDdOOOkkkDdrrrkk',
+    '.....kdOqqOOkkkdrrrrkkk',
+    '......kkOqppOkkkkrOOOOOk',
+    '........kkOqqOYYyyOOOOrk',
+    '.........kyYYyOKKKOOKKrk',
   ].concat(head.slice(10));
   const HEAD_SWEPT = sweep(HEAD_JUMP);
   const FARLEG = { Y: 'y', y: 'O', O: 'r', r: 'o', b: 'd' };          // far leg: darker fur, boot one step darker
@@ -436,7 +437,7 @@ G.defineArt('player', G => {
   ];
   const jump0 = frame([J0_TAIL], [J0_RIBBON], [J0_LEG_FAR, 0, 0, FARLEG], [J0_TORSO], [TUCK_LEG], [HEAD_SWEPT, 2, -3], [J0_ARM]);
 
-  const J1_TAIL = [19,
+  const J1_TAIL = [18,
     '....kkkkk',
     '..kkOyyyOkk',
     '.kOyyyOOOOOkk',
@@ -460,13 +461,30 @@ G.defineArt('player', G => {
     '..........gtTTttTTTtttg',
     '............kyyOOcwwck',
     '............kOyOOcwwwck',
-    '...........kOrrrrsscwck',
+    '...........kOOOOrccwwck',
     '...........kOOOOOrcccsk',
     '...........krOOOOOrcsk',
     '............krrOOOOkk',
     '.............kkkkkk',
   ];
-  const jump1 = frame([J1_TAIL], [J1_RIBBON], [TUCK_LEG, -6, 1, FARLEG], [J1_TORSO], [TUCK_LEG, -1, 0], [HEAD_SWEPT, 1, -2], [J0_ARM, -1, 1]);
+  const J1_LEG_FAR = [23,
+    '...........kOOk',
+    '..........kOOOk',
+    '.......kkkOOOk',
+    '......kdddOOk',
+    '......kdbbdkk',
+    '......kDDDk',
+    '.......kkk',
+  ];
+  const J1_ARM = [18,
+    '.............yyO',
+    '.............OOOo',
+    '..............oOOo',
+    '..............okbbdk',
+    '...............kdddk',
+    '................kkk',
+  ];
+  const jump1 = frame([J1_TAIL], [J1_RIBBON], [J1_LEG_FAR, 0, 0, FARLEG], [J1_TORSO], [TUCK_LEG, -1, 0], [HEAD_SWEPT, 1, -2], [J1_ARM]);
 
   // ---------------------------------------------------------------- FALL (0 = just past the apex, 1 = fast fall)
   const F0_TAIL = [12,
@@ -509,10 +527,11 @@ G.defineArt('player', G => {
     '.................kOOOk',
     '.................kOOOOk',
     '..................kOOOOk',
-    '...................kdddkkk',
-    '...................kdbbbddk',
-    '...................kDDDDDDk',
-    '....................kkkkkk',
+    '...................kdddk',
+    '...................kdbbdkk',
+    '....................kdbbddk',
+    '.....................kDDDDk',
+    '......................kkkk',
   ];
   const F0_LEG_FAR = [24,
     '...........kOOOk',
@@ -523,15 +542,24 @@ G.defineArt('player', G => {
     '......kDDDk',
     '.......kkk',
   ];
-  const F_ARM = [16,                     // forearm raised, paw up beside the chin
+  const F_ARM_BACK = [17,                // near arm thrown up and back
+    '........kkk',
+    '.......kbbdk',
+    '.......kdddk',
+    '........kkOOyy',
+    '..........kOOOO',
+    '...........kkk',
+  ];
+  const F_ARM_FRONT = [16,               // far arm up in front, paw beside the chin
     '.......................kkk',
     '......................kbbdk',
     '......................kdddk',
     '......................kOOk',
-    '..............yyyOOOOOOOOk',
-    '..............OOOOOOrrrkk',
+    '....................kkOOOk',
+    '....................kOOOkk',
+    '.....................kkk',
   ];
-  const fall0 = frame([F0_TAIL], [F0_RIBBON], [F0_LEG_FAR, 0, 0, FARLEG], [F0_TORSO], [F0_LEG_NEAR], [HEAD_FALL, 1, 0], [F_ARM]);
+  const fall0 = frame([F0_TAIL], [F0_RIBBON], [F_ARM_FRONT, 0, 0, FAR], [F0_LEG_FAR, 0, 0, FARLEG], [F0_TORSO], [F0_LEG_NEAR], [HEAD_FALL, 1, 0], [F_ARM_BACK]);
 
   const F1_TAIL = [4,
     '..kk',
@@ -580,25 +608,27 @@ G.defineArt('player', G => {
     '............krrOOOrssk',
     '.............kkkkkkkk',
   ];
-  const F1_LEG_NEAR = [25,
+  const F1_LEG_NEAR = [24,
     '.................kOOOk',
-    '..................kOOOk',
-    '...................kOOOk',
-    '...................kdddkk',
-    '...................kdbbbddk',
-    '...................kDDDDDDk',
-    '....................kkkkkk',
+    '.................kOOOOkk',
+    '..................kkOOOOk',
+    '....................kdddk',
+    '....................kdbddk',
+    '.....................kdbbdk',
+    '......................kDDDk',
+    '.......................kkk',
   ];
-  const F1_LEG_FAR = [25,
-    '..........kOOOk',
-    '.........kOOOk',
-    '........kOOOk',
-    '.......kdddk',
-    '......kdbbddk',
-    '......kDDDDDk',
-    '.......kkkkk',
+  const F1_LEG_FAR = [24,
+    '...........kOOOk',
+    '.........kkOOOOk',
+    '........kOOOOkk',
+    '........kdddk',
+    '.......kddbdk',
+    '......kdbbdk',
+    '......kDDDk',
+    '.......kkk',
   ];
-  const fall1 = frame([F1_TAIL], [F1_RIBBON], [F1_LEG_FAR, 0, 0, FARLEG], [F1_TORSO], [F1_LEG_NEAR], [HEAD_FALL, 1, 2], [F_ARM, 0, 2]);
+  const fall1 = frame([F1_TAIL], [F1_RIBBON], [F_ARM_FRONT, 0, 2, FAR], [F1_LEG_FAR, 0, 0, FARLEG], [F1_TORSO], [F1_LEG_NEAR], [HEAD_FALL, 1, 2], [F_ARM_BACK, 0, 2]);
 
   const m = idle[0];
   return {

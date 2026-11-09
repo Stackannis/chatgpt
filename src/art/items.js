@@ -723,7 +723,7 @@ G.defineArt('items', G => {
   // with a 2px bevel -> 2px ink outline -> 4px extruded block shadow. A rising sun crowns the
   // dip in the middle of the word and Kit's tail sweeps underneath as a swash.
   const logo = (function () {
-    const LW = 224, LH = 78;
+    const LW = 244, LH = 80;                        // the word (not the tail plume) is centred on the canvas
     const MK = (w, h, f) => {
       const m = { w, h, d: new Uint8Array(w * h) };
       if (f) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (f(x, y)) m.d[y * w + x] = 1;
@@ -740,8 +740,8 @@ G.defineArt('items', G => {
     const ero = (m, se) => MK(m.w, m.h, (x, y) => se.every(o => on(m, x + o[0], y + o[1])));
     const each = f => { for (let y = 0; y < LH; y++) for (let x = 0; x < LW; x++) f(x, y); };
 
-    // ---- letter shapes (local coords, pixel centres), T = stem width
-    const T = 10;
+    // ---- letter shapes (local coords, pixel centres), T = stem width, DG = diagonal width
+    const T = 10, DG = 11;
     // true inside the r x r corner square at (cx, cy) but outside its quarter circle; (sx, sy) points into the shape
     const cut = (cx, cy, r, sx, sy) => (x, y) => {
       const u = (x + .5 - cx) * sx, v = (y + .5 - cy) * sy;
@@ -755,13 +755,13 @@ G.defineArt('items', G => {
     const GLY = {
       S: (W, H) => { const m0 = (H >> 1) - 4, m1 = m0 + 8; return not([rrect(T, 9, W + 20, m0, 4), rrect(-20, m1, W - T, H - 9, 4), cut(0, 0, 12, 1, 1), cut(0, m1, 12, 1, -1), cut(W, m0, 12, -1, 1), cut(W, H, 12, -1, -1)]); },
       U: (W, H) => not([rrect(T, -20, W - T, H - 9, (W - 2 * T) / 2), cut(0, H, 13, 1, -1), cut(W, H, 13, -1, -1)]),
-      N: (W, H) => (x, y) => x < T || x >= W - T || (x >= (y >> 1) && x < (y >> 1) + 12),
+      N: (W, H) => (x, y) => x < T || x >= W - T || (x >= (y >> 1) && x < (y >> 1) + DG),
       F: (W, H) => (x, y) => x < T || y < 9 || (y >= 15 && y < 23 && x < W - 5),
       O: (W, H) => { const a = rrect(0, 0, W, H, 13), c = rrect(T, 9, W - T, H - 9, (W - 2 * T) / 2); return (x, y) => a(x, y) && !c(x, y); },
-      X: (W, H) => (x, y) => { const a = y >> 1; return (x >= a && x < a + 12) || (x >= W - 12 - a && x < W - a); },
+      X: (W, H) => (x, y) => { const a = y >> 1; return (x >= a && x < a + DG) || (x >= W - DG - a && x < W - a); },
     };
-    const WORD = [['S', 29, 42], ['U', 29, 39], ['N', 29, 36], ['F', 25, 36], ['O', 30, 39], ['X', 32, 42]];
-    const GAP = [4, 4, 4, 3, 3], X0 = 14, YB = 61, PD = 4;
+    const WORD = [['S', 29, 42], ['U', 29, 39], ['N', 29, 36], ['F', 25, 36], ['O', 30, 39], ['X', 31, 42]];
+    const GAP = [4, 4, 4, 3, 3], X0 = 26, YB = 61, PD = 4;
     const FACE = MK(LW, LH), LID = new Int8Array(LW * LH).fill(-1);
     let gx = X0;
     WORD.forEach((g, i) => {
@@ -778,56 +778,67 @@ G.defineArt('items', G => {
     const depth = (x, y) => { for (let k = 1; k <= 4; k++) if (on(OUT, x - k, y - k)) return k; return 0; };
     const EXT = MK(LW, LH, (x, y) => !on(OUT, x, y) && depth(x, y) > 0);
 
-    // ---- sun: disc + detached triangular rays
-    const SX = 111, SY = 42, SR = 27;
-    const DISC = MK(LW, LH, (x, y) => (x + .5 - SX) * (x + .5 - SX) + (y + .5 - SY) * (y + .5 - SY) <= SR * SR);
-    const RAYS = [[90, 13], [75, 9], [105, 9], [60, 13], [120, 13], [45, 9], [135, 9]];   // [angle, length]
-    const rayAt = (x, y) => {                       // 0 none, 1 lit half, 2 shaded half
+    // ---- sun: disc crowned with triangular rays, only the cap above the N / F dip is kept
+    const SX = X0 + 97, SY = 42, SR = 27, SCLIP = 27;
+    const inDisc = (x, y) => (x + .5 - SX) * (x + .5 - SX) + (y + .5 - SY) * (y + .5 - SY) <= SR * SR;
+    const RAYS = [[90, 12], [75, 8], [105, 8], [60, 12], [120, 12], [45, 9], [135, 9]];   // [angle, length]
+    const inRay = (x, y) => {
       const px = x + .5 - SX, py = y + .5 - SY;
-      for (const r of RAYS) {
+      return RAYS.some(r => {
         const ux = Math.cos(r[0] * Math.PI / 180), uy = -Math.sin(r[0] * Math.PI / 180);
-        const along = px * ux + py * uy - (SR + 2), across = -px * uy + py * ux;
-        if (along < 0 || along > r[1] || Math.abs(across) > 3.5 * (1 - along / r[1])) continue;
-        return across * (uy - ux) > 0 ? 1 : 2;
-      }
-      return 0;
+        const along = px * ux + py * uy - (SR - 1), across = -px * uy + py * ux;
+        return along >= 0 && along <= r[1] - 1.2 && Math.abs(across) <= 5 * (1 - along / r[1]);
+      });
     };
-    const SUN = MK(LW, LH, (x, y) => on(DISC, x, y) || rayAt(x, y) > 0);
+    const SUN = MK(LW, LH, (x, y) => y < SCLIP && (inDisc(x, y) || inRay(x, y)));
 
-    // ---- tail swash: column spans around a centre line
-    const curve = pts => x => {
-      for (let i = 0; i < pts.length - 1; i++) {
-        const a = pts[i], c = pts[i + 1];
-        if (x >= a[0] && x <= c[0]) return a[1] + (c[1] - a[1]) * (1 - Math.cos((x - a[0]) / (c[0] - a[0]) * Math.PI)) / 2;
+    // ---- tail: a tapering tube around a Catmull-Rom centre line [x, y, radius]. It slips out from
+    // under the X, runs below the word and curls up into a bushy cream-tipped plume left of the S.
+    const TP = [[218, 52, 2.5], [209, 60, 2.5], [200, 68.5, 3], [178, 72.5, 3.2], [140, 73.8, 3.6], [90, 74, 4], [46, 73.5, 4.8],
+      [25, 69.5, 6.5], [14.5, 58, 9], [11.5, 45, 8.5], [11.5, 34, 5.5], [14, 25.5, 1.2], [16, 21, 0.5]];
+    const TS = [], ARC = [0];
+    for (let i = 1; i < TP.length - 2; i++) for (let k = 0; k < 16; k++) {
+      const t = k / 16, p0 = TP[i - 1], p1 = TP[i], p2 = TP[i + 1], p3 = TP[i + 2];
+      TS.push([0, 1, 2].map(j => 0.5 * (2 * p1[j] + (p2[j] - p0[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t * t + (3 * p1[j] - p0[j] - 3 * p2[j] + p3[j]) * t * t * t)));
+    }
+    for (let i = 1; i < TS.length; i++) ARC.push(ARC[i - 1] + Math.hypot(TS[i][0] - TS[i - 1][0], TS[i][1] - TS[i - 1][1]));
+    // fur tufts: [arc position, length, depth] notches in the outer (lower / left) edge, points toward the tip
+    const TUFTS = [[96, 9, 1.6], [136, 9, 1.6], [172, 9, 1.8], [199, 7, 1.8], [210, 7, 1.8]];
+    const tuft = a => { for (const q of TUFTS) if (a >= q[0] && a < q[0] + q[1]) return q[2] * (1 - (a - q[0]) / q[1]); return 0; };
+    const TL = new Float32Array(LW * LH), TA = new Float32Array(LW * LH), TQ = new Float32Array(LW * LH);   // light term across the tube, arc position, signed offset across
+    const TAIL = MK(LW, LH, (x, y) => {
+      const px = x + .5, py = y + .5;
+      let bd = 1e9, br = 0, ox = 0, oy = 0, ba = 0, tx = 0, ty = 0;
+      for (let i = 0; i < TS.length - 1; i++) {
+        const a = TS[i], c = TS[i + 1], ex = c[0] - a[0], ey = c[1] - a[1], l2 = ex * ex + ey * ey;
+        let u = ((px - a[0]) * ex + (py - a[1]) * ey) / l2; u = u < 0 ? 0 : u > 1 ? 1 : u;
+        const dx = px - a[0] - ex * u, dy = py - a[1] - ey * u, d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; br = a[2] + (c[2] - a[2]) * u; ox = dx; oy = dy; ba = ARC[i] + Math.sqrt(l2) * u; tx = ex; ty = ey; }
       }
-      return null;
-    };
-    const tyc = curve([[4, 63], [30, 68.5], [110, 70.5], [190, 68], [210, 64]]);
-    const thk = curve([[4, 0.5], [16, 3.5], [60, 6], [120, 5.5], [190, 3.5], [210, 2.5]]);
-    const span = x => {
-      const c = tyc(x); if (c === null) return null;
-      const h = thk(x); let bot = Math.round(c + h);
-      if (x >= 34 && x <= 186) bot -= [2, 2, 1, 1, 0, 0, 0, 0, 0, 0][(186 - x) % 10];
-      return [Math.round(c - h), bot];
-    };
-    const TAIL = MK(LW, LH, (x, y) => { const s = span(x); return !!s && y >= s[0] && y < s[1]; });
+      if (Math.sqrt(bd) > br - (tx * oy - ty * ox < 0 ? tuft(ba) : 0)) return false;
+      TL[y * LW + x] = -(ox + oy) / br * Math.SQRT1_2; TA[y * LW + x] = ba; TQ[y * LW + x] = (tx * oy - ty * ox) / Math.hypot(tx, ty);
+      return true;
+    });
 
     // ---- paint, back to front
     const b = B(LW, LH);
     const inkAround = m => { const g = dil(m, CROSS); each((x, y) => { if (on(g, x, y)) S(b, x, y, INK); }); };
+    // 1px bevel classes of a mask: 1 lit edge, 2 shaded edge, 0 elsewhere
+    const edge = (m, x, y) => (!on(m, x - 1, y) || !on(m, x, y - 1)) ? ((!on(m, x + 1, y) || !on(m, x, y + 1)) ? 0 : 1) : ((!on(m, x + 1, y) || !on(m, x, y + 1)) ? 2 : 0);
     inkAround(SUN);
     each((x, y) => {
-      if (on(DISC, x, y)) {
-        const px = x + .5 - SX, py = y + .5 - SY, d = Math.hypot(px, py), l = -(px + py) / d * Math.SQRT1_2;
-        S(b, x, y, d > SR - 2 ? (l > 0.35 ? GO[3] : l < -0.1 ? OR[3] : GO[2]) : GO[2]);
-      } else { const r = rayAt(x, y); if (r) S(b, x, y, r === 1 ? GO[2] : OR[3]); }
+      if (!on(SUN, x, y)) return;
+      const e = edge(SUN, x, y);
+      if (inDisc(x, y)) S(b, x, y, e === 1 ? WHT : Math.hypot(x + .5 - SX, y + .5 - SY) > SR - 3 ? GO[3] : GO[2]);
+      else S(b, x, y, e === 1 ? GO[2] : e === 2 ? OR[2] : OR[3]);
     });
     inkAround(TAIL);
     each((x, y) => {
       if (!on(TAIL, x, y)) return;
-      const s = span(x), t = (y - s[0]) / (s[1] - s[0]);
-      if (x < 30 + [4, 2, 0, 2][y & 3]) S(b, x, y, t < 0.6 ? WHT : BR[5]);
-      else S(b, x, y, t < 0.4 ? OR[3] : t < 0.75 ? OR[2] : OR[1]);
+      const l = TL[y * LW + x];
+      const z = TQ[y * LW + x] / 5 + 0.25, zig = Math.abs(z - Math.floor(z) - 0.5) * 2;     // 5px wide teeth across the tail
+      if (TA[y * LW + x] > 217 + 4 * zig) S(b, x, y, l > 0 ? WHT : l < -0.45 ? BR[4] : BR[5]);
+      else S(b, x, y, l > 0.25 ? OR[3] : l < -0.3 ? OR[1] : OR[2]);
     });
     inkAround(EXT);
     each((x, y) => {
@@ -855,6 +866,13 @@ G.defineArt('items', G => {
       else if (ring === 2) c = l > 0.3 ? bi - 1 : l < -0.3 ? bi + 1 : bi;
       S(b, x, y, RAMP[c]);
     });
+    // plug enclosed see-through specks (letter counters, pinholes between the outlines)
+    const seen = new Uint8Array(LW * LH), stack = [];
+    const push = (x, y) => { if (x >= 0 && y >= 0 && x < LW && y < LH && !seen[y * LW + x] && !b.d[y * LW + x]) { seen[y * LW + x] = 1; stack.push(x, y); } };
+    const flood = (x, y) => { const got = []; push(x, y); while (stack.length) { const cy = stack.pop(), cx = stack.pop(); got.push(cy * LW + cx); push(cx + 1, cy); push(cx - 1, cy); push(cx, cy + 1); push(cx, cy - 1); } return got; };
+    for (let x = 0; x < LW; x++) { flood(x, 0); flood(x, LH - 1); }
+    for (let y = 0; y < LH; y++) { flood(0, y); flood(LW - 1, y); }
+    each((x, y) => { const g = flood(x, y); if (g.length && g.length <= 40) g.forEach(k => { b.d[k] = g.length <= 3 ? INK : BL[0]; }); });
     return out(b);
   })();
 
