@@ -45,7 +45,26 @@
       return;
     }
     if (Array.isArray(v)) { v.forEach((x, i) => walk(path + '[' + i + ']', x && x.img ? x.img : x)); return; }
+    if (/\.font$/.test(path)) return fontDemo(path, v);
     if (typeof v === 'object') for (const k in v) walk(path + '.' + k, v[k]);
+  }
+
+  // Bitmap font: shown as real text lines (all glyphs + HUD-like samples) instead of one row per glyph.
+  function fontDemo(path, F) {
+    const LINES = ['0123456789 x042 x3', 'ABCDEFGHIJKLM', 'NOPQRSTUVWXYZ', "!?:.,-'x+/", 'EMERALD COAST  ACT 1', 'PRESS ENTER  LEVEL CLEAR!', 'TIME 1:07  SUN SHARDS x86', 'GAME OVER  PAUSE  TAP TO START'];
+    const missing = [];
+    const line = (str, s, bg) => {
+      let w = 0; for (const ch of str) w += ch === ' ' ? 6 : (F[ch] ? F[ch].width : 8);
+      const c = G.cv(w + 4, 12); c.ctx.fillStyle = bg; c.ctx.fillRect(0, 0, c.width, c.height);
+      let x = 2;
+      for (const ch of str) { if (ch === ' ') { x += 6; continue; } const g = F[ch]; if (!g) { if (!missing.includes(ch)) missing.push(ch); x += 8; continue; } c.ctx.drawImage(g, x, 2); x += g.width; }
+      return scaled(c, s);
+    };
+    const r = row(path + '  [bitmap font, ' + Object.keys(F).length + ' glyphs]  sample lines @4x on sky, then @2x on dark dirt, @1x on sky');
+    LINES.forEach(l => r.appendChild(line(l, 4, BG)));
+    LINES.forEach(l => r.appendChild(line(l, 2, '#5a2a2a')));
+    LINES.forEach(l => r.appendChild(line(l, 1, BG)));
+    if (missing.length) out.insertAdjacentHTML('beforeend', '<div class="err">font is missing glyphs: ' + missing.join(' ') + '</div>');
   }
 
   function demoGrid() {

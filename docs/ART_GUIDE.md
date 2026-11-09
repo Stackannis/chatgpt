@@ -61,6 +61,19 @@ Then open the PNG with the Read tool and critique it honestly against the bar ab
 canvas in your module (arrays = animation frames side by side), on sky-blue, on dark green at 2x and at 1x.
 `terrain` and `bg` sheets also show an in-engine composite. Fix any error the tool prints.
 
+See your work **inside the real game** too (the engine and the level exist):
+
+```
+node tools/shot.js play <worldX> 50 <tag>   # -> shots/play-<tag>.png, hero teleported to worldX (3x zoom)
+node tools/shot.js title                    # -> shots/title.png (title screen with the logo)
+node tools/contract.js                      # checks names / frame counts / sizes of every module
+```
+
+Always pass your own module name in `<tag>` (e.g. `bg-a`, `bg-b`) so parallel workers do not overwrite each
+other's screenshots. Useful places (worldX): 480 start hills + prize blocks + first enemy · 1040 first
+plateau, floating island, spiky enemy · 2000 high road islands + flying enemy · 2500 cliff top before a
+waterfall pit · 3600 stair cliffs · 3900 ruins plateau · 4100 the big slide · 4400 goal gate.
+
 ## Asset contract (exact names, sizes, alignment — the engine depends on these)
 
 All character/object frames face **right** unless stated; engine flips. "Bottom-aligned" = the thing
@@ -121,6 +134,10 @@ Slightly lower contrast than gameplay objects; thin or no ink outline (use dark 
   Atmospheric perspective: far = pale, bluish, low contrast; near = more saturated/darker. No outlines.
   The bottom ~1/3 of the screen is usually covered by foreground terrain; the top 2/3 is the showcase.
   Keep overall bg contrast clearly below gameplay sprites.
+  Optional line-scroll: give a layer `raster: k` (k > 1, e.g. 2.5) and the engine draws it in 2px strips whose
+  scroll speed grows from `speed` (top row) to `speed*k` (bottom row) — the Mega Drive trick that gives a sea
+  fake perspective. Only use it on layers that still look right when their rows slide against each other
+  (water, glitter, flat plains), never on layers with vertical structure (islands, trees, clouds).
 
 ### `player` — `src/art/player.js` → `G.art.player`
 All frames **32x32**, facing right, feet on the bottom row, body centred on x≈16. Hitbox is 12x24.

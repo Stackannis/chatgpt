@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 // In-game screenshots.
-//   node tools/shot.js play 600 [frames]   -> shots/play-600.png  (player teleported to world x=600, 3x)
+//   node tools/shot.js play 600 [frames] [tag]  -> shots/play-600.png or shots/play-<tag>.png (hero teleported to world x=600, 3x)
 //   node tools/shot.js title               -> shots/title.png
 //   node tools/shot.js overview            -> shots/overview-N.png (whole level in strips)
 const path = require('path');
 const { chromium } = require('playwright');
 (async () => {
-  const [mode = 'play', a = '100', b = '30'] = process.argv.slice(2);
+  const [mode = 'play', a = '100', b = '30', tag = ''] = process.argv.slice(2);
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1200, height: 700 } });
   page.on('pageerror', e => console.log('[pageerror]', e.message));
@@ -30,7 +30,7 @@ const { chromium } = require('playwright');
       await snap('overview-' + i + '.png', `(()=>{const c=G.debug.overview(${x},1152);return c.toDataURL()})()`);
   } else {
     await page.evaluate(`G.debug.start(); G.debug.teleport(${+a}); G.debug.step(${+b});`);
-    await snap('play-' + a + '.png', up(3));
+    await snap('play-' + (tag || a) + '.png', up(3));
   }
   await browser.close();
 })();
