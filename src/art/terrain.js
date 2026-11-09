@@ -102,11 +102,9 @@ G.defineArt('terrain', G => {
       'lmmsd',
       '.sdo.',
     ];
-    stamp(c, cobA, 24, 6, sp);
-    stamp(c, cobC, 37, 11, sp);
-    stamp(c, cobB, 50, 37, sp);
-    stamp(c, cobC, 9, 24, sp);
-    stamp(c, cobB, 13, 53, sp);
+    stamp(c, cobB, 26, 8, sp);
+    stamp(c, cobC, 53, 40, sp);
+    stamp(c, cobC, 8, 55, sp);
     return c;
   }
   const dirt = makeDirt({ slab: ['#c47a3c', '#b96d38', '#cc8742'], hi: BR[4], hi2: '#d8944c', sh: '#a9602f', seam: BR[2], cast: '#73372b' }, true);
@@ -149,7 +147,7 @@ G.defineArt('terrain', G => {
       for (let y = F + 1; y <= K; y++) g[y][x] = (y === K || y > F + 2) ? 1 : 2;
     }
     // a few blade tips poking above the tufts: [x, y, value]
-    const BLADES = [[10, 4, 4], [11, 3, 5], [41, 4, 4], [40, 3, 5], [44, 5, 5], [60, 4, 4], [61, 3, 5], [61, 2, 5], [24, 4, 5], [25, 3, 5]];
+    const BLADES = [[10, 4, 4], [11, 3, 5], [41, 4, 4], [40, 3, 5], [60, 4, 4], [61, 3, 5], [61, 2, 5], [21, 4, 4], [22, 3, 5], [22, 2, 5]];
     for (const [x, y, v] of BLADES) g[y][x] = v;
     const at = (x, y) => (y < 0 || y > 23 ? -1 : g[y][mod(x, 64)]);
     for (let y = 0; y < 24; y++) for (let x = 0; x < 64; x++) {
@@ -171,25 +169,25 @@ G.defineArt('terrain', G => {
     '........',
     '........',
     '........',
-    '........',
-    '........',
-    '......hh',
+    '.....h..',
+    '....hh..',
     '...hhhhh',
     '..hhhhhl',
-    '.hhhllll',
-    '.hhlllll',
-    'hhllllll',
-    'hlllllgg',
-    'hllllggg',
-    'hlllgggg',
-    'lllgggmm',
-    'mlgggmmd',
-    'omggmmdd',
-    '.omgmddo',
-    '..ommdos',
-    '...odoss',
-    '....osss',
-    '......s.',
+    '.hhhhlll',
+    'hhhhllll',
+    'hhhlllll',
+    'hhllllgg',
+    '.hlllggg',
+    '.mlggggg',
+    'hhlggggm',
+    'hllgggmm',
+    'hlgggmmd',
+    'mlggmmdd',
+    'omgmmddo',
+    '.ommddos',
+    '..oddoss',
+    '...ooss.',
+    '.....s..',
     '........',
   ], gp);
   const grassEndR = px([
@@ -197,25 +195,25 @@ G.defineArt('terrain', G => {
     '........',
     '........',
     '........',
-    '........',
-    '........',
-    'hh......',
+    '..h.....',
+    '..hh....',
     'hhhhl...',
-    'hhllllg.',
-    'lllllggm',
+    'hhhlllg.',
+    'hllllggm',
     'llllgggm',
     'lllggggm',
-    'llgggggm',
-    'lgggggmm',
-    'ggggggmd',
-    'gggggmmd',
-    'mgggmmdd',
-    'dmmmmddo',
-    'odmmddo.',
-    'sodddo..',
-    'ssooo...',
-    'sss.....',
-    '.s......',
+    'llgggggd',
+    'lggggmd.',
+    'gggggdd.',
+    'ggggmmmd',
+    'gggmmmdd',
+    'mggmmddo',
+    'dmmmdddo',
+    'odmdddo.',
+    'soddoo..',
+    'ssoo....',
+    '.ss.....',
+    '........',
     '........',
   ], gp);
 
@@ -240,8 +238,6 @@ G.defineArt('terrain', G => {
           if (last) col = i === 1 ? BR[4] : '#a9602f';
           dot(c, i, y, col);
         }
-        dot(c, t + 1, y, LITE);
-        if (t >= 2) dot(c, t + 2, y, LITE);
       } else {
         // shadow side: ink outline, dark rim, shade creeping over the strata
         dot(c, 7, y, P.ink);
@@ -254,7 +250,6 @@ G.defineArt('terrain', G => {
         }
         dot(c, 6 - t, y, DARK2);
         dot(c, 5 - t, y, DARK1);
-        if (t >= 2) dot(c, 4 - t, y, DARK1);
       }
     }
     return c;
@@ -278,139 +273,137 @@ G.defineArt('terrain', G => {
       }
       dot(c, x, 6 - t, DARK2);
       dot(c, x, 5 - t, DARK1);
-      if (t >= 2) dot(c, x, 4 - t, DARK1);
     }
     return c;
   }
   const under = makeUnder();
 
   // ------------------------------------------------------------------
-  // ONE-WAY PLATFORM (wooden plank bridge)
+  // ONE-WAY PLATFORM — vine-wrapped log (surface = row 0, 9px thick)
+  // Vines/leaves sit in the inner halves so a 1-tile platform (left half
+  // of `l` + right half of `r`) is a clean stub.
   // ------------------------------------------------------------------
+  const E16 = '................';
   const platform = {
     l: px([
-      '.kkkkkkkkkkkkkkk',
-      'k55wv55k5555554k',
-      'k44wv44k4444443k',
-      'k33wv33k3333332k',
-      'k33wv33k3332232k',
-      'k33vv33k3333332k',
-      'k22vu22k2222221k',
-      '.kkkkkkkkkkkkkkk',
-      '..k21k..........',
-      '..k21k..........',
-      '...kk...........',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
+      '..kkkkkkkkkkkkkk',
+      '.kw51555ed545555',
+      'kw541444dc344444',
+      'k5441333dc333223',
+      'k53413322dc33333',
+      'k44312222cb12222',
+      'k443122112cb2222',
+      '.k3311111bba1111',
+      '..kkkkkkkkkkkkkk',
+      '..........kdck..',
+      '..........kcbk..',
+      '...........kk...',
+      E16, E16, E16, E16,
     ]),
     m: px([
       'kkkkkkkkkkkkkkkk',
-      '5555554k5555554k',
-      '4444443k4444443k',
-      '3333332k3333332k',
-      '3223332k3332232k',
-      '3333332k3333332k',
-      '2222221k2222221k',
+      '5555554555555455',
+      '4444444443344444',
+      '3322333333332233',
+      '3333332233333333',
+      '2222222222112222',
+      '2221122222222222',
+      '1111111111111111',
       'kkkkkkkkkkkkkkkk',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
+      E16, E16, E16, E16, E16, E16, E16,
     ]),
     r: px([
-      'kkkkkkkkkkkkkkk.',
-      '5555554k55wv554k',
-      '4444443k44wv443k',
-      '3333332k33wv332k',
-      '3223332k33wv332k',
-      '3333332k33vv332k',
-      '2222221k22vu221k',
-      'kkkkkkkkkkkkkkk.',
-      '..........k21k..',
-      '..........k21k..',
-      '...........kk...',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
+      'kkkkkkkkkkkkkk..',
+      '5555ed55555543k.',
+      '4444dc443344432k',
+      '3322dc333333321k',
+      '33333dc23333321k',
+      '22222cb22211211k',
+      '221122cb2222210k',
+      '11111bba111110k.',
+      'kkkkkkkkkkkkkk..',
+      '....kdck........',
+      '....kcbk........',
+      '.....kk.........',
+      E16, E16, E16, E16,
     ]),
   };
 
   // ------------------------------------------------------------------
-  // MOVING PLATFORM — floating carved stone slab with moss (48x16)
+  // MOVING PLATFORM — floating carved sun-stone slab with moss (48x16)
   // ------------------------------------------------------------------
   function makeMoving() {
-    const c = G.cv(48, 16);
-    // slab body
-    R(c, 0, 2, 48, 10, P.ink);
-    R(c, 1, 3, 46, 8, ST[2]);
-    R(c, 1, 3, 46, 2, ST[3]);
-    R(c, 1, 3, 1, 7, ST[4]);
-    R(c, 1, 9, 46, 2, ST[1]);
-    R(c, 46, 4, 1, 7, ST[1]);
-    // rocky underside
-    const under = [[3, 42, 12], [5, 38, 13], [9, 30, 14], [14, 20, 15]];
-    for (const [x, w, y] of under) {
-      R(c, x, y, w, 1, P.ink);
-      if (y < 15) { R(c, x + 1, y, w - 2, 1, ST[0]); R(c, x + 1, y, Math.floor(w / 3), 1, ST[1]); }
+    const c = G.cv(48, 16), k = P.ink;
+    // slab body (rows 2..10)
+    R(c, 1, 2, 46, 1, k); R(c, 0, 3, 48, 7, k); R(c, 1, 10, 46, 1, k);
+    R(c, 1, 3, 46, 7, ST[2]);
+    R(c, 1, 3, 46, 1, ST[4]); R(c, 1, 4, 46, 1, ST[3]);
+    R(c, 1, 8, 46, 2, ST[1]);
+    R(c, 1, 3, 1, 6, ST[4]); R(c, 46, 4, 1, 6, ST[1]);
+    // carved hooks either side of the emblem
+    for (const x of [4, 9, 14]) stamp(c, ['ssss', 's..s', 's.ss'], x, 5, { s: ST[0] });
+    for (const x of [30, 35, 40]) stamp(c, ['ssss', 's..s', 'ss.s'], x, 5, { s: ST[0] });
+    // rocky keel (rows 11..15), stepped, outlined underneath
+    const keel = [[2, 45], [4, 43], [8, 39], [13, 34], [18, 28]];
+    for (let i = 0; i < keel.length; i++) {
+      const [a, b] = keel[i], y = 11 + i, nx = keel[i + 1] || [99, -1];
+      for (let x = a; x <= b; x++) {
+        let col = x < a + 3 ? ST[2] : x > b - (b - a) * 0.45 ? ST[0] : ST[1];
+        if (x === a || x === b || x < nx[0] || x > nx[1]) col = k;
+        R(c, x, y, 1, 1, col);
+      }
     }
-    // carved grooves with end studs + sun inlay
-    for (const x0 of [5, 31]) {
-      R(c, x0, 7, 12, 1, ST[0]); R(c, x0, 8, 12, 1, ST[3]);
-      for (const sx of [x0 - 1, x0 + 11]) { R(c, sx, 6, 2, 3, ST[0]); R(c, sx + 1, 8, 1, 1, ST[3]); R(c, sx, 6, 1, 1, ST[1]); }
-    }
+    // sun emblem
     c.ctx.drawImage(px([
       '..kkkk..',
       '.kJJIIk.',
+      'kJwJIIHk',
       'kJJIIIHk',
       'kJIIIHHk',
-      '.kIHHGk.',
+      'kIIIHHGk',
+      '.kHHGGk.',
       '..kkkk..',
-    ]), 20, 5);
-    // moss cap
-    const moss = [
-      '.eeedeeeedddeeeeddeeeedddeeeeeddeeeedddeeeeddee.',
-      'eedddddddddddddddddddddddddddddddddddddddddddddc',
-      'ddddccdddddccddddddcccdddddccdddddccddddcccddccb',
-      'accccbbcccbbbbcccbbabbcccbbbbccccbbbacccbbbbcbba',
-      '.abbaaabbaa.aabbba..aabbaa..abbbaa...abba.aabaa.',
-      '..aa...aa.....aaa....aaa.....aaa......aa...aa...',
-    ];
-    c.ctx.drawImage(px(moss), 0, 0);
+    ]), 20, 3);
+    // moss cap: per-column fringe depth
+    const FR = '234322345432233454322232232245432234432234543223';
+    if (FR.length !== 48) throw new Error('moving moss length ' + FR.length);
+    for (let x = 0; x < 48; x++) {
+      const B = +FR[x], y0 = x === 0 || x === 47 ? 1 : 0;
+      for (let y = y0; y <= B; y++) {
+        let col = y === 0 ? GR[4] : y === 1 ? GR[3] : y === B ? GR[2] : GM;
+        if (y === 0 && (x % 7 === 3 || x === 1 || x === 46)) col = GR[3];
+        if (y === 1 && x % 5 === 1) col = GR[4];
+        R(c, x, y, 1, 1, col);
+      }
+      R(c, x, B + 1, 1, 1, x === 0 || x === 47 ? k : GR[0]);
+    }
+    R(c, 0, 1, 1, 2, GR[1]); R(c, 47, 1, 1, 2, GR[1]);
     return c;
   }
   const moving = makeMoving();
 
   // ------------------------------------------------------------------
-  // PRIZE BLOCK — golden sun-face block
+  // PRIZE BLOCK — golden sun-emblem block with a sweeping glint
   // ------------------------------------------------------------------
   const blockRows = [
-    'kkkkkkkkkkkkkkkk',
+    '.kkkkkkkkkkkkkk.',
     'kJJJJJJJJJJJJJIk',
-    'kJqqqqqJJqqqqqHk',
-    'kJqJqqqqqqqqJqHk',
-    'kJqqqJJJJJJqqqHk',
-    'kJqqJJJJJJIIqqHk',
-    'kJqqJJ0JJ0IIqqHk',
-    'kJJqJJ0II0IIqIHk',
-    'kJJqJIIIIIIHqIHk',
-    'kJqqIIIooIHHqqHk',
-    'kJqqIIIIIHHHqqHk',
-    'kJqqqIIHHHHqqqHk',
-    'kJqIqqqqqqqqHqHk',
-    'kJqqqqqHHqqqqqHk',
+    'kJIIIIIqqIIIIIHk',
+    'kJIqIIIIIIIIqIHk',
+    'kJIIIIqqqqIIIIHk',
+    'kJIIIqJJJJqIIIHk',
+    'kJIIqJwJJJJqIIHk',
+    'kJqIqJ0JJ0JqIqHk',
+    'kJqIqJ0JJ0JpIqHk',
+    'kJIIqJJJJJJpIIHk',
+    'kJIIIqJ00JpIIIHk',
+    'kJIIIIqpppIIIIHk',
+    'kJIqIIIIIIIIqIHk',
+    'kJIIIIIqqIIIIIHk',
     'kIHHHHHHHHHHHHGk',
-    'kkkkkkkkkkkkkkkk',
+    '.kkkkkkkkkkkkkk.',
   ];
-  const lighter = { I: 'J', H: 'J', J: 'w', q: 'y', G: 'I' };
+  const lighter = { I: 'J', H: 'I', J: 'w', q: 'y', p: 'r', G: 'H' };
   function blockFrame(d) {
     if (d < 0) return px(blockRows);
     return px(blockRows.map((r, y) => r.split('').map((ch, x) => {
@@ -418,79 +411,78 @@ G.defineArt('terrain', G => {
       return (s === d || s === d + 1) && lighter[ch] ? lighter[ch] : ch;
     }).join('')));
   }
-  const block = [blockFrame(-1), blockFrame(6), blockFrame(13), blockFrame(20)];
+  const block = [blockFrame(-1), blockFrame(7), blockFrame(14), blockFrame(21)];
   const blockUsed = px([
-    'kkkkkkkkkkkkkkkk',
-    'k33333333333332k',
+    '.kkkkkkkkkkkkkk.',
+    'k44444444444443k',
+    'k43333311333332k',
+    'k43133333333132k',
+    'k43333111133332k',
+    'k43331222213332k',
+    'k43312222221332k',
+    'k41312222221312k',
+    'k41310022001312k',
+    'k43312222221332k',
+    'k43331200213332k',
+    'k43333111133332k',
+    'k43133333333132k',
+    'k43333311333332k',
     'k32222222222221k',
-    'k32111111111121k',
-    'k32100000000121k',
-    'k32101111110121k',
-    'k32101111110121k',
-    'k32101011010121k',
-    'k32101111110121k',
-    'k32101000010121k',
-    'k32101111110121k',
-    'k32100000000121k',
-    'k32122222222121k',
-    'k22111111111110k',
-    'k11000000000000k',
-    'kkkkkkkkkkkkkkkk',
+    '.kkkkkkkkkkkkkk.',
   ]);
 
   // ------------------------------------------------------------------
   // SPRING — [idle, compressed, extended], 16x24 bottom-aligned
   // ------------------------------------------------------------------
   const sprPad = px([
-    '.kkkkkkkkkkkkkk.',
-    'kUwUUUUUUUUUUUTk',
-    'kTTTTTTTTTTTTTSk',
-    'kSSSSSSSSSSSSSRk',
+    '..kkkkkkkkkkkk..',
+    '.kUwwUUUUUUUTTk.',
+    'kUUTTTTTTTTTTTSk',
+    'kTTTSSSSSSSSSSRk',
+    'kIJJIIIIIIIIHHGk',
     '.kkkkkkkkkkkkkk.',
   ]);
   const sprBase = px([
     '..kkkkkkkkkkkk..',
-    '.kxvvvvvvvvvvuk.',
-    'kvuuuuuuuuuuuutk',
+    '.kxvvvvvvvvuutk.',
     'kkkkkkkkkkkkkkkk',
   ]);
-  const coilA = px(['..kxvvvvvvvvtk..']);
-  const coilB = px(['...kttttttttk...']);
-  const coilC = px(['....kssssssk....']);
+  const coilF1 = px(['..kxxvvvvvvutk..']);
+  const coilF2 = px(['..kvuuuuuuttsk..']);
+  const coilB = px(['....kttttssk....']);
   function makeSpring(padY, pattern) {
     const c = G.cv(16, 24);
-    c.ctx.drawImage(sprBase, 0, 20);
-    let y = padY + 5;
+    c.ctx.drawImage(sprBase, 0, 21);
     let i = 0;
-    while (y < 20) { c.ctx.drawImage(pattern[i % pattern.length], 0, y); y++; i++; }
+    for (let y = padY + 6; y < 21; y++, i++) c.ctx.drawImage(pattern[i % pattern.length], 0, y);
     c.ctx.drawImage(sprPad, 0, padY);
     return c;
   }
   const spring = [
-    makeSpring(7, [coilA, coilB]),
-    makeSpring(13, [coilA, coilB]),
-    makeSpring(0, [coilA, coilB, coilC, coilB, coilC]),
+    makeSpring(8, [coilB, coilF1, coilF2]),
+    makeSpring(13, [coilF1, coilF2]),
+    makeSpring(0, [coilB, coilF1, coilF2, coilB, coilB]),
   ];
 
   // ------------------------------------------------------------------
-  // SPIKES — 16x16, two bone-white stone spikes
+  // SPIKES — 16x16, two steel fangs per tile
   // ------------------------------------------------------------------
   const spikeRows = [
     '........',
     '........',
     '........',
-    '........',
     '...kk...',
-    '...kk...',
+    '..kwtk..',
     '..kxtk..',
     '..kxtk..',
-    '..kxtk..',
-    '.kxvtsk.',
-    '.kxvtsk.',
-    '.kxvtsk.',
+    '.kxvutk.',
+    '.kxvutk.',
+    '.kxvutk.',
+    '.kxvutk.',
+    'kxxvuttk',
+    'kxvvuttk',
     'kxvvutsk',
-    'kxvvutsk',
-    'kvvuttsk',
+    'kvvuutsk',
     'kkkkkkkk',
   ];
   const spikes = px(spikeRows.map(r => r + r));
@@ -499,132 +491,143 @@ G.defineArt('terrain', G => {
   // CHECKPOINT — sun-stone lantern post, 16x32
   // ------------------------------------------------------------------
   const headRows = [
-    '................',
-    '......kkkk......',
-    '....kk1122kk....',
-    '...k11222223k...',
-    '...k12AAAA33k...',
-    '..k12ABBBBA34k..',
-    '..k12ABCCBA34k..',
-    '..k22ABCCBA34k..',
-    '..k23ABBBBA44k..',
-    '...k33AAAA44k...',
-    '...k33344444k...',
-    '....kk4444kk....',
-    '......kkkk......',
+    '.......kk.......',
+    '......k12k......',
+    '......k12k......',
+    '.....k1122k.....',
+    '....k1AAAA3k....',
+    '.kkk1ABBBBA3kkk.',
+    'k1122ABCCBA3334k',
+    'k1222ABCCBA4344k',
+    '.kkk2ABBBBA4kkk.',
+    '....k3AAAA4k....',
+    '.....k3444k.....',
+    '......k34k......',
+    '......k44k......',
+    '.......kk.......',
   ];
   const postRows = [
     '....kkkkkkkk....',
-    '....kxvvvutk....',
-    '....kkkkkkkk....',
-    '.....kxvutk.....',
-    '.....kxvutk.....',
-    '.....kxvutk.....',
-    '.....kvuttk.....',
-    '.....kxvutk.....',
-    '.....kxvutk.....',
-    '.....kxvutk.....',
-    '.....kxvutk.....',
-    '.....kxvutk.....',
-    '.....kxvutk.....',
-    '.....kvuutk.....',
-    '....kkkkkkkk....',
-    '....kxvvvutk....',
-    '...kkkkkkkkkk...',
     '...kxvvvvuutk...',
-    '...kkkkkkkkkk...',
+    '....kkkkkkkk....',
+    '....kxvvuutk....',
+    '....kxvvuutk....',
+    '....kxvvuutk....',
+    '....kvuuttsk....',
+    '....kxvRRutk....',
+    '....kxvRRutk....',
+    '....kxvRRutk....',
+    '....kxvvuutk....',
+    '....kvuuttsk....',
+    '....kxvvuutk....',
+    '....kkkkkkkk....',
+    '...kxvvvvuutk...',
+    '..kkkkkkkkkkkk..',
+    '..kxvvvvvuuttk..',
+    '..kkkkkkkkkkkk..',
   ];
-  const headOff = { k: P.ink, 1: ST[4], 2: ST[3], 3: ST[2], 4: ST[1], A: ST[0], B: ST[1], C: ST[2] };
+  const headOff = { k: P.ink, 1: ST[4], 2: ST[3], 3: ST[2], 4: ST[1], A: ST[1], B: ST[0], C: ST[1] };
+  const GO = P.gold, OR = P.orange;
   const headOn = [
-    { k: P.ink, 1: P.gold[3], 2: P.gold[2], 3: P.gold[1], 4: P.gold[0], A: P.orange[2], B: P.orange[4], C: P.white },
-    { k: P.ink, 1: P.gold[3], 2: P.gold[2], 3: P.gold[1], 4: P.gold[0], A: P.orange[3], B: P.gold[3], C: P.white },
-    { k: P.ink, 1: P.white, 2: P.gold[2], 3: P.gold[1], 4: P.gold[0], A: P.orange[4], B: P.white, C: P.white },
-    { k: P.ink, 1: P.gold[3], 2: P.gold[2], 3: P.gold[1], 4: P.gold[0], A: P.orange[3], B: P.gold[3], C: P.white },
+    { k: P.ink, 1: GO[3], 2: GO[2], 3: GO[1], 4: GO[0], A: OR[2], B: OR[4], C: P.white },
+    { k: P.ink, 1: P.white, 2: GO[3], 3: GO[2], 4: GO[1], A: OR[3], B: P.white, C: P.white },
+    { k: P.ink, 1: GO[3], 2: GO[2], 3: GO[1], 4: GO[0], A: OR[2], B: GO[3], C: P.white },
+    { k: P.ink, 1: P.white, 2: GO[3], 3: GO[2], 4: GO[1], A: OR[3], B: P.white, C: P.white },
   ];
-  const RAYS_CARD = [[7, 0], [8, 0], [0, 6], [0, 7], [1, 6], [1, 7], [14, 6], [14, 7], [15, 6], [15, 7]];
-  const RAYS_DIAG = [[2, 2], [3, 3], [13, 2], [12, 3], [2, 11], [3, 10], [13, 11], [12, 10]];
+  // twinkling diagonal rays around the lit sun: [x, y, tone] relative to the head's 16x14 box
+  const RAYS = [
+    [[3, 3, 2], [12, 3, 2], [3, 10, 2], [12, 10, 2]],
+    [[3, 3, 3], [2, 2, 2], [12, 3, 3], [13, 2, 2], [3, 10, 3], [2, 11, 2], [12, 10, 3], [13, 11, 2]],
+    [[3, 3, 2], [12, 3, 2], [3, 10, 2], [12, 10, 2]],
+    [[3, 3, 3], [2, 2, 3], [1, 1, 2], [12, 3, 3], [13, 2, 3], [14, 1, 2], [3, 10, 3], [2, 11, 2], [12, 10, 3], [13, 11, 2]],
+  ];
+  function drawSun(c, ox, oy, f) {
+    c.ctx.drawImage(px(headRows, f < 0 ? headOff : headOn[f]), ox, oy);
+    if (f >= 0) for (const [x, y, t] of RAYS[f]) R(c, ox + x, oy + y, 1, 1, GO[t]);
+  }
   function makeCheckpoint(f) {
     const c = G.cv(16, 32);
-    c.ctx.drawImage(px(postRows), 0, 13);
-    c.ctx.drawImage(px(headRows, f < 0 ? headOff : headOn[f]), 0, 0);
-    if (f >= 0) {
-      const rays = f % 2 === 0 ? RAYS_CARD : RAYS_DIAG;
-      rays.forEach(([x, y]) => R(c, x, y, 1, 1, f === 2 ? P.gold[3] : P.gold[2]));
-      // warm band on the shaft
-      R(c, 6, 19, 4, 1, P.gold[2]); R(c, 6, 19, 1, 1, P.gold[3]); R(c, 9, 19, 1, 1, P.gold[1]);
-    }
+    c.ctx.drawImage(px(postRows, Object.assign({}, C, { R: f < 0 ? ST[0] : f % 2 ? GO[3] : GO[2] })), 0, 14);
+    drawSun(c, 0, 0, f);
     return c;
   }
   const checkpoint = { off: [makeCheckpoint(-1)], on: [0, 1, 2, 3].map(makeCheckpoint) };
 
   // ------------------------------------------------------------------
-  // GOAL — ancient sun gate, 4 frames 32x48
+  // GOAL — ancient sun gate, 4 frames 32x48 (glyphs charge up, light pours out)
   // ------------------------------------------------------------------
+  const GLYPHS = [
+    ['.ss.', 's..s', 's..s', '.ss.'],
+    ['sss.', '..s.', 's.s.', 'sss.'],
+    ['.ss.', 'ssss', '.ss.', '.ss.'],
+  ];
   function makeGoal(f) {
-    const c = G.cv(32, 48);
-    const k = P.ink;
+    const c = G.cv(32, 48), k = P.ink;
     // portal light
-    const tones = [P.white, P.gold[3], P.gold[2], P.orange[3]];
-    for (let y = 18; y <= 45; y++) {
-      const wob = [0, 0, 1, 1, 1, 0, 0, -1, -1, -1][(y + f * 5) % 10 >> 0] || 0;
-      for (let x = 10; x <= 21; x++) {
-        const d = Math.abs(x - 15.5 + (wob > 0 ? 0.5 : wob < 0 ? -0.5 : 0)) + (wob !== 0 ? 0.5 : 0);
-        R(c, x, y, 1, 1, tones[d < 2 ? 0 : d < 3.6 ? 1 : d < 5 ? 2 : 3]);
+    const tones = [P.white, GO[3], GO[2], OR[3]];
+    const HW = [2, 2, 3, 3, 3, 2, 2, 2, 1, 1, 2, 2];
+    for (let y = 19; y <= 47; y++) {
+      const hw = HW[(y + f * 3) % 12];
+      for (let x = 9; x <= 22; x++) {
+        const i = x < 16 ? 15 - x : x - 16;
+        R(c, x, y, 1, 1, tones[i < hw ? 0 : i < hw + 2 ? 1 : i < 6 ? 2 : 3]);
       }
     }
-    // rising motes
-    const motes = [[12, 40], [18, 34], [14, 27], [19, 22], [11, 30], [16, 44]];
+    R(c, 9, 19, 14, 1, GO[1]);
+    // rising motes of light in the golden flanks
+    const motes = [[10, 44], [20, 40], [10, 31], [20, 26]];
     for (const [mx, my] of motes) {
-      const y = 18 + ((my - 18 - f * 7) % 28 + 28) % 28;
-      R(c, mx, y, 1, 1, P.white);
-      if (y > 18) R(c, mx, y - 1, 1, 1, P.white);
-      if (y < 45) R(c, mx, y + 1, 1, 1, P.gold[2]);
+      const y = 20 + (((my - 20 - f * 7) % 28) + 28) % 28;
+      R(c, mx, y, 1, 2, P.white);
+      if (y < 46) R(c, mx, y + 2, 1, 1, GO[3]);
     }
-    // pillars
-    for (const x0 of [2, 22]) {
-      R(c, x0, 18, 8, 26, k);
-      R(c, x0 + 1, 18, 6, 26, ST[2]);
-      R(c, x0 + 1, 18, 1, 26, ST[4]);
-      R(c, x0 + 2, 18, 1, 26, ST[3]);
-      R(c, x0 + 5, 18, 2, 26, ST[1]);
-      for (const sy of [26, 35]) {
+    // pillars (three bevelled blocks each, glyphs light up from the bottom)
+    for (const x0 of [1, 23]) {
+      const inner = x0 === 1 ? x0 + 6 : x0 + 1;        // face turned to the portal
+      R(c, x0, 19, 8, 25, k);
+      R(c, x0 + 1, 19, 6, 25, ST[2]);
+      R(c, x0 + 1, 19, 1, 25, ST[4]);
+      R(c, x0 + 2, 19, 1, 25, ST[3]);
+      R(c, x0 + 5, 19, 2, 25, ST[1]);
+      R(c, inner, 19, 1, 25, GO[1]);
+      [27, 35].forEach(sy => {
         R(c, x0 + 1, sy, 6, 1, k);
         R(c, x0 + 1, sy - 1, 6, 1, ST[1]);
-        R(c, x0 + 1, sy + 1, 5, 1, ST[3]); R(c, x0 + 1, sy + 1, 2, 1, ST[4]);
-      }
-      // carved glyphs
-      stampC(c, ['ssss', 's..s', 's..s', 'ssss'], x0 + 2, 20);
-      stampC(c, ['.ss.', 'ssss', 'ssss', '.ss.'], x0 + 2, 29);
-      stampC(c, ['s..s', 's..s', 'ssss', '.ss.'], x0 + 2, 38);
+        R(c, x0 + 1, sy + 1, 5, 1, ST[4]);
+      });
+      [22, 30, 38].forEach((gy, gi) => {
+        const lit = f >= 3 - gi;
+        stamp(c, GLYPHS[gi], x0 + 2, gy, { s: lit ? GO[2] : ST[0] });
+        if (lit) stamp(c, GLYPHS[gi], x0 + 2, gy + 1, { s: 'rgba(0,0,0,0)' });
+      });
     }
-    // base plinths + threshold
-    for (const x0 of [0, 20]) {
-      R(c, x0, 44, 12, 4, k);
-      R(c, x0 + 1, 45, 10, 2, ST[2]);
-      R(c, x0 + 1, 45, 10, 1, ST[3]); R(c, x0 + 1, 45, 3, 1, ST[4]);
-      R(c, x0 + 8, 46, 3, 1, ST[1]);
+    // plinths + capitals
+    for (const x0 of [0, 22]) {
+      R(c, x0, 44, 10, 4, k);
+      R(c, x0 + 1, 45, 8, 2, ST[2]);
+      R(c, x0 + 1, 45, 8, 1, ST[3]); R(c, x0 + 1, 45, 2, 1, ST[4]);
+      R(c, x0 + 7, 46, 2, 1, ST[1]);
+      R(c, x0, 19, 10, 3, k);
+      R(c, x0 + 1, 19, 8, 2, ST[2]);
+      R(c, x0 + 1, 19, 8, 1, ST[3]); R(c, x0 + 1, 19, 2, 1, ST[4]);
+      R(c, x0 + 7, 20, 2, 1, ST[1]);
     }
-    R(c, 12, 46, 8, 2, k); R(c, 12, 46, 8, 1, ST[1]);
     // lintel
-    R(c, 0, 10, 32, 8, k);
-    R(c, 1, 11, 30, 6, ST[2]);
-    R(c, 1, 11, 30, 1, ST[4]);
-    R(c, 1, 12, 30, 1, ST[3]);
-    R(c, 1, 16, 30, 1, ST[1]);
-    R(c, 1, 11, 1, 5, ST[4]);
-    R(c, 30, 12, 1, 5, ST[1]);
-    for (let x = 3; x < 28; x += 4) { R(c, x, 13, 2, 2, ST[0]); R(c, x + 1, 14, 1, 1, ST[1]); R(c, x, 15, 2, 1, ST[3]); }
+    R(c, 0, 12, 32, 7, k);
+    R(c, 1, 13, 30, 5, ST[2]);
+    R(c, 1, 13, 30, 1, ST[4]);
+    R(c, 1, 14, 30, 1, ST[3]);
+    R(c, 1, 17, 30, 1, ST[1]);
+    R(c, 1, 13, 1, 4, ST[4]);
+    R(c, 30, 14, 1, 4, ST[1]);
+    for (let x = 3; x < 29; x += 4) stamp(c, ['s.s', '.s.'], x, 15, { s: f === 3 ? GO[2] : ST[0] });
     // sun crown
-    c.ctx.drawImage(px(headRows, headOn[f]), 8, -1);
-    const rays = f % 2 === 0 ? [[15, 0], [16, 0], [8, 5], [9, 5], [8, 6], [9, 6], [22, 5], [23, 5], [22, 6], [23, 6]] : [[10, 1], [11, 2], [21, 1], [20, 2]];
-    rays.forEach(([x, y]) => R(c, x, y, 1, 1, P.gold[2]));
-    // moss
-    c.ctx.drawImage(px(['.eed..', 'edddc.', 'cdccbc', 'abbab.', '.a.a..']), 0, 9);
-    c.ctx.drawImage(px(['..ded.', '.eddcc', 'cdccbb', '.babba', '..a.a.']), 26, 9);
+    drawSun(c, 8, 0, f);
+    // moss draped over the lintel ends + a vine down the right pillar
+    c.ctx.drawImage(px(['.eed....', 'eddde...', 'dddccd..', 'cdccbcc.', 'abcbab..', '.a.ba...', '....a...']), 0, 10);
+    c.ctx.drawImage(px(['....dee.', '..deddde', '.dccdddd', 'ccbccdcc', '.babcbba', '..a.ab.b', '......a.']), 24, 10);
+    stamp(c, ['c.', 'bc', '.c', 'dc', '.b', 'c.', 'cb', '.c', '.cd', '.b', 'c.', 'b.'], 30, 17, { c: GR[2], b: GR[1], d: GR[3] });
     return c;
-  }
-  function stampC(c, rows, x, y) {
-    stamp(c, rows, x, y, { s: ST[0] });
   }
   const goal = [0, 1, 2, 3].map(makeGoal);
 
@@ -633,14 +636,13 @@ G.defineArt('terrain', G => {
   // ------------------------------------------------------------------
   const sign = px([
     '................',
-    '................',
     '.kkkkkkkkkkk....',
     'k55555555554k...',
-    'k433333303334k..',
-    'k4333333003334k.',
-    'k43000000003334k',
-    'k4333333003332k.',
-    'k433333303332k..',
+    'k4333333033334k.',
+    'k43333330033334k',
+    'k43000000003333k',
+    'k43333330033332k',
+    'k4333333033332k.',
     'k22222222222k...',
     '.kkkkkkkkkkk....',
     '......k43k......',
@@ -648,6 +650,7 @@ G.defineArt('terrain', G => {
     '......k32k......',
     '......k32k......',
     '......k32k......',
+    '......k21k......',
   ]);
 
   return {
