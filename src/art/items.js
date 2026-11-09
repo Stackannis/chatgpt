@@ -671,16 +671,192 @@ G.defineArt('items', G => {
   });
 
   // ==================================================================== HUD
+  // Medal slots: coinOn = the star medallion in miniature, coinOff = the empty socket it
+  // drops into (dark recess, shadowed upper-left wall, lit lower-right wall, ghost star).
+  const coinOn = spr([
+    '................',
+    '.....llllyy.....',
+    '....lyyyyyyG....',
+    '...lyyttttyGG...',
+    '..lyttTwwTTTGD..',
+    '..lytTTwwTTTGD..',
+    '.lytwwwwwwwwTGD.',
+    '.lytTwwwwwlTTGD.',
+    '.yytTTwwwlTTMGD.',
+    '.yGtTwwTTwlTMGD.',
+    '..yGTwTTTTlMGD..',
+    '..GGTTTTTMMMGD..',
+    '...GGGMMMMGDD...',
+    '....GGGGGDDD....',
+    '.....GDDDDD.....',
+    '................',
+  ]);
+  const coinOff = spr([
+    '................',
+    '.....SSSSSS.....',
+    '....SkkkkkkS....',
+    '...SkkssssssS...',
+    '..SksssSSssssS..',
+    '..SksssSSsssuS..',
+    '.SksSSSSSSSSsuS.',
+    '.SkssSSSSSSssuS.',
+    '.SksssSSSSsssuS.',
+    '.SkssSSssSSssuS.',
+    '..SssSssssSsuS..',
+    '..SsssssssssuS..',
+    '...SssssssuuS...',
+    '....SuuuuuuS....',
+    '.....SSSSSS.....',
+    '................',
+  ]);
   const hud = {
     heart: px(heartA),
     heartEmpty: px(heartA.map(r => r.replace(/[234wP]/g, '1'))),
     gem: gem[0],
-    coinOn: bigCoin[0],
-    coinOff: bigCoin[0],
+    coinOn,
+    coinOff,
   };
 
   // =================================================================== LOGO
-  const logo = G.cv(220, 72);
+  // "SUNFOX" wordmark built on boolean masks, integer pixels only (nothing is ever blended):
+  // chunky rounded letters (taller S / X bookends on a flat baseline) -> banded gradient face
+  // with a 2px bevel -> 2px ink outline -> 4px extruded block shadow. A rising sun crowns the
+  // dip in the middle of the word and Kit's tail sweeps underneath as a swash.
+  const logo = (function () {
+    const LW = 224, LH = 78;
+    const MK = (w, h, f) => {
+      const m = { w, h, d: new Uint8Array(w * h) };
+      if (f) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (f(x, y)) m.d[y * w + x] = 1;
+      return m;
+    };
+    const on = (m, x, y) => x >= 0 && y >= 0 && x < m.w && y < m.h && m.d[y * m.w + x] === 1;
+    const SE = d => {                               // digital disc of diameter d (structuring element)
+      const o = [], r = d / 2, c = d >> 1;
+      for (let y = 0; y < d; y++) for (let x = 0; x < d; x++) if ((x + .5 - r) * (x + .5 - r) + (y + .5 - r) * (y + .5 - r) <= r * r) o.push([x - c, y - c]);
+      return o;
+    };
+    const CROSS = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+    const dil = (m, se) => MK(m.w, m.h, (x, y) => se.some(o => on(m, x + o[0], y + o[1])));
+    const ero = (m, se) => MK(m.w, m.h, (x, y) => se.every(o => on(m, x + o[0], y + o[1])));
+    const each = f => { for (let y = 0; y < LH; y++) for (let x = 0; x < LW; x++) f(x, y); };
+
+    // ---- letter shapes (local coords, pixel centres), T = stem width
+    const T = 10;
+    // true inside the r x r corner square at (cx, cy) but outside its quarter circle; (sx, sy) points into the shape
+    const cut = (cx, cy, r, sx, sy) => (x, y) => {
+      const u = (x + .5 - cx) * sx, v = (y + .5 - cy) * sy;
+      return u >= 0 && u < r && v >= 0 && v < r && (u - r) * (u - r) + (v - r) * (v - r) > r * r;
+    };
+    const rrect = (x0, y0, x1, y1, r) => {
+      const c = [cut(x0, y0, r, 1, 1), cut(x1, y0, r, -1, 1), cut(x1, y1, r, -1, -1), cut(x0, y1, r, 1, -1)];
+      return (x, y) => x >= x0 && x < x1 && y >= y0 && y < y1 && !c.some(f => f(x, y));
+    };
+    const not = fs => (x, y) => !fs.some(f => f(x, y));
+    const GLY = {
+      S: (W, H) => { const m0 = (H >> 1) - 4, m1 = m0 + 8; return not([rrect(T, 9, W + 20, m0, 4), rrect(-20, m1, W - T, H - 9, 4), cut(0, 0, 12, 1, 1), cut(0, m1, 12, 1, -1), cut(W, m0, 12, -1, 1), cut(W, H, 12, -1, -1)]); },
+      U: (W, H) => not([rrect(T, -20, W - T, H - 9, (W - 2 * T) / 2), cut(0, H, 13, 1, -1), cut(W, H, 13, -1, -1)]),
+      N: (W, H) => (x, y) => x < T || x >= W - T || (x >= (y >> 1) && x < (y >> 1) + 12),
+      F: (W, H) => (x, y) => x < T || y < 9 || (y >= 15 && y < 23 && x < W - 5),
+      O: (W, H) => { const a = rrect(0, 0, W, H, 13), c = rrect(T, 9, W - T, H - 9, (W - 2 * T) / 2); return (x, y) => a(x, y) && !c(x, y); },
+      X: (W, H) => (x, y) => { const a = y >> 1; return (x >= a && x < a + 12) || (x >= W - 12 - a && x < W - a); },
+    };
+    const WORD = [['S', 29, 42], ['U', 29, 39], ['N', 29, 36], ['F', 25, 36], ['O', 30, 39], ['X', 32, 42]];
+    const GAP = [4, 4, 4, 3, 3], X0 = 14, YB = 61, PD = 4;
+    const FACE = MK(LW, LH), LID = new Int8Array(LW * LH).fill(-1);
+    let gx = X0;
+    WORD.forEach((g, i) => {
+      const W = g[1], H = g[2], f = GLY[g[0]](W, H);
+      let m = MK(W + 2 * PD, H + 2 * PD, (x, y) => x >= PD && y >= PD && x < W + PD && y < H + PD && f(x - PD, y - PD));
+      m = dil(ero(m, SE(7)), SE(7));                // round every convex corner (2,1 steps)
+      m = ero(dil(m, SE(5)), SE(5));                // soften the concave ones
+      for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (m.d[y * m.w + x]) {
+        const k = (YB - H + y - PD) * LW + gx + x - PD; FACE.d[k] = 1; LID[k] = i;
+      }
+      gx += W + (GAP[i] || 0);
+    });
+    const OUT = dil(FACE, SE(5));                   // face + 2px outline
+    const depth = (x, y) => { for (let k = 1; k <= 4; k++) if (on(OUT, x - k, y - k)) return k; return 0; };
+    const EXT = MK(LW, LH, (x, y) => !on(OUT, x, y) && depth(x, y) > 0);
+
+    // ---- sun: disc + detached triangular rays
+    const SX = 111, SY = 42, SR = 27;
+    const DISC = MK(LW, LH, (x, y) => (x + .5 - SX) * (x + .5 - SX) + (y + .5 - SY) * (y + .5 - SY) <= SR * SR);
+    const RAYS = [[90, 13], [75, 9], [105, 9], [60, 13], [120, 13], [45, 9], [135, 9]];   // [angle, length]
+    const rayAt = (x, y) => {                       // 0 none, 1 lit half, 2 shaded half
+      const px = x + .5 - SX, py = y + .5 - SY;
+      for (const r of RAYS) {
+        const ux = Math.cos(r[0] * Math.PI / 180), uy = -Math.sin(r[0] * Math.PI / 180);
+        const along = px * ux + py * uy - (SR + 2), across = -px * uy + py * ux;
+        if (along < 0 || along > r[1] || Math.abs(across) > 3.5 * (1 - along / r[1])) continue;
+        return across * (uy - ux) > 0 ? 1 : 2;
+      }
+      return 0;
+    };
+    const SUN = MK(LW, LH, (x, y) => on(DISC, x, y) || rayAt(x, y) > 0);
+
+    // ---- tail swash: column spans around a centre line
+    const curve = pts => x => {
+      for (let i = 0; i < pts.length - 1; i++) {
+        const a = pts[i], c = pts[i + 1];
+        if (x >= a[0] && x <= c[0]) return a[1] + (c[1] - a[1]) * (1 - Math.cos((x - a[0]) / (c[0] - a[0]) * Math.PI)) / 2;
+      }
+      return null;
+    };
+    const tyc = curve([[4, 63], [30, 68.5], [110, 70.5], [190, 68], [210, 64]]);
+    const thk = curve([[4, 0.5], [16, 3.5], [60, 6], [120, 5.5], [190, 3.5], [210, 2.5]]);
+    const span = x => {
+      const c = tyc(x); if (c === null) return null;
+      const h = thk(x); let bot = Math.round(c + h);
+      if (x >= 34 && x <= 186) bot -= [2, 2, 1, 1, 0, 0, 0, 0, 0, 0][(186 - x) % 10];
+      return [Math.round(c - h), bot];
+    };
+    const TAIL = MK(LW, LH, (x, y) => { const s = span(x); return !!s && y >= s[0] && y < s[1]; });
+
+    // ---- paint, back to front
+    const b = B(LW, LH);
+    const inkAround = m => { const g = dil(m, CROSS); each((x, y) => { if (on(g, x, y)) S(b, x, y, INK); }); };
+    inkAround(SUN);
+    each((x, y) => {
+      if (on(DISC, x, y)) {
+        const px = x + .5 - SX, py = y + .5 - SY, d = Math.hypot(px, py), l = -(px + py) / d * Math.SQRT1_2;
+        S(b, x, y, d > SR - 2 ? (l > 0.35 ? GO[3] : l < -0.1 ? OR[3] : GO[2]) : GO[2]);
+      } else { const r = rayAt(x, y); if (r) S(b, x, y, r === 1 ? GO[2] : OR[3]); }
+    });
+    inkAround(TAIL);
+    each((x, y) => {
+      if (!on(TAIL, x, y)) return;
+      const s = span(x), t = (y - s[0]) / (s[1] - s[0]);
+      if (x < 30 + [4, 2, 0, 2][y & 3]) S(b, x, y, t < 0.6 ? WHT : BR[5]);
+      else S(b, x, y, t < 0.4 ? OR[3] : t < 0.75 ? OR[2] : OR[1]);
+    });
+    inkAround(EXT);
+    each((x, y) => {
+      if (on(EXT, x, y)) S(b, x, y, depth(x, y) <= 2 ? BL[1] : BL[0]);
+      else if (on(OUT, x, y)) S(b, x, y, INK);
+    });
+    // faces: banded gradient + bevel (ring 1 / ring 2 lit or shaded by the outward normal)
+    const E1 = ero(FACE, CROSS), E2 = ero(E1, CROSS);
+    const RAMP = [WHT, GO[3], GO[2], OR[3], OR[2], OR[1], OR[0], RD[0]];
+    const BANDS = [[0.26, 1], [0.52, 2], [0.78, 3], [9, 4]];        // [upper bound of v, ramp index]
+    each((x, y) => {
+      if (!on(FACE, x, y)) return;
+      const H = WORD[LID[y * LW + x]][2], v = (y - (YB - H)) / H;
+      const bi = BANDS.find(q => v < q[0])[1];
+      let best = 1e9, nx = 0, ny = 0;               // outward normal = mean direction to the nearest outside pixels
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        if (on(FACE, x + dx, y + dy)) continue;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < best) { best = d2; nx = dx; ny = dy; } else if (d2 === best) { nx += dx; ny += dy; }
+      }
+      const l = -(nx + ny) / (Math.hypot(nx, ny) || 1) * Math.SQRT1_2;
+      const ring = !on(E1, x, y) ? 1 : !on(E2, x, y) ? 2 : 0;
+      let c = bi;
+      if (ring === 1) c = l > 0.3 ? 0 : l < -0.3 ? bi + 2 : bi;
+      else if (ring === 2) c = l > 0.3 ? bi - 1 : l < -0.3 ? bi + 1 : bi;
+      S(b, x, y, RAMP[c]);
+    });
+    return out(b);
+  })();
 
   return { gem, bigCoin, heart, sparkle, dust, poof, splash, hud, font, logo };
 });

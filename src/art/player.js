@@ -337,19 +337,37 @@ G.defineArt('player', G => {
   }
 
   // ---------------------------------------------------------------- HEAD variants
-  const FACE = HEAD.slice(10);            // head rows 10..18 (eyes, muzzle, chin) shared by every profile head
-  // Ears swept flat along the skull (rising jump): starts at head row 4.
-  const HEAD_SWEPT = [3,
-    '.....kk......kk',
-    '....kDDk....kDDk',
-    '....kDddkk..kDdrkk',
-    '.....kdOqOkk.kdrrrkk',
-    '......kOOqpOkkkrrrOOkkk',
-    '.......kkOqqOyYYyyOOOOrk',
-    '.........kyYYyOKKKOOKKrk',
-  ].concat(FACE);
+  // Expressions are patches of the master head (canvas rows of the unshifted head).
+  const MOUTH_OPEN = {                    // lower jaw dropped, tongue showing
+    16: '......kkwwccccccccccccKqqk',
+    17: '.......kkkk.......cssccpk',
+    18: '..................kkkkkk',
+  };
+  const EYES_UP = {                       // pupils high: looking where he jumps
+    11: '........kyyyOKwwwKKOwKKrk',
+    13: '........kOOOOKwwwwKOwwKwcckk',
+  };
+  const EYES_WIDE = {                     // small pupils, lots of white: looking down, alarmed
+    10: '........kyyyyOKwwwKOKwKrk',
+    12: '........kyyOOKwwKKKOwKKOOk',
+    13: '........kOOOOKwwKKKOwKKwcckk',
+  };
+  const HEAD_JUMP = patch(HEAD, Object.assign({ 15: '.....kwwccrrOccKKKcccKcccck' }, EYES_UP, MOUTH_OPEN));
+  const HEAD_FALL = patch(HEAD, Object.assign({}, EYES_WIDE, MOUTH_OPEN, { 16: '......kkwwccccccccccccKook', 17: '.......kkkk.......cssccck' }));
+  // Ears swept flat along the skull (rising jump): replaces head rows 3..9.
+  const sweep = head => [3,
+    '.........kkk',
+    '...kkk..kDdrkkk',
+    '..kDDdkkkkdrrrrkkk',
+    '..kDddOOOOkkkrrrOOkkkk',
+    '...kkdOqqqOOOkkkOOOOOOk',
+    '.....kkOOqqpOyYYyyOOOOrk',
+    '.......kkkyYYyOKKKOOKKrk',
+  ].concat(head.slice(10));
+  const HEAD_SWEPT = sweep(HEAD_JUMP);
+  const FARLEG = { Y: 'y', y: 'O', O: 'r', r: 'o', b: 'd' };          // far leg: darker fur, boot one step darker
 
-  // ---------------------------------------------------------------- JUMP
+  // ---------------------------------------------------------------- JUMP (0 = fast rise, 1 = near the apex)
   const J0_TAIL = [19,
     '.........kkk',
     '........kOOOk',
@@ -381,14 +399,14 @@ G.defineArt('player', G => {
     '...........gtTTttTTTtttg',
     '.............kyyOOcwwck',
     '.............kOyOOcwwwck',
-    '............kOOyOOccwwck',
+    '............kOrrrrsscwck',
     '............kOOOOrccwcsk',
     '...........kOOOOOrcccsk',
     '...........krOOOOOrcsk',
     '...........krrOOOOOkk',
     '............kkkkkkk',
   ];
-  const J0_LEG_NEAR = [22,
+  const TUCK_LEG = [22,
     '.................kOOOOkk',
     '.................kOyOOOOk',
     '................kkrOOOOOk',
@@ -400,30 +418,192 @@ G.defineArt('player', G => {
     '..................kkkk',
   ];
   const J0_LEG_FAR = [23,
+    '...........kOOk',
+    '..........kOOOk',
     '..........kOOOk',
     '.........kOOOk',
-    '.........kOOOk',
-    '........kOOOk',
-    '........kdddk',
-    '.......kdbddk',
-    '.......kdbbdk',
-    '.......kDDDk',
-    '........kkk',
+    '.........kdddk',
+    '........kdbddk',
+    '........kdbbdk',
+    '........kDDDk',
+    '.........kkk',
   ];
   const J0_ARM = [15,
     '.......................kkk',
     '......................kbbdk',
-    '.................oooookdddk',
-    '...............kyyyOOOokkk',
-    '................oOOOooo',
-    '.................ooo',
+    '..............yyyOOOOOkdddk',
+    '..............OOOOOOrrokkk',
   ];
-  const jump0 = frame([J0_TAIL], [J0_RIBBON], [J0_LEG_FAR, 0, 0, FAR], [J0_TORSO], [J0_LEG_NEAR], [HEAD_SWEPT, 2, -3], [J0_ARM]);
+  const jump0 = frame([J0_TAIL], [J0_RIBBON], [J0_LEG_FAR, 0, 0, FARLEG], [J0_TORSO], [TUCK_LEG], [HEAD_SWEPT, 2, -3], [J0_ARM]);
+
+  const J1_TAIL = [19,
+    '....kkkkk',
+    '..kkOyyyOkk',
+    '.kOyyyOOOOOkk',
+    'kcOyOOOOOOOOO',
+    'kccOOOOOOOrrr',
+    'kwccOOOrrrrkk',
+    'kwwccrrkkkk',
+    '.kwwcskk',
+    '..kkkk',
+  ];
+  const J1_RIBBON = [15,
+    '....ggg',
+    '...gTTTggggg',
+    '..gtTtTTTTTt',
+    '...ggggtttg',
+    '.......ggg',
+  ];
+  const J1_TORSO = [15,
+    '...........gggggggggggg',
+    '...........ThhTTTTttttg',
+    '..........gtTTttTTTtttg',
+    '............kyyOOcwwck',
+    '............kOyOOcwwwck',
+    '...........kOrrrrsscwck',
+    '...........kOOOOOrcccsk',
+    '...........krOOOOOrcsk',
+    '............krrOOOOkk',
+    '.............kkkkkk',
+  ];
+  const jump1 = frame([J1_TAIL], [J1_RIBBON], [TUCK_LEG, -6, 1, FARLEG], [J1_TORSO], [TUCK_LEG, -1, 0], [HEAD_SWEPT, 1, -2], [J0_ARM, -1, 1]);
+
+  // ---------------------------------------------------------------- FALL (0 = just past the apex, 1 = fast fall)
+  const F0_TAIL = [12,
+    '..kk',
+    '.kwwk',
+    '.kwwck',
+    'kwwcck',
+    'kwcccOk',
+    'kccOOOk',
+    'kcOyOOOk',
+    'kOyyOOOOk',
+    'kOyyOOOOOkk',
+    '.kOyOOOOOOOkk',
+    '.kOOOOOOOOOOO',
+    '..krOOOOOOOrr',
+    '...kkrrrrrrkk',
+    '.....kkkkkk',
+  ];
+  const F0_RIBBON = [13,
+    '....gg',
+    '...gTTg',
+    '....gTtg',
+    '.....gTTgg',
+    '......gtTTgg',
+    '.......ggtTT',
+    '.........ggg',
+  ];
+  const F0_TORSO = [17,
+    '...........gggggggggggg',
+    '...........ThhTTTTttttg',
+    '..........gtTTttTTTtttg',
+    '............kyyOOcwwck',
+    '............kOyOOcwwwck',
+    '............kOrrrsscwcsk',
+    '............krOOOrcccsk',
+    '.............krrOOOOkk',
+    '..............kkkkkk',
+  ];
+  const F0_LEG_NEAR = [24,
+    '.................kOOOk',
+    '.................kOOOOk',
+    '..................kOOOOk',
+    '...................kdddkkk',
+    '...................kdbbbddk',
+    '...................kDDDDDDk',
+    '....................kkkkkk',
+  ];
+  const F0_LEG_FAR = [24,
+    '...........kOOOk',
+    '..........kOOOOk',
+    '.......kkkkOOOk',
+    '......kddddOOk',
+    '......kdbbdkkk',
+    '......kDDDk',
+    '.......kkk',
+  ];
+  const F_ARM = [16,                     // forearm raised, paw up beside the chin
+    '.......................kkk',
+    '......................kbbdk',
+    '......................kdddk',
+    '......................kOOk',
+    '..............yyyOOOOOOOOk',
+    '..............OOOOOOrrrkk',
+  ];
+  const fall0 = frame([F0_TAIL], [F0_RIBBON], [F0_LEG_FAR, 0, 0, FARLEG], [F0_TORSO], [F0_LEG_NEAR], [HEAD_FALL, 1, 0], [F_ARM]);
+
+  const F1_TAIL = [4,
+    '..kk',
+    '.kwwk',
+    '.kwwwk',
+    'kwwwck',
+    'kwwcck',
+    'kwcccOk',
+    'kccOOOk',
+    'kcOyOOk',
+    'kOyyOOOk',
+    'kOyyOOOk',
+    'kOyyOOOk',
+    'kOyyOOOrk',
+    'kOyyOOOrk',
+    '.kOyOOOrk',
+    '.kOyOOOOrk',
+    '.kOOyOOOrk',
+    '..kOOOOOOrk',
+    '..kOOOOOOrrk',
+    '...kOOOOOOrkk',
+    '...krOOOOOOrrk',
+    '....krrOOOOOrr',
+    '.....kkrrrrrrr',
+    '.......kkkkkk',
+  ];
+  const F1_RIBBON = [12,
+    '..gg',
+    '.gTTg',
+    '..gTtg',
+    '...gTtg',
+    '....gTTg',
+    '.....gtTg',
+    '......gTTgg',
+    '.......gtTTg',
+    '........ggtT',
+    '..........gg',
+  ];
+  const F1_TORSO = [19,
+    '...........gggggggggggg',
+    '...........ThhTTTTttttg',
+    '..........gtTTttTTTtttg',
+    '............kyyOOcwwwck',
+    '...........kOOrrrrsscwsk',
+    '...........krOOOOrcccssk',
+    '............krrOOOrssk',
+    '.............kkkkkkkk',
+  ];
+  const F1_LEG_NEAR = [25,
+    '.................kOOOk',
+    '..................kOOOk',
+    '...................kOOOk',
+    '...................kdddkk',
+    '...................kdbbbddk',
+    '...................kDDDDDDk',
+    '....................kkkkkk',
+  ];
+  const F1_LEG_FAR = [25,
+    '..........kOOOk',
+    '.........kOOOk',
+    '........kOOOk',
+    '.......kdddk',
+    '......kdbbddk',
+    '......kDDDDDk',
+    '.......kkkkk',
+  ];
+  const fall1 = frame([F1_TAIL], [F1_RIBBON], [F1_LEG_FAR, 0, 0, FARLEG], [F1_TORSO], [F1_LEG_NEAR], [HEAD_FALL, 1, 2], [F_ARM, 0, 2]);
 
   const m = idle[0];
   return {
     idle, run,
-    jump: [jump0, jump0], fall: [m, m], skid: [m], hurt: [m], duck: [m],
+    jump: [jump0, jump1], fall: [fall0, fall1], skid: [m], hurt: [m], duck: [m],
     win: [m, m], icon: G.copy(m, 16, 16, -8, -3),
   };
 });

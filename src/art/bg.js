@@ -601,87 +601,144 @@ G.defineArt('bg', G => {
   }
 
   // ===================== near jungle =====================
-  // Palm: curved trunk rising h px from (x, y), crown of arching fronds with hanging leaflets.
-  function palm(L, x, y, h, lean, R, c) {
+  // Sits right behind the action, so it is a hazy blue-teal silhouette: big rounded crowns with a
+  // thin light rim, flat bodies, dark hollows between them, sinking into one quiet tone.
+  const J = CS(['#8bccb1', '#6bb29e', '#569c91', '#488c8c', '#3f737d']);
+  const JA = CS(['#a6dccb', '#86c4b6', '#74b2ac']);
+  const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  const d4 = (x, y) => (B4[(x & 3) | ((y & 3) << 2)] + 0.5) / 16;
+
+  // Leaf masses. clumps: [cx, cy, rx, ry, group, set] in painter's order (later = nearer);
+  // sets[set] = tones [rim, rim2, body, shade, deep]. Graphic shading: a 1px light rim (plus a
+  // softer second row) on every exposed upper-left edge, a flat body, a shade crescent on the
+  // lower right, and a cast shadow under whatever clump is nearer. Wraps seamlessly.
+  function foliage(L, clumps, sets) {
+    const W = L.w, pad = 96, bw = W + pad * 2, bh = L.h, all = [];
+    clumps.forEach((c, i) => { for (const s of [-W, 0, W]) if (c[0] + s + c[2] >= -pad && c[0] + s - c[2] < W + pad) all.push([c[0] + s, c[1], c[2], c[3], c[4], c[5], i]); });
+    all.sort((a, b) => a[6] - b[6]);
+    const own = new Int16Array(bw * bh).fill(-1);
+    const ins = (i, x, y) => { const c = all[i], dx = (x + 0.5 - c[0]) / c[2], dy = (y + 0.5 - c[1]) / c[3]; return dx * dx + dy * dy <= 1; };
+    all.forEach((c, i) => {
+      for (let y = Math.max(0, Math.floor(c[1] - c[3])); y <= Math.min(bh - 1, Math.ceil(c[1] + c[3])); y++)
+        for (let x = Math.max(-pad, Math.floor(c[0] - c[2])); x <= Math.min(W + pad - 1, Math.ceil(c[0] + c[2])); x++) if (ins(i, x, y)) own[y * bw + x + pad] = i;
+    });
+    const at = (x, y) => (y < 0 || y >= bh || x < -pad || x >= W + pad ? -1 : own[y * bw + x + pad]);
+    for (let y = 0; y < bh; y++) for (let x = 0; x < W; x++) {
+      const i = at(x, y);
+      if (i < 0) continue;
+      const c = all[i], sh = clamp(Math.round(c[3] * 0.3), 2, 7);
+      const shade = !ins(i, x + sh * 0.5, y + sh);
+      let cast = false;
+      for (let k = 1; k <= 4 && !cast; k++) { const j = at(x - Math.round(k * 0.6), y - k); cast = j > i && k <= clamp(Math.round(all[j][3] * 0.2), 2, 4); }
+      const a = at(x - 1, y - 1), b = at(x - 1, y - 2);
+      let t = 2;
+      if (!ins(i, x - 1, y - 1)) t = a > i ? 3 : a < 0 || all[a][4] !== c[4] ? 0 : 1;
+      else if (!ins(i, x - 1, y - 2) && !(b > i)) t = b < 0 || all[b][4] !== c[4] ? 1 : 2;
+      else if (cast) t = shade ? 4 : 3;
+      else if (shade) t = 3;
+      L.set(x, y, sets[c[5]][t]);
+    }
+  }
+  // A tree crown: dome [cx, top, rx, ry] with leafy bumps tucked behind its upper rim (they only
+  // break up the silhouette) and a few inner clumps in front of its lower half.
+  function crown(list, g, set, cx, top, rx, ry, q) {
+    const cy = top + ry, n = Math.max(4, Math.round(rx / 5.5));
+    for (let i = 0; i < n; i++) {
+      const a = Math.PI * (1.1 - 1.2 * ((i + 0.5 + (q() - 0.5) * 0.5) / n)), rb = clamp((0.16 + 0.2 * q()) * rx, 3.5, 11);
+      list.push([cx + Math.cos(a) * (rx - rb * 0.3), cy - Math.sin(a) * (ry - rb * 0.3), rb * 1.2, rb, g, set]);
+    }
+    list.push([cx, cy, rx, ry, g, set]);
+    const m = rx > 34 ? 3 : 2;
+    for (let i = 0; i < m; i++) {
+      const u = (i + 0.5) / m - 0.5 + (q() - 0.5) * 0.2, rr = rx * (0.36 + 0.14 * q());
+      list.push([cx + u * rx * 1.5, cy + ry * (0.2 + 0.3 * q()), rr, rr * 0.62, g, set]);
+    }
+  }
+
+  // Palm fronds per crown shape: [start angle, length factor, bend (deg, toward the ground;
+  // negative = blown back over the crown), depth 0 back .. 2 front].
+  const FROND = {
+    arch: [[200, 0.75, 45, 0], [-20, 0.75, 45, 0], [165, 1, 75, 1], [15, 1, 75, 1], [128, 1, 85, 2], [52, 1, 85, 2], [98, 0.6, 45, 2], [76, 0.55, 50, 1]],
+    droop: [[195, 0.8, 60, 0], [-15, 0.8, 60, 0], [158, 1, 100, 1], [22, 1, 100, 1], [122, 0.95, 118, 2], [58, 0.95, 118, 2], [92, 0.5, 60, 2]],
+    wind: [[168, 0.5, -30, 0], [142, 0.8, -70, 1], [112, 0.9, -80, 2], [84, 1, 70, 2], [52, 1.1, 55, 2], [24, 1.15, 40, 1], [-8, 0.9, 35, 0]],
+    fan: [[190, 0.6, 25, 0], [-10, 0.6, 25, 0], [162, 0.9, 30, 1], [18, 0.9, 30, 1], [138, 1, 26, 2], [42, 1, 26, 2], [112, 1, 18, 2], [68, 1, 18, 2], [90, 0.9, 0, 2]],
+  };
+  function frond(L, x0, y0, a0, len, bend, cs, cl, R) {
+    const sign = a0 > 90 && a0 < 270 ? 1 : -1, lmax = Math.max(2, R * 0.2);
+    let fx = x0 + 0.5, fy = y0 + 0.5, lx = 1e9, ly = 1e9;
+    for (let d = 0; d <= len; d += 0.25) {
+      const s = d / len, ang = ((a0 + sign * bend * Math.pow(s, 1.4)) * Math.PI) / 180;
+      fx += Math.cos(ang) * 0.25; fy -= Math.sin(ang) * 0.25;
+      const px = Math.floor(fx), py = Math.floor(fy);
+      if (px === lx && py === ly) continue;
+      const prof = Math.pow(Math.sin(Math.PI * Math.min(1, 0.12 + s * 0.88)), 0.7);
+      if (px !== lx) {
+        let ll = Math.round(lmax * prof * Math.sqrt(Math.abs(Math.cos(ang))));
+        if ((px & 1) && ll > 1) ll--;
+        for (let k = 1; k <= ll; k++) L.set(px, py + k, cl);
+      } else if (prof > 0.4) L.set(px + (py & 1 ? 1 : -1), py, cl);
+      L.set(px, py, cs);
+      lx = px; ly = py;
+    }
+  }
+  // Palm: a 2px trunk (light left, dark right) on a smooth curve, rising h px from (x, y).
+  function palm(L, x, y, h, lean, R, kind, c, flip) {
+    let tx = x;
     for (let i = 0; i <= h; i++) {
-      const t = i / h, px = Math.round(x + lean * t * t), wd = t < 0.35 ? 3 : 2;
-      for (let k = 0; k < wd; k++) L.set(px + k, y - i, k === 0 ? c.trunkLit : i % 4 === 0 ? c.trunkDark : c.trunk);
+      tx = x + Math.round(lean * (i / h) * (i / h));
+      L.set(tx, y - i, c.tl); L.set(tx + 1, y - i, c.td);
     }
-    const tx = Math.round(x + lean) + 1, ty = y - h;
-    // [start angle, length factor, total bend, tone] — drooping back fronds first, upright last
-    const F = [[205, 0.7, 50, 2], [-25, 0.7, 50, 2], [168, 1.05, 78, 1], [12, 1.05, 78, 2], [128, 1, 88, 0], [52, 1, 88, 1], [98, 0.6, 45, 0], [78, 0.55, 50, 1]];
-    for (const [a0, lf, bend, tone] of F) {
-      const len = R * lf, sign = a0 > 90 ? 1 : -1;
-      let fx = tx, fy = ty, lastX = null;
-      for (let d = 0; d <= len; d += 0.5) {
-        const sN = d / len, ang = ((a0 + sign * bend * Math.pow(sN, 1.4)) * Math.PI) / 180;
-        fx += Math.cos(ang) * 0.5; fy -= Math.sin(ang) * 0.5;
-        const px = Math.floor(fx), py = Math.floor(fy);
-        if (px !== lastX) {
-          lastX = px;
-          let ll = Math.round(3.4 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.1 + sN * 0.9)), 0.7) * Math.sqrt(Math.abs(Math.cos(ang))));
-          if (px & 1) ll -= 1;
-          for (let k = 1; k <= ll; k++) L.set(px, py + k, c.leaf[Math.min(3, tone + (k > 1 ? 2 : 1))]);
-        }
-        L.set(px, py, c.leaf[tone]);
-      }
-    }
-    for (let k = -1; k <= 1; k++) L.set(tx + k, ty + 1, c.trunkDark);
+    const ty = y - h;
+    for (const [a, lf, bend, lay] of FROND[kind]) frond(L, tx + (flip ? 1 : 0), ty, flip ? 180 - a : a, R * lf, bend, c.f[lay][0], c.f[lay][1], R);
+    L.row(tx - 1, tx + 2, ty + 1, c.td); L.row(tx, tx + 1, ty + 2, c.td);
   }
 
   function makeJungle() {
-    const L = layer(768, 128);
-    const JF = { tones: CS(['#62c47c', '#3ca66e', '#268864', '#1d6c5c', '#185652']), thr: [0.93, 0.6, 0.1, -0.5], grad: [0.2, -0.5], flat: 2 };
-    const JB = { tones: CS(['#68c090', '#46a682', '#338c7a', '#297572']), thr: [0.9, 0.45, -0.2], grad: [0.2, -0.5], flat: 2 };
-    const JD = { tones: [JF.tones[2], JF.tones[3], JF.tones[4]], thr: [0.75, 0.0], grad: [0.1, -0.5], flat: 2 };
-    const JE = { tones: [JF.tones[3], JF.tones[4]], thr: [0.6], grad: [0.1, -0.4], flat: 2 };
-    const PC = { trunk: C('#6a5c66'), trunkLit: C('#9a8c80'), trunkDark: C('#4a4258'), leaf: [JF.tones[0], JF.tones[1], JF.tones[2], JF.tones[3]] };
-    const PB = { trunk: C('#6c7480'), trunkLit: C('#94a098'), trunkDark: C('#566070'), leaf: [JB.tones[0], JB.tones[1], JB.tones[2], JB.tones[3]] };
-    // Top line of the front canopy: two tall clumps, two bays where the lagoon shows through.
-    const KP = [[0, 56], [70, 46], [130, 42], [190, 52], [250, 68], [310, 72], [370, 56], [430, 44], [480, 40], [540, 50], [600, 62], [650, 70], [700, 66], [740, 60], [768, 56]];
-    const prof = x => {
-      x = ((x % 768) + 768) % 768;
-      let i = 0;
-      while (x > KP[i + 1][0]) i++;
-      const t = (x - KP[i][0]) / (KP[i + 1][0] - KP[i][0]);
-      return KP[i][1] + (KP[i + 1][1] - KP[i][1]) * (1 - Math.cos(t * Math.PI)) / 2 + 1.5 * Math.sin((x / 768) * Math.PI * 26 + 1);
-    };
-    const back = x => Math.min(prof(x) - 7, 61 + 2 * Math.sin((x / 768) * Math.PI * 14));
-    const crowns = (o, line, lift, seed, rmin, rmax) => {
-      const r2 = rng(seed);
-      for (let x = 0; x < 768;) {
-        const rx = rmin + Math.floor(r2() * (rmax - rmin + 1)), ry = Math.round(rx * 0.72), cx = x + rx * 0.7, top = line(cx) - lift + Math.floor(r2() * 4);
-        const list = [];
-        for (const a of [150, 115, 75, 35]) if (r2() < 0.7) { const rb = 3 + Math.floor(r2() * 2), q = (a * Math.PI) / 180; list.push([cx + Math.cos(q) * (rx - 1), top + ry - Math.sin(q) * (ry - 1), rb]); }
-        list.push([cx, top + ry, rx, ry]);
-        puffs(L, list, Object.assign({ top: top - 3, base: top + ry * 2 }, o));
-        x += rx * 1.25;
-      }
-    };
-    // a big broadleaf tree standing clear of the canopy
-    const tree = (x, h, o, c) => {
-      const y = Math.round(prof(x)) + 6;
-      for (let i = 0; i < h; i++) { L.set(x, y - i, c.trunkLit); L.set(x + 1, y - i, c.trunk); L.set(x + 2, y - i, i % 5 === 2 ? c.trunkDark : c.trunk); }
-      L.set(x - 1, y - h + 3, c.trunk); L.set(x - 2, y - h + 2, c.trunk); L.set(x + 3, y - h + 4, c.trunk); L.set(x + 4, y - h + 3, c.trunk);
-      const ty = y - h;
-      const lobes = [[-9, 1, 8, 6], [9, 2, 8, 6], [-3, -6, 9, 7], [5, -5, 8, 6], [0, 0, 11, 7]];
-      for (const [dx, dy, rx, ry] of lobes) {
-        const cx = x + 1 + dx, cy = ty + dy;
-        puffs(L, [[cx - rx * 0.6, cy - ry * 0.6, 3.5], [cx + rx * 0.5, cy - ry * 0.7, 3], [cx, cy, rx, ry]], Object.assign({ top: cy - ry - 3, base: cy + ry }, o));
-      }
-    };
-    // back row (hazier), its palms, then the front row
-    for (let x = 0; x < 768; x++) L.col(x, Math.round(back(x)) + 2, L.h - 1, JB.tones[3]);
-    crowns(JB, back, 2, 3, 8, 12);
-    for (const [x, h, lean, R] of [[60, 28, 4, 12], [170, 26, -4, 12], [330, 30, 4, 12], [396, 28, -5, 12], [590, 30, 4, 13], [720, 28, -4, 12]]) palm(L, x, Math.round(back(x)) + 2, h, lean, R, PB);
-    tree(540, 20, JB, PB);
-    for (let x = 0; x < 768; x++) L.col(x, Math.round(prof(x)) + 8, L.h - 1, JF.tones[4]);
-    crowns(JF, prof, 0, 8, 8, 13);
-    tree(150, 24, JF, PC); tree(472, 26, JF, PC); tree(744, 22, JF, PC);
-    for (const [x, h, lean, R] of [[20, 34, -4, 15], [96, 38, 6, 17], [122, 28, -5, 15], [210, 30, 5, 14], [286, 44, -6, 16], [428, 36, -5, 17], [500, 34, 5, 15], [560, 30, -5, 14], [640, 46, 6, 16], [664, 36, -5, 14]])
-      palm(L, x, Math.round(prof(x)) + 4, h, lean, R, PC);
-    // understory: lower ranks of crowns sinking into the dark
-    crowns(JD, prof, -15, 21, 9, 14); crowns(JE, prof, -31, 22, 10, 15); crowns(JE, prof, -49, 23, 11, 16);
+    const L = layer(768, 128), TAU = Math.PI * 2;
+    const SETS = { A: [JA[0], JA[1], JA[1], JA[2], JA[2]], H: [J[3], J[3], J[3], J[4], J[4]], B: J, C: [J[1], J[2], J[3], J[4], J[4]] };
+    const PN = { tl: C('#a9c1b4'), td: C('#5c838c'), f: [[J[2], J[3]], [J[1], J[2]], [J[0], J[1]]] };
+    const PF = { tl: C('#b9d2c6'), td: C('#7ea4a8'), f: [[JA[1], JA[2]], [JA[0], JA[1]], [JA[0], JA[1]]] };
+    const back = x => 51 + 4 * Math.sin((x / 768) * TAU * 3 + 1) + 2 * Math.sin((x / 768) * TAU * 7);
+    const q = rng(77);
+    // far treeline (hazier, flatter)
+    for (let x = 0; x < 768; x++) L.col(x, Math.round(back(x)) + 5, L.h - 1, JA[2]);
+    const rowA = [];
+    for (let i = 0; i < 34; i++) {
+      const cx = (i + 0.5 + (q() - 0.5) * 0.5) * (768 / 34), rx = 10 + q() * 10;
+      crown(rowA, i, 'A', cx, back(cx) - 2 + q() * 5, rx, rx * 0.62, q);
+    }
+    foliage(L, rowA, SETS);
+    // palms: [x, base y, height, lean, frond radius, shape, flip, far?]
+    for (const [x, y, h, lean, R, kind, flip, far] of [
+      [116, 70, 56, 7, 19, 'arch', 0, 0], [516, 68, 50, -6, 18, 'wind', 1, 0],
+      [252, 70, 34, -4, 13, 'droop', 0, 0], [270, 72, 26, 3, 10, 'fan', 0, 1], [288, 72, 38, 6, 13, 'wind', 0, 0],
+      [402, 66, 24, -3, 10, 'arch', 1, 1], [420, 66, 36, 4, 13, 'fan', 0, 0],
+      [640, 72, 30, -4, 11, 'arch', 0, 1], [660, 72, 42, 5, 14, 'droop', 0, 0], [684, 72, 28, 5, 10, 'wind', 0, 1],
+      [18, 70, 28, -3, 10, 'fan', 0, 1], [36, 70, 38, 5, 13, 'arch', 1, 0],
+    ]) palm(L, x, y, h, lean, R, kind, far ? PF : PN, flip);
+    // dark hollows behind the main crowns
+    const hol = x => back(x) + 13 + 2 * Math.sin((x / 768) * TAU * 11);
+    for (let x = 0; x < 768; x++) L.col(x, Math.round(hol(x)) + 4, L.h - 1, J[4]);
+    const rowH = [];
+    for (let i = 0; i < 26; i++) { const cx = (i + 0.5 + (q() - 0.5) * 0.4) * (768 / 26), rx = 13 + q() * 8; rowH.push([cx, hol(cx) + rx * 0.5, rx, rx * 0.6, i, 'H']); }
+    foliage(L, rowH, SETS);
+    // main crowns [cx, top, rx, ry], taller ones behind
+    const rowB = [];
+    [[34, 52, 40, 24], [98, 42, 26, 20], [150, 44, 44, 28], [214, 58, 24, 16], [268, 62, 40, 20], [334, 56, 28, 20],
+      [396, 42, 46, 30], [462, 36, 26, 22], [516, 48, 38, 24], [580, 60, 26, 16], [640, 64, 44, 20], [716, 54, 36, 24]]
+      .map((c, i) => [c, i]).sort((a, b) => a[0][1] - b[0][1]).forEach(([c, i]) => crown(rowB, 100 + i, 'B', c[0], c[1], c[2], c[3], q));
+    foliage(L, rowB, SETS);
+    // nearer, darker understory mounds
+    const rowC = [];
+    [[14, 74, 52, 20], [108, 78, 46, 18], [196, 72, 56, 22], [300, 80, 50, 18], [398, 74, 54, 20], [492, 78, 48, 18], [588, 72, 56, 22], [690, 78, 50, 18]]
+      .forEach((c, i) => crown(rowC, 200 + i, 'C', c[0], c[1], c[2], c[3], q));
+    foliage(L, rowC, SETS);
+    // ...and everything sinks into one quiet dark tone
+    const FADE = [1, 2, 4, 6, 8, 10, 12, 14];
+    for (let y = 82; y < L.h; y++) {
+      const k = (y - 82) >> 1, f = k < FADE.length ? FADE[k] / 16 : 1;
+      for (let x = 0; x < L.w; x++) if (L.d[y * L.w + x] && f > d4(x, y)) L.d[y * L.w + x] = J[4];
+    }
     return L;
   }
 
