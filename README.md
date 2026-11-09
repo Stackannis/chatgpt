@@ -29,6 +29,13 @@ Ouvre simplement `index.html` dans un navigateur (ça marche aussi en `file://`)
 Sauter sur les ennemis violets à cornes et les volants ; **ne pas** sauter sur ceux qui ont des piquants.
 100 éclats de soleil = 1 vie. Les blocs à prix se frappent par en dessous.
 
+### Sur mobile
+
+Le jeu est jouable au doigt : flèches ◀ ▶ à gauche (on peut glisser le pouce de l'une à l'autre), gros
+bouton JUMP à droite, pause en haut. Sur un téléphone tenu à la verticale, le jeu se tourne tout seul de
+90° pour se jouer en paysage (même si la rotation de l'écran est verrouillée) ; le bouton ⟳ permet de
+désactiver ça. `node tools/mobile.js` vérifie ces commandes tactiles en émulation (multi-touch réel).
+
 ## Structure
 
 ```
@@ -43,6 +50,7 @@ docs/ART_GUIDE.md     bible graphique + contrat des assets
 tools/sheet.js        planche contact d'un module d'art  → shots/sheet-<module>.png
 tools/shot.js         captures en jeu / vue d'ensemble du niveau
 tools/bot.js          bot qui joue le niveau en headless (vérifie qu'il est finissable)
+tools/mobile.js       test des commandes tactiles en émulation téléphone / tablette
 tools/build.js        génère dist/sunfox.html (fichier unique)
 ```
 

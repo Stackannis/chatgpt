@@ -3,35 +3,60 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d0916">
 <title>SUNFOX — Emerald Coast</title>
 <style>
-  html { color-scheme: dark; }
-  html, body { margin: 0; height: 100%; background: #0d0916; color: #fff8e8; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  #wrap { position: fixed; inset: 0; box-sizing: border-box; display: flex;
-          padding-block: max(6px, env(safe-area-inset-top, 0px)) max(6px, env(safe-area-inset-bottom, 0px));
-          padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-  #stage { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
-  #screen { image-rendering: pixelated; image-rendering: crisp-edges; background: #5cc8f8; box-shadow: 0 0 0 2px #1a1226, 0 8px 40px rgba(0,0,0,.6); }
-  .pad { position: fixed; bottom: max(14px, env(safe-area-inset-bottom)); display: none; gap: 12px; z-index: 5; }
-  .touch .pad { display: flex; }
-  #padL { left: max(14px, env(safe-area-inset-left)); }
-  #padR { right: max(14px, env(safe-area-inset-right)); }
-  .btn { width: 68px; height: 68px; border-radius: 50%; background: rgba(255,248,232,.16); border: 2px solid rgba(255,248,232,.5); color: rgba(255,248,232,.85);
-         font: bold 26px/64px system-ui, sans-serif; text-align: center; box-sizing: border-box; }
-  .btn.on { background: rgba(255,214,48,.45); }
-  #bJump { width: 84px; height: 84px; line-height: 80px; font-size: 20px; }
-  #bPause { position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); width: 40px; height: 40px; line-height: 36px; font-size: 14px; display: none; z-index: 5; }
-  .touch #bPause { display: block; }
-  #rot { display: none; position: fixed; left: 0; right: 0; top: 10px; text-align: center; color: #fff8e8; font: 13px system-ui, sans-serif; opacity: .7; z-index: 4; }
-  @media (orientation: portrait) { .touch #rot { display: block; } }
+  /* One-screen game: a fixed #app box holds the stage and the touch controls.
+     On phones held upright the whole box is rotated 90° so the game is always played in landscape. */
+  :root {
+    color-scheme: dark;
+    --bg: #0d0916; --ink: #1a1226; --cream: #fff8e8; --gold: #ffd630;
+    --sat: env(safe-area-inset-top, 0px); --sar: env(safe-area-inset-right, 0px);
+    --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px);
+  }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--cream); overflow: hidden; overscroll-behavior: none;
+               touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+  #app { position: fixed; left: 0; top: 0; width: 100%; height: 100%; box-sizing: border-box; transform-origin: 0 0; overflow: hidden;
+         --pl: max(16px, var(--sal)); --pr: max(16px, var(--sar)); --pt: max(6px, var(--sat)); --pb: max(6px, var(--sab));
+         padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+         padding-block: max(6px, env(safe-area-inset-top, 0px)) max(6px, env(safe-area-inset-bottom, 0px)); }
+  /* rotated 90° clockwise: the player's left is the screen's top edge, their right is its bottom edge */
+  #app.rot { --pl: max(16px, var(--sat)); --pr: max(16px, var(--sab)); --pt: max(6px, var(--sar)); --pb: max(6px, var(--sal));
+             padding-left: var(--pl); padding-right: var(--pr); padding-block: var(--pt) var(--pb); }
+  #stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+  #screen { display: block; image-rendering: pixelated; image-rendering: crisp-edges; background: #5cc8f8;
+            box-shadow: 0 0 0 2px var(--ink), 0 8px 40px rgba(0,0,0,.6); }
+  #screen.soft { image-rendering: auto; }
+
+  .pad { position: absolute; bottom: calc(var(--pb) + 10px); display: none; gap: 14px; align-items: flex-end; z-index: 5; }
+  #padL { left: var(--pl); }
+  #padR { right: var(--pr); }
+  .btn { width: 72px; height: 72px; border-radius: 50%; box-sizing: border-box; display: flex; align-items: center; justify-content: center;
+         background: rgba(26,18,38,.38); border: 2px solid rgba(255,248,232,.55); color: rgba(255,248,232,.9);
+         font: 700 15px/1 ui-monospace, "SF Mono", Menlo, Consolas, monospace; letter-spacing: .08em; }
+  .btn svg { width: 30px; height: 30px; fill: currentColor; }
+  .btn.on { background: rgba(255,214,48,.5); border-color: var(--gold); color: var(--ink); }
+  #bJump { width: 92px; height: 92px; }
+  .mini { position: absolute; top: calc(var(--pt) + 4px); width: 40px; height: 40px; font-size: 13px; display: none; z-index: 5; }
+  .mini svg { width: 18px; height: 18px; }
+  #bPause { right: var(--pr); }
+  #bRot { right: calc(var(--pr) + 48px); }
+  .touch .pad, .touch .mini { display: flex; }
 </style>
 </head>
 <body>
-<div id="wrap"><div id="stage"><canvas id="screen" width="384" height="216"></canvas></div></div>
-<div id="rot">Tourne ton téléphone en paysage pour un plus grand écran ↻</div>
-<div class="pad" id="padL"><div class="btn" id="bLeft">◀</div><div class="btn" id="bRight">▶</div></div>
-<div class="pad" id="padR"><div class="btn" id="bJump">JUMP</div></div>
-<div class="btn" id="bPause">II</div>
+<div id="app">
+  <div id="stage"><canvas id="screen" width="384" height="216"></canvas></div>
+  <div class="pad" id="padL">
+    <div class="btn" id="bLeft" aria-label="Left"><svg viewBox="0 0 24 24"><path d="M16 4 L6 12 L16 20 Z"/></svg></div>
+    <div class="btn" id="bRight" aria-label="Right"><svg viewBox="0 0 24 24"><path d="M8 4 L18 12 L8 20 Z"/></svg></div>
+  </div>
+  <div class="pad" id="padR"><div class="btn" id="bJump" aria-label="Jump">JUMP</div></div>
+  <div class="btn mini" id="bRot" aria-label="Rotate the game"><svg viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg></div>
+  <div class="btn mini" id="bPause" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg></div>
+</div>
 <!--SCRIPTS-->
 <script src="src/lib.js"></script>
 <script src="src/terrain_render.js"></script>
@@ -48,28 +73,68 @@
 <script>
 (function () {
   const manual = /[?&]manual/.test(location.search);
+  const app = document.getElementById('app');
   G.boot(document.getElementById('screen'), { manual });
   if (G.isTouch) document.body.classList.add('touch');
-  // Touch controls: each finger is tracked so you can slide between ◀ and ▶.
+
+  // ---- layout: fit the viewport; on an upright phone, rotate the whole game to landscape ----
+  let rotPref = null; // null = automatic, true / false = chosen with the rotate button
+  try { const v = localStorage.getItem('sunfox.rot'); if (v === '1') rotPref = true; else if (v === '0') rotPref = false; } catch (e) {}
+  function layout() {
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const upright = vh > vw;
+    const rot = upright && (rotPref === null ? G.isTouch && vw < 600 : rotPref);
+    app.classList.toggle('rot', rot);
+    G.rotated = rot;
+    if (rot) { app.style.width = vh + 'px'; app.style.height = vw + 'px'; app.style.transform = 'translateX(' + vw + 'px) rotate(90deg)'; }
+    else { app.style.width = vw + 'px'; app.style.height = vh + 'px'; app.style.transform = 'none'; }
+    G.resize();
+  }
+  ['resize', 'orientationchange'].forEach(n => addEventListener(n, () => { layout(); setTimeout(layout, 250); }));
+  if (window.visualViewport) visualViewport.addEventListener('resize', layout);
+  if (!manual) layout();
+
+  // ---- touch controls: every finger is tracked, so you can slide between the two arrows ----
   const btns = { bLeft: 'left', bRight: 'right', bJump: 'jump' };
   const els = Object.keys(btns).map(id => document.getElementById(id));
   function scan(ev) {
     const st = { left: false, right: false, jump: false };
     for (const t of ev.touches) {
       for (const el of els) {
-        const r = el.getBoundingClientRect(), m = 14;
-        if (t.clientX >= r.left - m && t.clientX <= r.right + m && t.clientY >= r.top - m * 2 && t.clientY <= r.bottom + m) st[btns[el.id]] = true;
+        const r = el.getBoundingClientRect(), m = 16;
+        if (t.clientX >= r.left - m && t.clientX <= r.right + m && t.clientY >= r.top - m && t.clientY <= r.bottom + m) st[btns[el.id]] = true;
       }
     }
+    if (st.left && st.right) st.left = st.right = false;
     for (const el of els) { const k = btns[el.id]; G.touch[k] = st[k]; el.classList.toggle('on', st[k]); }
   }
+  const mini = id => e => e.target.closest && e.target.closest('#' + id);
+  const isPause = mini('bPause'), isRot = mini('bRot');
   ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(n => document.addEventListener(n, e => {
-    if (e.target.id === 'bPause') { if (n === 'touchstart') G.pressStart(); e.preventDefault(); return; }
+    e.preventDefault();
+    if (n === 'touchend') G.unlockAudio(); // iOS only unlocks WebAudio on a touch END
+    if (isPause(e)) { if (n === 'touchstart') G.pressStart(); return; }
+    if (isRot(e)) {
+      if (n === 'touchstart') {
+        rotPref = !app.classList.contains('rot');
+        try { localStorage.setItem('sunfox.rot', rotPref ? '1' : '0'); } catch (err) {}
+        layout();
+      }
+      return;
+    }
     if (n === 'touchstart') G.pressAny();
-    scan(e); e.preventDefault();
+    scan(e);
   }, { passive: false }));
   document.addEventListener('mousedown', () => G.pressAny());
   document.addEventListener('contextmenu', e => e.preventDefault());
+  // F = fullscreen on desktop (optional; some viewers refuse it)
+  addEventListener('keydown', e => {
+    if (e.code !== 'KeyF') return;
+    try {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else { const p = document.documentElement.requestFullscreen(); if (p && p.catch) p.catch(() => {}); }
+    } catch (err) {}
+  });
 })();
 </script>
 </body>

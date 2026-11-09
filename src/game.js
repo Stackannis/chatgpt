@@ -626,7 +626,7 @@
       bx.fillStyle = '#1a1226'; bx.fillRect(0, 0, W, H);
       if (A.player) img(bx, A.player.idle[Math.floor(frame / 12) % A.player.idle.length], W / 2 - 16, 70);
       if ((frame >> 5) & 1) text(bx, isTouch ? 'TAP TO BEGIN' : 'CLICK OR PRESS ANY KEY', W / 2, 116, 'center');
-      text(bx, 'SOUND ON FOR THE FULL 16-BIT EXPERIENCE', W / 2, 190, 'center');
+      text(bx, G.rotated ? 'HOLD YOUR PHONE SIDEWAYS' : 'SOUND ON FOR THE FULL 16-BIT EXPERIENCE', W / 2, 190, 'center');
       drawIris();
       return;
     }
@@ -707,13 +707,20 @@
   G.isTouch = isTouch;
   let screen, sctx;
   function resize() {
+    if (!screen) return;
     const box = screen.parentElement;
     const ww = box.clientWidth || window.innerWidth, wh = box.clientHeight || window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
     let s = Math.min(ww / W, wh / H);
-    if (s >= 2) s = Math.floor(s * (window.devicePixelRatio || 1)) / (window.devicePixelRatio || 1);
+    // snap to a whole number of device pixels per game pixel when that costs little size
+    const sd = s * dpr, si = Math.floor(sd);
+    if (si >= 1 && si / sd > 0.86) s = si / dpr;
     screen.style.width = Math.floor(W * s) + 'px';
     screen.style.height = Math.floor(H * s) + 'px';
+    screen.classList.toggle('soft', s * dpr < 1);
   }
+  G.resize = resize;
+  G.unlockAudio = () => AU.init();
   let acc = 0, last = 0;
   function loop(ts) {
     requestAnimationFrame(loop);
@@ -729,7 +736,7 @@
     buildStatic();
     resetLevel(true);
     if (opts && opts.manual) return;
-    resize(); addEventListener('resize', resize);
+    resize();
     document.addEventListener('visibilitychange', () => { if (document.hidden && state === 'play' && !paused && !P.dead) paused = true; });
     requestAnimationFrame(t => { last = t; loop(t); });
   };
