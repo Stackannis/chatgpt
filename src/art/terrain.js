@@ -34,160 +34,260 @@ G.defineArt('terrain', G => {
   function R(c, x, y, w, h, col) { c.ctx.fillStyle = col; c.ctx.fillRect(x, y, w, h); }
 
   // ------------------------------------------------------------------
-  // EARTH — zigzag strata of chunky sun-baked rock slabs (64x64 seamless)
-  // Four 16px courses per tile; every course is a light slab over a dark
-  // seam, the whole stack folded into a stepped chevron (period 32px).
+  // EARTH — layered rock strata (64x64 seamless)
+  // Four strata of uneven height (tall / thin / medium / thin). Every seam
+  // has its own wave so no row lines up with the next; each stratum is
+  // cracked into slabs with a lit top-left corner and a shaded bottom-right.
+  // A boulder cluster, a root, a pebble group and a wedged stone are embedded
+  // so the eye never finds the 64px grid. `dirtDeep` is the very same pixel
+  // map drawn with a ramp one step darker and more purple (no highlights).
   // ------------------------------------------------------------------
-  const ZOFF = [0, 2, 4, 6, 6, 4, 2, 0];          // chevron lift per 4px column group
-  const SLAB = [10, 9, 11, 10];                   // slab thickness in each 16px course
-  const JOINT = [[9, 38], [24, 52], [3, 29, 46], [17, 60]]; // vertical cracks per course
-  const TONE = [[0, 1], [1, 0], [0, 2, 1], [1, 0]];           // slab tone left→right between cracks
-  function band(x, y) {
-    x = mod(x, 64);
-    const yy = mod(y + ZOFF[(x & 31) >> 2], 64);
-    const k = yy >> 4, r = yy & 15, s = SLAB[k];
-    if (r >= s) return { slab: 0, k, r: r - s, n: 16 - s };
-    const J = JOINT[k];
-    let tone = TONE[k][J.length - 1];
-    for (let j = 0; j < J.length; j++) {
-      const jx = mod(J[j] + (r >= (s >> 1) ? 1 : 0), 64); // cracks step sideways halfway down
-      if (x === jx) return { slab: 0, k, r, n: s };
-      if (x > jx) tone = TONE[k][j];
-    }
-    return { slab: 1, k, r, n: s, tone };
+  // ramp index:       0 seam     1 crack    2 dk shade 3 shade    4 base B   5 base A   6 light    7 hilite   8 glint
+  const DIRT_RAMP = ['#5a2a2a', '#73372b', '#8a4532', '#a9602f', '#b76c37', '#c47a3c', '#d8944c', '#eab368', '#ffe0a0'];
+  const DEEP_RAMP = ['#46202c', '#5a2a30', '#6c3432', '#8c4a36', '#99533a', '#a65d39', '#b86e40', '#ca8349', '#ca8349'];
+  const DI = { k: 0, D: 1, d: 2, s: 3, n: 4, m: 5, L: 6, H: 7, W: 8 };
+  // 64-long seam profile from [length, step] runs: the seam moves 1px down (step > 0)
+  // or up (step < 0) every |step| px, or stays flat (step 0).
+  function prof(segs) {
+    const a = []; let y = 0;
+    for (const [len, step] of segs)
+      for (let i = 0; i < len; i++) { if (step && i % Math.abs(step) === 0) y += Math.sign(step); a.push(y); }
+    if (a.length !== 64 || y !== 0) throw new Error('seam profile: length ' + a.length + ', ends at ' + y);
+    return a;
   }
-  function makeDirt(p, rich) {
-    const c = G.cv(64, 64);
-    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
-      const b = band(x, y), ph = (x & 31) >> 2;
-      const up = band(x, y - 1), lf = band(x - 1, y), rt = band(x + 1, y), dn = band(x, y + 1), dn2 = band(x, y + 2);
-      const lit = ph >= 1 && ph <= 4;             // rising flank + crest face the sun
-      let col;
-      if (b.slab) {
-        if (!up.slab) col = lit ? p.hi : p.hi2;
-        else if (!lf.slab) col = p.hi;
-        else if (!dn.slab || !rt.slab) col = p.sh;
-        else if (!dn2.slab && !lit) col = p.sh;
-        else col = p.slab[b.tone];
-      } else {
-        col = up.slab || lf.slab || band(x - 1, y - 1).slab ? p.cast : p.seam;
-      }
-      dot(c, x, y, col);
+  const SEAM_Y = [0, 23, 33, 51];
+  const SEAM = [
+    prof([[10, 0], [12, 3], [14, 0], [8, -2], [20, 0]]),
+    prof([[24, 0], [12, 4], [10, 0], [6, -2], [12, 0]]),
+    prof([[6, 0], [8, -4], [10, 0], [8, 4], [4, 0], [8, 4], [12, 0], [8, -4]]),
+    prof([[8, 0], [9, 3], [14, 0], [6, -2], [11, 0], [8, -4], [4, 0], [4, 2]]),
+  ];
+  const CRACK = [                                   // per stratum: [x at the top, lean in px]
+    [[9, 4], [30, -5], [55, 3]],
+    [[19, 2], [36, -3], [0, 2]],
+    [[6, -4], [27, 5], [46, -3]],
+    [[16, 3], [38, -3], [50, -2]],
+  ];
+  const BASE = [5, 4, 5, 4];                         // base tone of each stratum
+  function dirtIndex(x, y) {
+    const s0 = SEAM_Y[0] + SEAM[0][x];
+    const yy = y < s0 ? y + 64 : y;
+    let k = 3;
+    while (k > 0 && yy < SEAM_Y[k] + SEAM[k][x]) k--;
+    const top = SEAM_Y[k] + SEAM[k][x];
+    const bot = k === 3 ? s0 + 64 : SEAM_Y[k + 1] + SEAM[k + 1][x];
+    if (yy === top) return DI.k;
+    const h = bot - top - 1, dt = yy - top - 1, db = bot - 1 - yy;
+    let dl = 99, dr = 99;
+    for (const [x0, lean] of CRACK[k]) {
+      const cx = x0 + Math.round(lean * (dt + 0.5) / h);
+      const a = mod(x - cx, 64), b = mod(cx - x, 64);
+      if (a === 0) return DI.D;
+      dl = Math.min(dl, a - 1); dr = Math.min(dr, b - 1);
     }
-    if (!rich) return c;
-    // embedded sandstone cobbles (hand-placed, wedged into the seams)
-    const sp = { h: BR[5], l: BR[4], m: '#d8944c', s: '#a9602f', d: '#73372b', o: BR[1] };
-    const cobA = [
-      '...lllll...',
-      '.llhhhlllm.',
-      'lhhhlllllms',
-      'lhhllllmmms',
-      'llllllmmmsd',
-      'lllmmmmmssd',
-      '.mmmmssssdo',
-      '..sssddddo.',
-      '....oooo...',
-    ];
-    const cobB = [
-      '..llll.',
-      '.lhhllm',
-      'lhhllms',
-      'lllmmsd',
-      '.mmssdo',
-      '..dddo.',
-    ];
-    const cobC = [
-      '.lhl.',
-      'lhlms',
-      'lmmsd',
-      '.sdo.',
-    ];
-    stamp(c, cobB, 26, 8, sp);
-    stamp(c, cobC, 53, 40, sp);
-    stamp(c, cobC, 8, 55, sp);
+    const w = dl + dr + 1, base = BASE[k], tall = h >= 13, wide = w >= 16;
+    // a lit ledge along the top (thick at the left, tapering right) + lit left end,
+    // a shaded wedge along the bottom-right, dark purple-brown just above the seam
+    if (dt <= 1 && dl <= 1) return DI.H;
+    if (db + dr <= 2) return DI.d;
+    if (dt === 0) return dl < w * 0.62 ? DI.H : DI.L;
+    if (db === 0) return dr < w * 0.62 ? DI.d : DI.s;
+    if (dl === 0) return dt < h * 0.45 ? DI.H : dt < h * 0.7 ? DI.L : base;
+    if (dr === 0) return db < h * 0.55 ? DI.d : DI.s;
+    if (dt === 1 && dl < w * (tall ? 0.8 : 0.6)) return DI.L;
+    if (dl === 1 && dt < h * 0.4) return DI.L;
+    if (db === 1 && dr < w * 0.8) return DI.s;
+    if (dr === 1 && db < h * 0.62) return DI.s;
+    if (tall && dt === 2 && dl < w * 0.5) return DI.L;
+    if (h >= 18 && dt === 3 && dl < w * 0.25) return DI.L;
+    if (tall && db === 2 && dr < w * 0.5) return DI.s;
+    if (h >= 18 && db === 3 && dr < w * 0.22) return DI.s;
+    if (wide && dl === 2 && dt < h * 0.22) return DI.L;
+    if (wide && dr === 2 && db < h * 0.3) return DI.s;
+    return base;
+  }
+  const dirtMap = [];
+  for (let y = 0; y < 64; y++) { const r = []; for (let x = 0; x < 64; x++) r.push(dirtIndex(x, y)); dirtMap.push(r); }
+  function dstamp(rows, x, y) {
+    for (let j = 0; j < rows.length; j++)
+      for (let i = 0; i < rows[j].length; i++) {
+        const ch = rows[j][i];
+        if (ch !== '.') dirtMap[mod(y + j, 64)][mod(x + i, 64)] = DI[ch];
+      }
+  }
+  const BOULDER = [
+    '....ddddd....',
+    '..ddHHHHHdd..',
+    '.dHHWWHHLLLd.',
+    'dHWWHHHLLLLsD',
+    'dHWHHLLLLLssk',
+    'dHHLLLLLLsssk',
+    'dHLLLLLLsssdk',
+    '.DLLLLssssddk',
+    '..kLsssddddk.',
+    '...kkddddkk..',
+    '.....kkkk....',
+  ];
+  const STONE = [
+    '..ddd..',
+    '.dHHLd.',
+    'dHWLLsk',
+    'dHLLssk',
+    '.kLssdk',
+    '..kkkk.',
+  ];
+  const PEBBLE = [
+    '.dd.',
+    'dHLk',
+    'dLsk',
+    '.kk.',
+  ];
+  const ROOT = [
+    'HH................',
+    'WHHH..............',
+    'LLWHHH............',
+    'DDLLWHH...........',
+    '..DDLLHH..........',
+    '....DDLHH..HH.....',
+    '......DLHHHLLHH...',
+    '......DLLHDDLLLH..',
+    '.......DLH..DDDLH.',
+    '.......DLH.....DD.',
+    '........DLH.......',
+    '........DDLH......',
+    '..........DL......',
+    '...........D......',
+  ];
+  const PEB_A = [
+    '.dddd.',
+    'dHHLLd',
+    'dHLLsk',
+    'dLssdk',
+    '.kkkk.',
+  ];
+  const PEB_B = [
+    '.ddd.',
+    'dHLsk',
+    'dLsdk',
+    '.kkk.',
+  ];
+  const SHELL = [
+    '..ddddd..',
+    '.dHLHLHd.',
+    'dHLdLdLLk',
+    'dLLdLdLsk',
+    '.dLdLdsk.',
+    '..dLLsk..',
+    '...kkk...',
+  ];
+  dstamp(BOULDER, 15, 6); dstamp(STONE, 25, 12); dstamp(PEBBLE, 12, 14);
+  dstamp(ROOT, 34, 20);
+  dstamp(PEB_A, 10, 40); dstamp(PEB_B, 16, 42); dstamp(PEBBLE, 12, 45);
+  dstamp(STONE, 44, 55);
+  dstamp(SHELL, 52, 38);
+  function paintDirt(ramp) {
+    const c = G.cv(64, 64);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) R(c, x, y, 1, 1, ramp[dirtMap[y][x]]);
     return c;
   }
-  const dirt = makeDirt({ slab: ['#c47a3c', '#b96d38', '#cc8742'], hi: BR[4], hi2: '#d8944c', sh: '#a9602f', seam: BR[2], cast: '#73372b' }, true);
-  const dirtDeep = makeDirt({ slab: ['#8f4a2e', '#874530', '#8f4a2e'], hi: '#a9602f', hi2: '#9a5330', sh: '#7e402c', seam: '#73372b', cast: '#62302a' }, false);
+  const dirt = paintDirt(DIRT_RAMP), dirtDeep = paintDirt(DEEP_RAMP);
 
   // ------------------------------------------------------------------
   // GRASS CAP — 64x24, row 8 = collision surface
-  // Puffy sunlit top, three stacked rows of blade teeth, dark fringe,
-  // outline and a cast shadow on the earth below.
+  // Four big rounded clumps of uneven width (lit yellow-green top-left,
+  // mid green flank) rest on a teal-dark core; rounded tongues of uneven
+  // length (2-7px) hang from it, outlined, with a cast shadow on the earth.
   // ------------------------------------------------------------------
   const GM = '#4ab842';                            // extra mid green between GR[2] and GR[3]
-  const SHADOW = 'rgba(43,22,34,0.45)';
-  const GCOL = [GR[0], GR[1], GR[2], GM, GR[3], GR[4]]; // 0 outline .. 5 highlight
+  const GCORE = '#14664e';                         // teal-shifted dark green (core of the mat)
+  const SH1 = 'rgba(43,22,34,0.62)', SH2 = 'rgba(43,22,34,0.32)';
+  const gp = { h: GR[4], l: GR[3], g: GM, m: GR[2], d: GR[1], t: GCORE, o: GR[0], s: SH1, S: SH2 };
   function makeGrass() {
-    const c = G.cv(64, 24);
-    const g = []; for (let y = 0; y < 24; y++) g.push(new Array(64).fill(-1));
-    // hand-authored per-column profiles (64 columns each)
-    const TUFTS = ['0122210', '013310', '0111', '0123332210', '012210', '0110', '01233210', '011110', '0122210', '013210']; // bump above row 8
-    const MID = '0123321' + '0' + '12321' + '00' + '123321' + '0' + '1232' + '10' + '1233321' + '0' + '12321' + '0' + '123321' + '00' + '12321' + '0' + '1233210' + '0'; // GR[3] teeth: rows below 10
-    const FRONT = '2456542' + '0' + '12331' + '0' + '1356531' + '0' + '1221' + '13466531' + '0' + '13431' + '0' + '2466431' + '1221' + '0' + '135531' + '0' + '1231'; // rows below 13
-    const BACK = '10000135' + '42113431' + '00013542' + '34310000' + '13542013' + '43100013' + '43245310' + '01354213'; // rows below 15
-    const top = [], ti = [], tw = [];
-    for (const s of TUFTS) for (let i = 0; i < s.length; i++) { top.push(8 - +s[i]); ti.push(i); tw.push(s.length); }
-    if (top.length !== 64 || MID.length !== 64 || FRONT.length !== 64 || BACK.length !== 64)
-      throw new Error('grass profile lengths ' + [top.length, MID.length, FRONT.length, BACK.length]);
-    for (let x = 0; x < 64; x++) {
-      const T = top[x], M = 10 + +MID[x], F = 13 + +FRONT[x], K = 15 + +BACK[x], i = ti[x], w = tw[x];
-      // sunlit cap: thick on the flank facing the light, thin on the far side
-      const rising = top[mod(x - 1, 64)] > T, falling = top[mod(x + 1, 64)] > T;
-      let hl = falling ? 1 : rising ? 3 : 2;
-      if (w >= 8 && i === 2) hl = 5;
-      if (w >= 8 && (i === 1 || i === 3)) hl = 4;
-      for (let y = T; y <= F; y++) {
-        let v = y <= M ? 4 : 3;
-        if (y < T + hl) v = 5;
-        if (i === w - 1 && (y === T + 1 || y === T + 2)) v = 3;   // crease between tufts
-        if (y === F && K <= F) v = 2;                              // underside rim
-        g[y][x] = v;
-      }
-      for (let y = F + 1; y <= K; y++) g[y][x] = (y === K || y > F + 2) ? 1 : 2;
-    }
-    // a few blade tips poking above the tufts: [x, y, value]
-    const BLADES = [[10, 4, 4], [11, 3, 5], [41, 4, 4], [40, 3, 5], [60, 4, 4], [61, 3, 5], [61, 2, 5], [21, 4, 4], [22, 3, 5], [22, 2, 5]];
+    // clumps A (20px) + B (13px) + C (17px) + D (14px), rows 5..12
+    const CLUMPS = [
+      ['....hhhhhhhll.......', '.............', '...hhhhhhll......', '..............'],
+      ['..hhhhhhhlllllll....', '...hhhhll....', '.hhhhhhhlllllg...', '..hhhhhlll....'],
+      ['.hhhhlllllllllllggg.', '.hhhllllllgg.', 'hhhhllllllllllgg.', 'hhhhlllllllgg.'],
+      ['hhhlllllllllllllgggm', 'hhllllllllggm', 'hhlllllllllllgggm', 'hhllllllllgggm'],
+      ['lllllllllllllllggggm', 'llllllllllggm', 'llllllllllllggggm', 'lllllllllggggm'],
+      ['tllllllllllllgggggmt', 'tlllllllgggmt', 'lllllllllllggggmt', 'llllllllggggmt'],
+      ['ttlllllllgggggggmttt', 'tttlllgggmttt', 'tlllllllggggggmtt', 'ttllllggggmttt'],
+      ['ttttggggggggmmtttttt', 'ttttttttttttt', 'tttggggggggmttttt', 'tttttttttttttt'],
+    ];
+    // hanging tongues, rows 14..20 (segments are the individual tongues / gaps)
+    const FRINGE = [
+      ['ggmmmd', '.', 'gmd', 'ggmmmmd', 'd', 'gmd', '.', 'ggmmmd', 'd', 'gm', 'd', 'ggmmmd', '.', 'ggmmd', 'gmd', 'ggmmmmd', 'd', 'gmmd', '.', 'gmmd'],
+      ['ggmmmd', '.', 'md.', 'ggmmmmd', '.', 'gmd', '.', 'mgmmmd', '.', 'md', '.', 'ggmmmd', '.', 'gmmmd', 'md.', 'ggmmmmd', '.', 'gmmd', '.', 'gmd.'],
+      ['mgmmd.', '.', '...', 'mggmmmd', '.', 'md.', '.', '.gmmmd', '.', '..', '.', 'mgmmmd', '.', 'mmmd.', '...', 'mggmmmd', '.', 'mmd.', '.', 'mmd.'],
+      ['.mmmd.', '.', '...', '.mgmmdd', '.', '...', '.', '.mmmd.', '.', '..', '.', '.mmmd.', '.', '.mdd.', '...', '.mgmmdd', '.', '....', '.', '.d..'],
+      ['..md..', '.', '...', '.mmmmd.', '.', '...', '.', '..mdd.', '.', '..', '.', '.mmdd.', '.', '.....', '...', '.mmmmd.', '.', '....', '.', '....'],
+      ['......', '.', '...', '..mmdd.', '.', '...', '.', '......', '.', '..', '.', '..dd..', '.', '.....', '...', '..mmdd.', '.', '....', '.', '....'],
+      ['......', '.', '...', '...dd..', '.', '...', '.', '......', '.', '..', '.', '......', '.', '.....', '...', '..mdd..', '.', '....', '.', '....'],
+    ];
+    const E = '.'.repeat(64);
+    const rows = [E, E, E, E, E];
+    for (const r of CLUMPS) rows.push(r.join(''));
+    rows.push('t'.repeat(64));
+    for (const r of FRINGE) rows.push(r.join(''));
+    rows.push(E, E, E);
+    const g = rows.map((r, y) => {
+      if (r.length !== 64) throw new Error('grass row ' + y + ' has length ' + r.length);
+      return r.split('');
+    });
+    if (g.length !== 24) throw new Error('grass rows ' + g.length);
+    // 4 irregular blade tufts poking above the clumps: [x, y, tone]
+    const BLADES = [
+      [5, 2, 'h'], [5, 3, 'l'], [6, 4, 'l'], [8, 1, 'h'], [8, 2, 'l'], [7, 3, 'l'], [7, 4, 'l'], [10, 3, 'h'], [9, 4, 'l'],
+      [17, 6, 'l'], [18, 5, 'l'], [18, 4, 'h'],
+      [38, 4, 'l'], [38, 3, 'l'], [37, 2, 'h'], [40, 4, 'l'], [41, 3, 'l'], [41, 2, 'h'], [42, 1, 'h'],
+      [56, 5, 'l'], [55, 4, 'h'], [57, 5, 'l'], [57, 4, 'l'], [58, 3, 'h'],
+    ];
     for (const [x, y, v] of BLADES) g[y][x] = v;
-    const at = (x, y) => (y < 0 || y > 23 ? -1 : g[y][mod(x, 64)]);
-    for (let y = 0; y < 24; y++) for (let x = 0; x < 64; x++) {
-      const v = g[y][x];
-      if (v >= 0) { dot(c, x, y, GCOL[v]); continue; }
-      if (y < 12) continue;
-      if (at(x, y - 1) >= 0 || at(x - 1, y) >= 0 || at(x + 1, y) >= 0) { dot(c, x, y, GCOL[0]); continue; }
-      const near = (dx, dy) => at(x + dx, y + dy) >= 0;
-      if (near(0, -2) || near(-1, -1) || near(-1, -2) || near(1, -1) || near(0, -3) || near(-1, -3)) dot(c, x, y, SHADOW);
+    const at = (x, y) => (y < 0 || y > 23 ? '.' : g[y][mod(x, 64)]);
+    const body = ch => ch !== '.' && ch !== 's' && ch !== 'S';
+    // dark outline around the hanging tongues
+    for (let y = 14; y < 24; y++) for (let x = 0; x < 64; x++) {
+      if (g[y][x] !== '.') continue;
+      const fill = ch => ch !== '.' && ch !== 'o';
+      if (fill(at(x, y - 1)) || fill(at(x - 1, y)) || fill(at(x + 1, y))) g[y][x] = 'o';
     }
-    return c;
+    // cast shadow on the earth: the fringe silhouette dropped down-right (2 steps)
+    const sil = g.map(r => r.map(body));
+    const S = (x, y) => y >= 0 && y < 24 && sil[y][mod(x, 64)];
+    for (let y = 14; y < 24; y++) for (let x = 0; x < 64; x++) {
+      if (g[y][x] !== '.') continue;
+      if (S(x, y - 1) || S(x - 1, y - 1)) g[y][x] = 's';
+      else if (S(x, y - 2) || S(x - 1, y - 2) || S(x - 2, y - 2)) g[y][x] = 'S';
+    }
+    return px(g.map(r => r.join('')), gp);
   }
   const grass = makeGrass();
 
   // Ledge caps: the mat rolls over the corner and droops (4px outside, 4px over the ledge).
-  const gp = { o: GR[0], d: GR[1], m: GR[2], g: GM, l: GR[3], h: GR[4], s: SHADOW };
   const grassEndL = px([
     '........',
     '........',
     '........',
     '........',
-    '.....h..',
-    '....hh..',
-    '...hhhhh',
+    '........',
+    '........',
+    '....hhhh',
     '..hhhhhl',
     '.hhhhlll',
-    'hhhhllll',
     'hhhlllll',
-    'hhllllgg',
-    '.hlllggg',
-    '.mlggggg',
-    'hhlggggm',
-    'hllgggmm',
-    'hlgggmmd',
-    'mlggmmdd',
-    'omgmmddo',
-    '.ommddos',
-    '..oddoss',
-    '...ooss.',
-    '.....s..',
+    'hhllllll',
+    'hllllllg',
+    'hlllllgg',
+    'hllllggg',
+    'lllggggm',
+    'llgggmmm',
+    'lggmmmmd',
+    'gggmmmdd',
+    'mgmmmddo',
+    'ommdddos',
+    '.oddooss',
+    '..oosssS',
+    '....SSS.',
     '........',
   ], gp);
   const grassEndR = px([
@@ -195,25 +295,25 @@ G.defineArt('terrain', G => {
     '........',
     '........',
     '........',
-    '..h.....',
-    '..hh....',
-    'hhhhl...',
-    'hhhlllg.',
-    'hllllggm',
-    'llllgggm',
+    '........',
+    '........',
+    'hhhl....',
+    'lllllg..',
+    'llllggg.',
     'lllggggm',
-    'llgggggd',
-    'lggggmd.',
-    'gggggdd.',
+    'llgggggm',
+    'lggggggm',
+    'ggggggmm',
+    'gggggmmd',
     'ggggmmmd',
     'gggmmmdd',
-    'mggmmddo',
-    'dmmmdddo',
-    'odmdddo.',
-    'soddoo..',
-    'ssoo....',
-    '.ss.....',
-    '........',
+    'mmmmmddo',
+    'mmmmdddo',
+    'dmmdddo.',
+    'oddddo..',
+    'soooo...',
+    'ssss....',
+    'SSSS....',
     '........',
   ], gp);
 

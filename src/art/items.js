@@ -245,9 +245,9 @@ G.defineArt('items', G => {
       '................',
       '................',
       '.......l........',
-      '.......l........',
-      '.....llwll......',
-      '.......l........',
+      '.......w........',
+      '.....lwwwl......',
+      '.......w........',
       '.......l........',
       '................',
       '................',
@@ -256,79 +256,87 @@ G.defineArt('items', G => {
       '................',
       '................',
     ], [
-      '.......g........',
-      '.......y........',
       '.......y........',
       '.......l........',
-      '....y..l..y.....',
-      '.....l.w.l......',
-      '......www.......',
-      'gyylllwwwlllyyg.',
-      '......www.......',
-      '.....l.w.l......',
-      '....y..l..y.....',
+      '.......l........',
+      '.......w........',
+      '.......w........',
+      '......lwl.......',
+      '.....lwwwl......',
+      'yllwwwwwwwwwlly.',
+      '.....lwwwl......',
+      '......lwl.......',
+      '.......w........',
+      '.......w........',
+      '.......l........',
       '.......l........',
       '.......y........',
-      '.......y........',
-      '.......g........',
       '................',
     ], [
       '................',
-      '................',
-      '..g....y....g...',
-      '...y...l...y....',
-      '....l..l..l.....',
-      '.....l.w.l......',
-      '......www.......',
-      '..yllwwwwwlly...',
-      '......www.......',
-      '.....l.w.l......',
-      '....l..l..l.....',
-      '...y...l...y....',
-      '..g....y....g...',
-      '................',
-      '................',
-      '................',
-    ], [
-      '................',
-      '................',
       '.......y........',
-      '..y.........y...',
-      '................',
-      '................',
-      '................',
       '..y....l....y...',
-      '................',
-      '................',
-      '................',
-      '..y.........y...',
+      '...l...l...l....',
+      '....l..w..l.....',
+      '.....w.w.w......',
+      '......www.......',
+      '.yllwwwwwwwlly..',
+      '......www.......',
+      '.....w.w.w......',
+      '....l..w..l.....',
+      '...l...l...l....',
+      '..y....l....y...',
       '.......y........',
       '................',
+      '................',
+    ], [
+      '................',
+      '.......y........',
+      '................',
+      '...y.......y....',
+      '................',
+      '................',
+      '.......l........',
+      '.y....lwl....y..',
+      '.......l........',
+      '................',
+      '................',
+      '...y.......y....',
+      '................',
+      '.......y........',
       '................',
       '................',
     ],
   ].map(r => px(r));
 
   // ================================================================== PUFFS
-  // Soft cloud lobes with clustered upper-left lighting. lobes: [x0, y0, diameter].
+  // Cloud lobes shaded as overlapping balls: every pixel belongs to the lobe it sits deepest in
+  // and takes light / base / shadow from its offset to that lobe's centre (light from the upper-left).
+  // lobes: [x0, y0, diameter]; cols: [shadow, base, light].
   function puffs(b, lobes, cols, edge) {
     const m = B(b.w, b.h);
     lobes.forEach(l => disc(m, l[0], l[1], l[2], 1));
-    const inM = (x, y) => Gt(m, x, y) === 1;
-    lobes.forEach(l => disc(b, l[0], l[1], l[2], cols[0]));
-    lobes.forEach(l => disc(b, l[0], l[1], l[2] - 1, cols[1], inM));
-    lobes.forEach(l => { if (l[2] >= 6) disc(b, l[0] + 1, l[1] + 1, l[2] - 4, cols[2], inM); });
+    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+      if (Gt(m, x, y) !== 1) continue;
+      let best = -1e9, t = 0;
+      lobes.forEach(l => {
+        const r = l[2] / 2, dx = x + .5 - (l[0] + r), dy = y + .5 - (l[1] + r), mg = r - Math.hypot(dx, dy);
+        if (mg > best) { best = mg; t = (dx + dy) / r; }
+      });
+      S(b, x, y, t < 0.2 ? cols[2] : t > 0.9 ? cols[0] : cols[1]);
+    }
     if (edge) outline(b, edge);
   }
-  const DUSTC = [BR[4], BR[5], WHT];
+  const DUSTC = [BR[3], BR[4], BR[5]];
   const dust = [
     [[5, 11, 5], [8, 12, 4]],
     [[2, 8, 6], [6, 9, 7], [10, 11, 5]],
     [[0, 5, 6], [5, 6, 6], [10, 9, 5], [4, 11, 4]],
-    [[1, 3, 3], [6, 4, 4], [11, 7, 3], [4, 9, 2]],
+    [[1, 4, 2], [6, 3, 4], [12, 7, 2], [4, 9, 2], [10, 2, 2]],
   ].map(l => { const b = B(16, 16); puffs(b, l, DUSTC); return out(b); });
 
   // =================================================================== POOF
+  // Impact flash -> big smoke burst -> ring of puffs opening up -> wisps.
   const POOFC = [ST[3], ST[4], WHT];
   function ring(n, R, sizes, a0) {
     const l = [];
@@ -340,8 +348,16 @@ G.defineArt('items', G => {
   }
   const poof = [0, 1, 2, 3, 4].map(f => {
     const b = B(24, 24);
-    if (f === 0) puffs(b, [[8, 8, 8]], POOFC, ST[2]);
-    if (f === 1) puffs(b, ring(6, 5, [9, 8], 0.5).concat([[8, 8, 8]]), POOFC, ST[2]);
+    if (f === 0) {                               // eight-point impact flash: long axis rays, short diagonal ones
+      const V = [];
+      for (let i = 0; i < 16; i++) { const R = i % 2 ? 3.6 : i % 4 ? 7 : 11.5; V.push([Math.cos(i * Math.PI / 8) * R, Math.sin(i * Math.PI / 8) * R]); }
+      for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
+        const dx = x + .5 - 12, dy = y + .5 - 12, r = Math.hypot(dx, dy);
+        const i = Math.floor(((Math.atan2(dy, dx) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 8)) % 16, p = V[i], q = V[(i + 1) % 16];
+        if ((q[0] - p[0]) * (dy - p[1]) - (q[1] - p[1]) * (dx - p[0]) >= 0) S(b, x, y, r < 3 ? WHT : r < 6 ? GO[3] : GO[2]);
+      }
+    }
+    if (f === 1) puffs(b, ring(6, 5.5, [9, 8], 0.5).concat([[7, 7, 9]]), POOFC, ST[2]);
     if (f === 2) puffs(b, ring(6, 7.5, [7, 6], 0.6), POOFC, ST[2]);
     if (f === 3) puffs(b, ring(6, 9, [5, 4], 0.7), POOFC, ST[2]);
     if (f === 4) puffs(b, ring(6, 10, [2, 3], 0.8), POOFC);
@@ -545,8 +561,8 @@ G.defineArt('items', G => {
   function coinFrame(fw, side, mode) {
     const b = B(24, 24);
     const sh = mode === 'away' ? -1 : mode === 'toward' ? 1 : 0;
-    const gi = i => GOLD[Math.max(0, Math.min(4, i + sh))];
-    const tb = 3 + sh;
+    const gi = i => GOLD[Math.max(0, Math.min(4, i + (sh > 0 ? (i >= 2 ? 1 : 0) : sh)))];
+    const tb = sh < 0 ? 2 : 3;
     if (!fw) {                                  // edge-on: just the milled rim wall
       const cols = [3, 4, 2, 1];
       for (let y = 2; y < 22; y++) for (let j = 0; j < 4; j++) {
@@ -644,7 +660,7 @@ G.defineArt('items', G => {
     S: '.####. ##..## .###.. ..###. ##..## .####.',
     T: '###### ..##.. ..##.. ..##.. ..##.. ..##..',
     U: '##..## ##..## ##..## ##..## ##..## .####.',
-    V: '##..## ##..## ##..## ##..## .####. ..##..',
+    V: '##..## ##..## ##..## .####. .####. ..##..',
     W: '##...## ##...## ##.#.## ####### ###.### ##...##',
     X: '##..## .####. ..##.. ..##.. .####. ##..##',
     Y: '##..## ##..## .####. ..##.. ..##.. ..##..',
@@ -711,7 +727,7 @@ G.defineArt('items', G => {
   ]);
   const hud = {
     heart: px(heartA),
-    heartEmpty: px(heartA.map(r => r.replace(/[234wP]/g, '1'))),
+    heartEmpty: px(heartA.map(r => r.replace(/[34wP]/g, '1'))),
     gem: gem[0],
     coinOn,
     coinOff,
@@ -802,9 +818,6 @@ G.defineArt('items', G => {
       TS.push([0, 1, 2].map(j => 0.5 * (2 * p1[j] + (p2[j] - p0[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t * t + (3 * p1[j] - p0[j] - 3 * p2[j] + p3[j]) * t * t * t)));
     }
     for (let i = 1; i < TS.length; i++) ARC.push(ARC[i - 1] + Math.hypot(TS[i][0] - TS[i - 1][0], TS[i][1] - TS[i - 1][1]));
-    // fur tufts: [arc position, length, depth] notches in the outer (lower / left) edge, points toward the tip
-    const TUFTS = [[96, 9, 1.6], [136, 9, 1.6], [172, 9, 1.8], [199, 7, 1.8], [210, 7, 1.8]];
-    const tuft = a => { for (const q of TUFTS) if (a >= q[0] && a < q[0] + q[1]) return q[2] * (1 - (a - q[0]) / q[1]); return 0; };
     const TL = new Float32Array(LW * LH), TA = new Float32Array(LW * LH), TQ = new Float32Array(LW * LH);   // light term across the tube, arc position, signed offset across
     const TAIL = MK(LW, LH, (x, y) => {
       const px = x + .5, py = y + .5;
@@ -815,8 +828,9 @@ G.defineArt('items', G => {
         const dx = px - a[0] - ex * u, dy = py - a[1] - ey * u, d = dx * dx + dy * dy;
         if (d < bd) { bd = d; br = a[2] + (c[2] - a[2]) * u; ox = dx; oy = dy; ba = ARC[i] + Math.sqrt(l2) * u; tx = ex; ty = ey; }
       }
-      if (Math.sqrt(bd) > br - (tx * oy - ty * ox < 0 ? tuft(ba) : 0)) return false;
-      TL[y * LW + x] = -(ox + oy) / br * Math.SQRT1_2; TA[y * LW + x] = ba; TQ[y * LW + x] = (tx * oy - ty * ox) / Math.hypot(tx, ty);
+      if (Math.sqrt(bd) > br) return false;
+      // lit from above-left, the underside falls into shade
+      TL[y * LW + x] = -(0.447 * ox + 0.894 * oy) / br; TA[y * LW + x] = ba; TQ[y * LW + x] = (tx * oy - ty * ox) / Math.hypot(tx, ty);
       return true;
     });
 
@@ -837,8 +851,8 @@ G.defineArt('items', G => {
       if (!on(TAIL, x, y)) return;
       const l = TL[y * LW + x];
       const z = TQ[y * LW + x] / 5 + 0.25, zig = Math.abs(z - Math.floor(z) - 0.5) * 2;     // 5px wide teeth across the tail
-      if (TA[y * LW + x] > 217 + 4 * zig) S(b, x, y, l > 0 ? WHT : l < -0.45 ? BR[4] : BR[5]);
-      else S(b, x, y, l > 0.25 ? OR[3] : l < -0.3 ? OR[1] : OR[2]);
+      if (TA[y * LW + x] > 217 + 4 * zig) S(b, x, y, l > 0 ? WHT : l < -0.3 ? BR[4] : BR[5]);
+      else S(b, x, y, l > 0.3 ? OR[3] : l < -0.2 ? OR[1] : OR[2]);
     });
     inkAround(EXT);
     each((x, y) => {

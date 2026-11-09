@@ -357,12 +357,12 @@ G.defineArt('player', G => {
   const HEAD_FALL = patch(HEAD, Object.assign({}, EYES_WIDE, MOUTH_OPEN, { 16: '......kkwwccccccccccccKook', 17: '.......kkkk.......cssccck' }));
   // Ears swept flat along the skull (rising jump): replaces head rows 3..9.
   const sweep = head => [3,
-    '.....kkk.....kkk',
-    '....kDDdkk..kDDrkk',
-    '....kDdOOOkkkDdrrrkk',
-    '.....kdOqqOOkkkdrrrrkkk',
-    '......kkOqppOkkkkrOOOOOk',
-    '........kkOqqOYYyyOOOOrk',
+    '.............kk',
+    '.....kkk....kDDk',
+    '....kDDdkkk.kDdrk',
+    '....kDdOOOOkkkdrrkk',
+    '.....kkOOqqqOOkkrrOkkkk',
+    '.......kkOOqqpOYyyOOOOrk',
     '.........kyYYyOKKKOOKKrk',
   ].concat(head.slice(10));
   const HEAD_SWEPT = sweep(HEAD_JUMP);
