@@ -17,7 +17,8 @@ html = html.replace(/<!--SCRIPTS-->[\s\S]*?<!--\/SCRIPTS-->/, block => {
 });
 const i = process.argv.indexOf('--fragment');
 if (i > 0) {
-  const title = html.match(/<title>[\s\S]*?<\/title>/)[0];
+  // hosts that wrap the page want a short name as title and a promise that the side gutters use max(16px, safe-area)
+  const title = '<title>SUNFOX</title>\n<meta name="claude:viewport-fit-sides" content="cover">';
   const style = html.match(/<style>[\s\S]*?<\/style>/)[0];
   const body = html.match(/<body>([\s\S]*)<\/body>/)[1];
   const out = process.argv[i + 1];
