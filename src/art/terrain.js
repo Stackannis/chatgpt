@@ -16,15 +16,12 @@ G.defineArt('terrain', G => {
     m: P.teal[0], n: P.teal[1], M: P.teal[2], N: P.teal[3],
   };
   const px = (rows, pal) => G.px(rows, pal || C);
+  const mod = (a, n) => ((a % n) + n) % n;
 
-  // Wrapping pixel / rect for seamless textures.
+  // Wrapping pixel for seamless textures.
   function dot(c, x, y, col) {
-    const w = c.width, h = c.height;
     c.ctx.fillStyle = col;
-    c.ctx.fillRect(((x % w) + w) % w, ((y % h) + h) % h, 1, 1);
-  }
-  function box(c, x, y, w, h, col) {
-    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) dot(c, x + i, y + j, col);
+    c.ctx.fillRect(mod(x, c.width), mod(y, c.height), 1, 1);
   }
   // Stamp rows of chars with a local palette ('.' = skip), wrapping.
   function stamp(c, rows, x, y, pal) {
@@ -37,108 +34,138 @@ G.defineArt('terrain', G => {
   function R(c, x, y, w, h, col) { c.ctx.fillStyle = col; c.ctx.fillRect(x, y, w, h); }
 
   // ------------------------------------------------------------------
-  // EARTH — 16px bevelled checker of sun-baked clay blocks (64x64 seamless)
+  // EARTH — zigzag strata of chunky sun-baked rock slabs (64x64 seamless)
+  // Four 16px courses per tile; every course is a light slab over a dark
+  // seam, the whole stack folded into a stepped chevron (period 32px).
   // ------------------------------------------------------------------
+  const ZOFF = [0, 2, 4, 6, 6, 4, 2, 0];          // chevron lift per 4px column group
+  const SLAB = [10, 9, 11, 10];                   // slab thickness in each 16px course
+  const JOINT = [[9, 38], [24, 52], [3, 29, 46], [17, 60]]; // vertical cracks per course
+  const TONE = [[0, 1], [1, 0], [0, 2, 1], [1, 0]];           // slab tone left→right between cracks
+  function band(x, y) {
+    x = mod(x, 64);
+    const yy = mod(y + ZOFF[(x & 31) >> 2], 64);
+    const k = yy >> 4, r = yy & 15, s = SLAB[k];
+    if (r >= s) return { slab: 0, k, r: r - s, n: 16 - s };
+    const J = JOINT[k];
+    let tone = TONE[k][J.length - 1];
+    for (let j = 0; j < J.length; j++) {
+      const jx = mod(J[j] + (r >= (s >> 1) ? 1 : 0), 64); // cracks step sideways halfway down
+      if (x === jx) return { slab: 0, k, r, n: s };
+      if (x > jx) tone = TONE[k][j];
+    }
+    return { slab: 1, k, r, n: s, tone };
+  }
   function makeDirt(p, rich) {
     const c = G.cv(64, 64);
-    for (let cy = 0; cy < 4; cy++) {
-      for (let cx = 0; cx < 4; cx++) {
-        const X = cx * 16, Y = cy * 16;
-        const light = (cx + cy) % 2 === 0;
-        const fill = light ? p.L : p.D, hi = light ? p.LH : p.DH, sh = light ? p.LS : p.DS;
-        box(c, X, Y, 16, 16, fill);
-        box(c, X, Y, 16, 1, hi);
-        box(c, X, Y, 1, 16, hi);
-        box(c, X, Y + 15, 16, 1, sh);
-        box(c, X + 15, Y, 1, 16, sh);
-        // stepped facet clusters: lit corner + shaded corner
-        for (let i = 0; i < 4; i++) box(c, X + 1, Y + 1 + i, 4 - i, 1, hi);
-        for (let i = 0; i < 6; i++) box(c, X + 9 + i, Y + 14 - i, 6 - i, 1, sh);
-        if (light && p.LHH) { box(c, X, Y, 3, 1, p.LHH); box(c, X, Y, 1, 3, p.LHH); }
-        if (!light && p.DSS) { box(c, X + 12, Y + 15, 4, 1, p.DSS); box(c, X + 15, Y + 12, 1, 4, p.DSS); }
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
+      const b = band(x, y), ph = (x & 31) >> 2;
+      const up = band(x, y - 1), lf = band(x - 1, y), rt = band(x + 1, y), dn = band(x, y + 1), dn2 = band(x, y + 2);
+      const lit = ph >= 1 && ph <= 4;             // rising flank + crest face the sun
+      let col;
+      if (b.slab) {
+        if (!up.slab) col = lit ? p.hi : p.hi2;
+        else if (!lf.slab) col = p.hi;
+        else if (!dn.slab || !rt.slab) col = p.sh;
+        else if (!dn2.slab && !lit) col = p.sh;
+        else col = p.slab[b.tone];
+      } else {
+        col = up.slab || lf.slab || band(x - 1, y - 1).slab ? p.cast : p.seam;
       }
+      dot(c, x, y, col);
     }
     if (!rich) return c;
-    // hand-placed details (x, y in the 64x64 tile)
-    const lp = { H: p.LHH, h: p.LH, m: p.LS, d: p.DS, D: p.DSS, l: p.L };
-    const pebL = ['.hHH.', 'hHhhm', 'mhhmd', '.mdd.'];   // pale stone on a light block
-    const pebS = ['.HH.', 'Hhmd', '.dd.'];
-    const pebD = ['.mm.', 'mmlD', 'dllD', '.DD.'];        // stone on a dark block
-    const crackL = ['d....', '.d...', '.dd..', '...d.', '...d.'];
-    const crackD = ['...D', '..D.', 'DD..', '.D..'];
-    const chipL = ['mm.', 'mdd', '.d.'];
-    const chipD = ['hh', 'hm'];
-    stamp(c, pebL, 7, 7, lp);
-    stamp(c, crackD, 23, 6, lp);
-    stamp(c, pebD, 6, 23, lp);
-    stamp(c, pebS, 56, 23, lp);
-    stamp(c, crackL, 38, 38, lp);
-    stamp(c, pebD, 39, 54, lp);
-    stamp(c, pebS, 23, 56, lp);
+    // embedded sandstone cobbles (hand-placed, wedged into the seams)
+    const sp = { h: BR[5], l: BR[4], m: '#d8944c', s: '#a9602f', d: '#73372b', o: BR[1] };
+    const cobA = [
+      '...lllll...',
+      '.llhhhlllm.',
+      'lhhhlllllms',
+      'lhhllllmmms',
+      'llllllmmmsd',
+      'lllmmmmmssd',
+      '.mmmmssssdo',
+      '..sssddddo.',
+      '....oooo...',
+    ];
+    const cobB = [
+      '..llll.',
+      '.lhhllm',
+      'lhhllms',
+      'lllmmsd',
+      '.mmssdo',
+      '..dddo.',
+    ];
+    const cobC = [
+      '.lhl.',
+      'lhlms',
+      'lmmsd',
+      '.sdo.',
+    ];
+    stamp(c, cobA, 24, 6, sp);
+    stamp(c, cobC, 37, 11, sp);
+    stamp(c, cobB, 50, 37, sp);
+    stamp(c, cobC, 9, 24, sp);
+    stamp(c, cobB, 13, 53, sp);
     return c;
   }
-  const dirt = makeDirt({ L: BR[3], LH: BR[4], LHH: BR[5], LS: '#a9602f', D: BR[2], DH: '#a9602f', DS: '#73372b', DSS: BR[1] }, true);
-  const dirtDeep = makeDirt({ L: '#7a3d30', LH: '#8a4832', LS: '#69332e', D: '#62302e', DH: '#6e3830', DS: '#532830', DSS: '#47202e' }, false);
+  const dirt = makeDirt({ slab: ['#c47a3c', '#b96d38', '#cc8742'], hi: BR[4], hi2: '#d8944c', sh: '#a9602f', seam: BR[2], cast: '#73372b' }, true);
+  const dirtDeep = makeDirt({ slab: ['#8f4a2e', '#874530', '#8f4a2e'], hi: '#a9602f', hi2: '#9a5330', sh: '#7e402c', seam: '#73372b', cast: '#62302a' }, false);
 
   // ------------------------------------------------------------------
   // GRASS CAP — 64x24, row 8 = collision surface
+  // Puffy sunlit top, three stacked rows of blade teeth, dark fringe,
+  // outline and a cast shadow on the earth below.
   // ------------------------------------------------------------------
-  const SHADOW = 'rgba(43,22,34,0.5)';
+  const GM = '#4ab842';                            // extra mid green between GR[2] and GR[3]
+  const SHADOW = 'rgba(43,22,34,0.45)';
+  const GCOL = [GR[0], GR[1], GR[2], GM, GR[3], GR[4]]; // 0 outline .. 5 highlight
   function makeGrass() {
     const c = G.cv(64, 24);
-    const g = []; // g[y][x] = colour index 0..4 or -1
-    for (let y = 0; y < 24; y++) g.push(new Array(64).fill(-1));
-    const top = [], lit = [], edge = [], bot = [], lt = [], lw = [], li = [];
-    // top silhouette: soft tufts [width, height]
-    const tufts = [[7, 2], [5, 1], [8, 2], [6, 1], [5, 1], [9, 3], [6, 1], [7, 2], [6, 2], [5, 1]];
-    for (const [w, h] of tufts) for (let i = 0; i < w; i++) {
-      top.push(8 - Math.round(h * Math.sin(Math.PI * (i + 0.5) / w) - 0.01));
-      lit.push(i < w * 0.55);
-      edge.push(i === w - 1);
-    }
-    // hanging fringe: leaf-like lobes [width, bottom row]
-    const lobes = [[10, 19], [6, 16], [12, 20], [8, 17], [9, 19], [5, 16], [14, 20]];
-    for (const [w, D] of lobes) for (let i = 0; i < w; i++) {
-      const t = (i + 0.5 - w / 2) / (w / 2);
-      bot.push(13 + Math.round((D - 13) * Math.sqrt(1 - t * t)));
-      lt.push(t); lw.push(w); li.push(i);
-    }
+    const g = []; for (let y = 0; y < 24; y++) g.push(new Array(64).fill(-1));
+    // hand-authored per-column profiles (64 columns each)
+    const TUFTS = ['0122210', '013310', '0111', '0123332210', '012210', '0110', '01233210', '011110', '0122210', '013210']; // bump above row 8
+    const MID = '0123321' + '0' + '12321' + '00' + '123321' + '0' + '1232' + '10' + '1233321' + '0' + '12321' + '0' + '123321' + '00' + '12321' + '0' + '1233210' + '0'; // GR[3] teeth: rows below 10
+    const FRONT = '2456542' + '0' + '12331' + '0' + '1356531' + '0' + '1221' + '13466531' + '0' + '13431' + '0' + '2466431' + '1221' + '0' + '135531' + '0' + '1231'; // rows below 13
+    const BACK = '10000135' + '42113431' + '00013542' + '34310000' + '13542013' + '43100013' + '43245310' + '01354213'; // rows below 15
+    const top = [], ti = [], tw = [];
+    for (const s of TUFTS) for (let i = 0; i < s.length; i++) { top.push(8 - +s[i]); ti.push(i); tw.push(s.length); }
+    if (top.length !== 64 || MID.length !== 64 || FRONT.length !== 64 || BACK.length !== 64)
+      throw new Error('grass profile lengths ' + [top.length, MID.length, FRONT.length, BACK.length]);
     for (let x = 0; x < 64; x++) {
-      const t = lt[x], w = lw[x], i = li[x];
-      for (let y = top[x]; y <= bot[x]; y++) {
-        let v = 3;
-        const d = bot[x] - y, tr = Math.max(0, t);
-        if (y <= top[x] + 1) v = 4;
-        if (edge[x]) { if (y === top[x]) v = 3; else if (y === top[x] + 1) v = 2; }
-        if (y >= 11) {
-          if (d < 1 + Math.round(tr * 2)) v = 1;
-          else if (d < 3 + Math.round(tr * 3)) v = 2;
-        }
-        if ((i === 0 || i === w - 1) && y >= 12) v = Math.min(v, i === 0 ? 2 : 1);
+      const T = top[x], M = 10 + +MID[x], F = 13 + +FRONT[x], K = 15 + +BACK[x], i = ti[x], w = tw[x];
+      // sunlit cap: thick on the flank facing the light, thin on the far side
+      const rising = top[mod(x - 1, 64)] > T, falling = top[mod(x + 1, 64)] > T;
+      let hl = falling ? 1 : rising ? 3 : 2;
+      if (w >= 8 && i === 2) hl = 5;
+      if (w >= 8 && (i === 1 || i === 3)) hl = 4;
+      for (let y = T; y <= F; y++) {
+        let v = y <= M ? 4 : 3;
+        if (y < T + hl) v = 5;
+        if (i === w - 1 && (y === T + 1 || y === T + 2)) v = 3;   // crease between tufts
+        if (y === F && K <= F) v = 2;                              // underside rim
         g[y][x] = v;
       }
-      // juicy specular on the bigger lobes
-      if (w >= 8 && (i === 2 || i === 3) && bot[x] - 13 >= 5) g[13][x] = 4;
-      if (w >= 8 && i === 2 && bot[x] - 14 >= 4) g[14][x] = 4;
+      for (let y = F + 1; y <= K; y++) g[y][x] = (y === K || y > F + 2) ? 1 : 2;
     }
-    // a few taller blades above the tufts (base 2px, curling tip)
-    const blades = [[17, 5, 1], [38, 5, -1], [60, 6, 1]];
-    for (const [x, y, d] of blades) {
-      g[y][x] = 3; g[y][x + d] = 3; g[y - 1][x] = 3; g[y - 1][x + d] = 4; g[y - 2][x + d] = 4; g[y - 3][x + 2 * d] = 4;
-    }
-    const at = (x, y) => (y < 0 || y > 23 ? -1 : g[y][(x + 64) % 64]);
+    // a few blade tips poking above the tufts: [x, y, value]
+    const BLADES = [[10, 4, 4], [11, 3, 5], [41, 4, 4], [40, 3, 5], [44, 5, 5], [60, 4, 4], [61, 3, 5], [61, 2, 5], [24, 4, 5], [25, 3, 5]];
+    for (const [x, y, v] of BLADES) g[y][x] = v;
+    const at = (x, y) => (y < 0 || y > 23 ? -1 : g[y][mod(x, 64)]);
     for (let y = 0; y < 24; y++) for (let x = 0; x < 64; x++) {
       const v = g[y][x];
-      if (v >= 0) { dot(c, x, y, GR[v]); continue; }
-      if (y < 13) continue;
-      if (at(x, y - 1) >= 0 || at(x - 1, y) >= 0 || at(x + 1, y) >= 0) dot(c, x, y, GR[0]);
-      else if (y - bot[x] <= 3) dot(c, x, y, SHADOW);
+      if (v >= 0) { dot(c, x, y, GCOL[v]); continue; }
+      if (y < 12) continue;
+      if (at(x, y - 1) >= 0 || at(x - 1, y) >= 0 || at(x + 1, y) >= 0) { dot(c, x, y, GCOL[0]); continue; }
+      const near = (dx, dy) => at(x + dx, y + dy) >= 0;
+      if (near(0, -2) || near(-1, -1) || near(-1, -2) || near(1, -1) || near(0, -3) || near(-1, -3)) dot(c, x, y, SHADOW);
     }
     return c;
   }
   const grass = makeGrass();
 
-  const gp = { o: GR[0], d: GR[1], m: GR[2], l: GR[3], h: GR[4], s: SHADOW };
+  // Ledge caps: the mat rolls over the corner and droops (4px outside, 4px over the ledge).
+  const gp = { o: GR[0], d: GR[1], m: GR[2], g: GM, l: GR[3], h: GR[4], s: SHADOW };
   const grassEndL = px([
     '........',
     '........',
@@ -146,23 +173,23 @@ G.defineArt('terrain', G => {
     '........',
     '........',
     '........',
-    '........',
+    '......hh',
     '...hhhhh',
-    '..hhhhll',
-    '.dhhllll',
-    'dhhlllll',
-    'dhllllll',
-    'dhlllllm',
-    'dllllmmm',
-    'dlllmmmm',
-    'dllmmmmm',
-    'dmmmmmmd',
-    'odmmmmdd',
-    '.odmmddo',
-    '..odddos',
-    '...oooss',
-    '....ssss',
-    '.....sss',
+    '..hhhhhl',
+    '.hhhllll',
+    '.hhlllll',
+    'hhllllll',
+    'hlllllgg',
+    'hllllggg',
+    'hlllgggg',
+    'lllgggmm',
+    'mlgggmmd',
+    'omggmmdd',
+    '.omgmddo',
+    '..ommdos',
+    '...odoss',
+    '....osss',
+    '......s.',
     '........',
   ], gp);
   const grassEndR = px([
@@ -172,66 +199,86 @@ G.defineArt('terrain', G => {
     '........',
     '........',
     '........',
-    '........',
+    'hh......',
     'hhhhl...',
-    'hhlllm..',
-    'llllllm.',
-    'lllllmmd',
-    'lllllmmd',
-    'llllmmdd',
-    'lllmmmdd',
-    'llmmmmdo',
-    'mmmmmddo',
-    'mmmmmddo',
-    'dmmmdddo',
-    'odddddo.',
+    'hhllllg.',
+    'lllllggm',
+    'llllgggm',
+    'lllggggm',
+    'llgggggm',
+    'lgggggmm',
+    'ggggggmd',
+    'gggggmmd',
+    'mgggmmdd',
+    'dmmmmddo',
+    'odmmddo.',
     'sodddo..',
     'ssooo...',
-    'ssss....',
     'sss.....',
+    '.s......',
     '........',
   ], gp);
 
   // ------------------------------------------------------------------
   // WALL EDGES (8x64, seamless vertically) + UNDERSIDE (64x8)
   // ------------------------------------------------------------------
+  // Chipped rim of edge rock: per-row thickness (0 = crack between chunks).
+  const RIM = '1223333322211' + '0' + '122233221' + '0' + '11223333333222211' + '0' + '1233322211' + '0' + '1222233221' + '0';
+  const LITE = 'rgba(255,224,160,0.3)', DARK1 = 'rgba(43,22,34,0.3)', DARK2 = 'rgba(43,22,34,0.55)';
   function makeWall(right) {
     const c = G.cv(8, 64);
-    // rim width per row inside a 16px block (aligned with the checker rows)
-    const wl = [2, 2, 3, 3, 3, 3, 3, 2, 2, 2, 2, 3, 3, 2, 2, 1];
+    if (RIM.length !== 64) throw new Error('RIM length ' + RIM.length);
     for (let y = 0; y < 64; y++) {
-      const j = y % 16, blk = (y >> 4);
-      const w = Math.max(1, wl[(j + blk * 5) % 16 === 15 ? 15 : j] + (blk % 2 && j > 4 && j < 11 ? 1 : 0));
+      const t = +RIM[y], first = +RIM[mod(y - 1, 64)] === 0, last = +RIM[mod(y + 1, 64)] === 0;
       if (!right) {
-        dot(c, 0, y, j === 15 ? BR[0] : BR[1]);
-        for (let i = 1; i <= w; i++) {
-          let col = i === 1 ? BR[5] : i < w ? BR[4] : BR[3];
-          if (j === 0) col = BR[5];
-          if (j === 15) col = BR[2];
-          if (j === 14) col = i === 1 ? BR[4] : BR[3];
+        // sunlit side: warm outline, bright rim, light spilling onto the strata
+        if (t === 0) { dot(c, 0, y, BR[0]); dot(c, 1, y, BR[1]); dot(c, 2, y, BR[1]); dot(c, 3, y, '#73372b'); continue; }
+        dot(c, 0, y, BR[1]);
+        for (let i = 1; i <= t; i++) {
+          let col = i === 1 ? BR[5] : i === 2 ? BR[4] : '#d8944c';
+          if (first) col = BR[5];
+          if (last) col = i === 1 ? BR[4] : '#a9602f';
           dot(c, i, y, col);
         }
+        dot(c, t + 1, y, LITE);
+        if (t >= 2) dot(c, t + 2, y, LITE);
       } else {
+        // shadow side: ink outline, dark rim, shade creeping over the strata
         dot(c, 7, y, P.ink);
-        for (let i = 1; i <= w; i++) {
-          let col = i === 1 ? BR[0] : i < w ? BR[1] : '#73372b';
-          if (j === 15) col = BR[0];
-          if (j === 0) col = i === 1 ? BR[1] : '#73372b';
+        if (t === 0) { dot(c, 6, y, BR[0]); dot(c, 5, y, BR[0]); dot(c, 4, y, BR[1]); dot(c, 3, y, DARK2); continue; }
+        for (let i = 1; i <= t; i++) {
+          let col = i === 1 ? BR[0] : i === 2 ? BR[1] : '#73372b';
+          if (first) col = i === 1 ? BR[1] : '#73372b';
+          if (last) col = BR[0];
           dot(c, 7 - i, y, col);
         }
+        dot(c, 6 - t, y, DARK2);
+        dot(c, 5 - t, y, DARK1);
+        if (t >= 2) dot(c, 4 - t, y, DARK1);
       }
     }
     return c;
   }
   const wallL = makeWall(false), wallR = makeWall(true);
 
+  // Underside: ink outline, chunky dark rock lip, shade fading up into the strata.
   function makeUnder() {
     const c = G.cv(64, 8);
-    const prof = [2, 2, 3, 4, 5, 5, 4, 3, 2, 3, 3, 4, 4, 3, 2, 2]; // dark band height above the outline
+    const LIP = '1223332210' + '12233321' + '0' + '1222333332221' + '0' + '12332210' + '122333221' + '0' + '1223333322110';
+    if (LIP.length !== 64) throw new Error('LIP length ' + LIP.length);
     for (let x = 0; x < 64; x++) {
-      const h = prof[(x + (x >> 4) * 5) % 16];
+      const t = +LIP[x], first = +LIP[mod(x - 1, 64)] === 0, last = +LIP[mod(x + 1, 64)] === 0;
       dot(c, x, 7, P.ink);
-      for (let j = 1; j <= h; j++) dot(c, x, 7 - j, j <= 1 ? BR[0] : j <= h - 1 ? BR[1] : '#6e3329');
+      if (t === 0) { dot(c, x, 6, BR[0]); dot(c, x, 5, BR[0]); dot(c, x, 4, BR[1]); dot(c, x, 3, DARK2); continue; }
+      for (let j = 1; j <= t; j++) {
+        let col = j === 1 ? BR[0] : j === 2 ? BR[1] : '#73372b';
+        if (first) col = j === 1 ? BR[1] : '#73372b';
+        if (last) col = BR[0];
+        dot(c, x, 7 - j, col);
+      }
+      dot(c, x, 6 - t, DARK2);
+      dot(c, x, 5 - t, DARK1);
+      if (t >= 2) dot(c, x, 4 - t, DARK1);
     }
     return c;
   }
@@ -374,7 +421,7 @@ G.defineArt('terrain', G => {
   const block = [blockFrame(-1), blockFrame(6), blockFrame(13), blockFrame(20)];
   const blockUsed = px([
     'kkkkkkkkkkkkkkkk',
-    'k3333333333332k',
+    'k33333333333332k',
     'k32222222222221k',
     'k32111111111121k',
     'k32100000000121k',
@@ -389,7 +436,7 @@ G.defineArt('terrain', G => {
     'k22111111111110k',
     'k11000000000000k',
     'kkkkkkkkkkkkkkkk',
-  ].map(r => (r.length === 15 ? r.slice(0, 8) + r[7] + r.slice(8) : r)));
+  ]);
 
   // ------------------------------------------------------------------
   // SPRING — [idle, compressed, extended], 16x24 bottom-aligned
@@ -502,7 +549,7 @@ G.defineArt('terrain', G => {
     c.ctx.drawImage(px(headRows, f < 0 ? headOff : headOn[f]), 0, 0);
     if (f >= 0) {
       const rays = f % 2 === 0 ? RAYS_CARD : RAYS_DIAG;
-      rays.forEach(([x, y], i) => R(c, x, y, 1, 1, f === 2 ? P.gold[3] : P.gold[2]));
+      rays.forEach(([x, y]) => R(c, x, y, 1, 1, f === 2 ? P.gold[3] : P.gold[2]));
       // warm band on the shaft
       R(c, 6, 19, 4, 1, P.gold[2]); R(c, 6, 19, 1, 1, P.gold[3]); R(c, 9, 19, 1, 1, P.gold[1]);
     }

@@ -468,18 +468,6 @@
   }
   const frameOf = (arr, t, rate) => (arr ? (Array.isArray(arr) ? arr[Math.floor(t / rate) % arr.length] : arr) : null);
 
-  G.drawBackground = function (ctx, B, camX, camUp, t) {
-    if (!B) { ctx.fillStyle = '#5cc8f8'; ctx.fillRect(0, 0, W, H); return; }
-    ctx.drawImage(B.sky, 0, 0);
-    for (const Ly of B.layers) {
-      const w = Ly.img.width;
-      let x = -((camX * Ly.speed + (Ly.auto || 0) * t) % w);
-      if (x > 0) x -= w;
-      const y = Math.round(Ly.y + camUp * Ly.speed * 0.5);
-      for (x = Math.floor(x); x < W; x += w) ctx.drawImage(Ly.img, x, y);
-    }
-  };
-
   function textW(s, sc) {
     const F = IT().font; let w = 0;
     for (const ch of s) w += ch === ' ' ? 6 : ((F && F[ch] ? F[ch].width : 8));

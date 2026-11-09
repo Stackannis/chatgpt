@@ -74,6 +74,33 @@
     G.art[name] = fn(G);
   };
 
+  // ---- Parallax backdrop (shared by the engine and the art preview tool) ----
+  // B = G.art.bg. camUp = how far the camera is raised above the level's bottom (px).
+  // A layer may set `raster: k` (> 1): it is then drawn in 2px strips whose scroll speed grows
+  // from `speed` at its top row to `speed * k` at its bottom row — the classic line-scroll
+  // trick that gives a sea or a plain fake perspective.
+  G.drawBackground = function (ctx, B, camX, camUp, t) {
+    if (!B) { ctx.fillStyle = '#5cc8f8'; ctx.fillRect(0, 0, G.W, G.H); return; }
+    ctx.drawImage(B.sky, 0, 0);
+    for (const L of B.layers) {
+      const im = L.img, w = im.width;
+      const y = Math.round(L.y + camUp * L.speed * 0.5);
+      const drift = (L.auto || 0) * t;
+      if (L.raster) {
+        for (let sy = Math.max(0, -y) & ~1; sy < im.height && y + sy < G.H; sy += 2) {
+          const sp = L.speed * (1 + (L.raster - 1) * (sy / im.height));
+          let x = -((camX * sp + drift) % w);
+          if (x > 0) x -= w;
+          for (x = Math.floor(x); x < G.W; x += w) ctx.drawImage(im, 0, sy, w, 2, x, y + sy, w, 2);
+        }
+        continue;
+      }
+      let x = -((camX * L.speed + drift) % w);
+      if (x > 0) x -= w;
+      for (x = Math.floor(x); x < G.W; x += w) ctx.drawImage(im, x, y);
+    }
+  };
+
   // ---- Tile collision shapes (shared by engine + terrain renderer) ----
   // '#' full solid. Slopes: '/' 45deg rising to the right, '\\' 45deg falling
   // to the right, '1','2' gentle rise (two tiles), '3','4' gentle fall.
