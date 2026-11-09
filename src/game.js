@@ -333,7 +333,8 @@
         case 'block': if (e.bump > 0) e.bump--; break;
         case 'spring':
           if (e.anim > 0) e.anim--;
-          if (!P.dead && P.vy > 0 && Math.abs(P.x - e.x) < 11 && P.y > e.y - 15 && P.y < e.y - 2) {
+          // launches when landed on from above, and also when simply walked onto
+          if (!P.dead && !P.win && P.vy >= 0 && e.anim < 8 && ((Math.abs(P.x - e.x) < 11 && P.y > e.y - 15 && P.y < e.y - 2) || (P.onGround && Math.abs(P.x - e.x) < 7 && Math.abs(P.y - e.y) < 3))) {
             P.y = e.y - 12; P.vy = -8.7; P.onGround = false; P.jumping = false; P.ride = null; e.anim = 16;
             AU.sfx('spring'); addFx(IT().dust, P.x, P.y - 4, 4);
           }

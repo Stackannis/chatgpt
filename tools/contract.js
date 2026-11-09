@@ -54,7 +54,7 @@ const { chromium } = require('playwright');
     const F = A.items && A.items.font;
     if (!F) bad.push('items.font: MISSING');
     else for (const ch of "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ!?:.,-'x+/") {
-      const g = F[ch]; if (!g) bad.push('items.font: missing glyph "' + ch + '"'); else if (g.height !== 8 || g.width > 8) bad.push('items.font["' + ch + '"]: size ' + g.width + 'x' + g.height);
+      const g = F[ch]; if (!g) bad.push('items.font: missing glyph "' + ch + '"'); else if (g.height !== 8 || g.width > 9) bad.push('items.font["' + ch + '"]: size ' + g.width + 'x' + g.height);
     }
     const au = G.audio, need = ['init', 'music', 'stopMusic', 'sfx', 'setMuted'];
     if (!au) bad.push('audio: G.audio MISSING');

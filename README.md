@@ -26,7 +26,8 @@ Ouvre simplement `index.html` dans un navigateur (ça marche aussi en `file://`)
 | Pause | Entrée, P, Échap | Start | II |
 | Couper le son | M | — | — |
 
-Sauter sur les ennemis violets à cornes et les volants ; **ne pas** sauter sur ceux qui ont des piquants.
+On peut sauter sur les sangliers violets et les oiseaux bleus ; **pas** sur les tortues à carapace rouge hérissée de piquants.
+Les ressorts rouges propulsent très haut (marcher dessus suffit) : ils mènent aux routes hautes et aux médailles.
 100 éclats de soleil = 1 vie. Les blocs à prix se frappent par en dessous.
 
 ### Sur mobile
@@ -51,6 +52,8 @@ tools/sheet.js        planche contact d'un module d'art  → shots/sheet-<module
 tools/shot.js         captures en jeu / vue d'ensemble du niveau
 tools/bot.js          bot qui joue le niveau en headless (vérifie qu'il est finissable)
 tools/mobile.js       test des commandes tactiles en émulation téléphone / tablette
+tools/contract.js     vérifie que chaque module d'art respecte le contrat (noms, tailles, nombre d'images)
+tools/audiotest.js    vérifie l'audio (API, séquenceur, niveaux crête / RMS en rendu hors ligne)
 tools/build.js        génère dist/sunfox.html (fichier unique)
 ```
 
