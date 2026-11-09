@@ -18,6 +18,7 @@
   const mods = (q.get('m') || 'player').split(',');
   const S = +(q.get('s') || 0);
   const BG = q.get('bg') || '#5cc8f8';
+  const ONLY = (q.get('only') || '').split(',').filter(Boolean); // show only assets whose path contains one of these
   const out = document.getElementById('out');
   window.__errors = [];
   window.onerror = (m, s, l) => { window.__errors.push(m + ' @' + s + ':' + l); out.insertAdjacentHTML('beforeend', '<div class="err">' + m + ' @' + l + '</div>'); };
@@ -36,6 +37,7 @@
     if (!v) return;
     if (v instanceof HTMLCanvasElement) v = [v];
     if (Array.isArray(v) && v.length && v[0] instanceof HTMLCanvasElement) {
+      if (ONLY.length && !ONLY.some(o => path.includes(o))) return;
       const big = Math.max(v[0].width, v[0].height);
       const s = S || (big > 200 ? 2 : big > 64 ? 3 : 5);
       const r = row(path + '  [' + v.length + ' x ' + v[0].width + 'x' + v[0].height + ']  @' + s + 'x');
@@ -45,7 +47,7 @@
       return;
     }
     if (Array.isArray(v)) { v.forEach((x, i) => walk(path + '[' + i + ']', x && x.img ? x.img : x)); return; }
-    if (/\.font$/.test(path)) return fontDemo(path, v);
+    if (/\.font$/.test(path)) return ONLY.length && !ONLY.some(o => path.includes(o)) ? null : fontDemo(path, v);
     if (typeof v === 'object') for (const k in v) walk(path + '.' + k, v[k]);
   }
 
@@ -131,8 +133,8 @@
   })();
   function finish() {
     try {
-      if (mods.includes('terrain')) terrainDemo();
-      if (mods.includes('bg')) bgDemo();
+      if (mods.includes('terrain') && (!ONLY.length || ONLY.includes('demo'))) terrainDemo();
+      if (mods.includes('bg') && (!ONLY.length || ONLY.includes('demo'))) bgDemo();
       mods.forEach(m => walk(m, G.art[m]));
     } catch (e) { window.onerror(e.stack || e.message, '', 0); }
     window.__done = true;

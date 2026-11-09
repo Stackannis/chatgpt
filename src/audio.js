@@ -453,5 +453,237 @@
     return (compiled[name] = song);
   }
 
-  //@@PART3@@
+  // ------------------------------------------------------------------ music bus (one per playing song)
+  P.hold = { a: 0.006, dTc: 0.3, sus: 0.78, rTc: 0.09, det: 8 };
+  function makeBus(R, song) {
+    const ctx = R.ctx, def = song.def, lv = def.lv || {};
+    const B = { out: R.gain(1) };
+    B.out.connect(R.music);
+    const strip = name => { const g = R.gain(LV[name] * (lv[name] == null ? 1 : lv[name])); g.connect(B.out); return g; };
+    ['lead', 'brass', 'flute', 'pan', 'bass', 'stab', 'pad', 'drum', 'hat', 'perc'].forEach(n => { B[n] = strip(n); });
+    const filt = (type, f, q, dest) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; if (q) b.Q.value = q; b.connect(dest); return b; };
+    B.snF = filt('highpass', 1100, 0.7, B.drum);   // snare rattle
+    B.hatF = filt('highpass', 7200, 0.7, B.hat);   // hi-hats
+    B.shF = filt('bandpass', 6200, 1.3, B.hat);    // shaker
+    // tempo-synced echo (dotted 8th) with a darkened feedback path, fed by the melodic strips
+    const d = ctx.createDelay(1), fb = R.gain(0.33), wet = R.gain(def.echo || 0);
+    d.delayTime.value = Math.min(0.95, song.sd * 3);
+    const lp = filt('lowpass', 3000, 0.5, wet);
+    B.echo = R.gain(1);
+    B.echo.connect(d); d.connect(lp); lp.connect(fb); fb.connect(d); wet.connect(B.out);
+    [B.lead, B.brass, B.flute, B.pan].forEach(n => n.connect(B.echo));
+    return B;
+  }
+  function playEv(R, B, song, e, t) {
+    const sd = song.sd, f = typeof e.n === 'number' ? mtof(e.n) : 0;
+    const gate = (e.st ? Math.min(e.d || 1, 0.5) : e.d || 1) * sd * 0.94;
+    switch (e.i) {
+      case 'lead': vPulse(R, B.lead, t, f, gate, e.v, P.lead); break;
+      case 'lead2': vPulse(R, B.lead, t, f, gate, e.v, P.lead2); break;
+      case 'brass': vFM(R, B.brass, t, f, gate, e.v, P.brass); break;
+      case 'flute': vFM(R, B.flute, t, f, gate, e.v, P.flute); break;
+      case 'pan': vFM(R, B.pan, t, f, gate, e.v, P.pan); break;
+      case 'bass': vFM(R, B.bass, t, f, gate, e.v, P.bass); break;
+      case 'stab': vChord(R, B.stab, t, e.n, gate, e.v, P.stab); break;
+      case 'pad': vChord(R, B.pad, t, e.n, gate, e.v, P.pad); break;
+      case 'hold': vChord(R, B.stab, t, e.n, gate, e.v * 0.9, P.hold); break;
+      case 'k': dKick(R, B.drum, t, e.v); break;
+      case 's': dSnare(R, B, t, e.v * 0.8); break;
+      case 'h': dHat(R, B, t, e.v * 0.8, false); break;
+      case 'o': dHat(R, B, t, e.v * 0.7, true); break;
+      case 'm': dShaker(R, B, t, e.v * 0.9); break;
+      case 'c': dTom(R, B.perc, t, e.n, e.v * 0.9, 0.05, 1.22); break;
+      case 't': dTom(R, B.drum, t, e.n, e.v * 0.85, 0.09, 1.6); break;
+      case 'r': dRim(R, B.perc, t, e.v * 0.8); break;
+      case 'C': dCrash(R, B.hat, t, e.v * 1.4); break;
+    }
+  }
+
+  // ------------------------------------------------------------------ sound effects
+  // tone with an optional pitch sweep and an exponential decay
+  function blip(R, dest, t, wave, f0, f1, dur, vol, o) {
+    o = o || {};
+    const ctx = R.ctx, end = t + dur + 0.1, a = o.a || 0.003;
+    const osc = mkOsc(R, wave, f0, t, end, o.det || 0), g = ctx.createGain();
+    if (f1 && f1 !== f0) osc.frequency.exponentialRampToValueAtTime(f1, t + (o.sweep || dur));
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(vol, t + a);
+    g.gain.setTargetAtTime(0, t + a + (o.hold || 0), o.tc || dur / 4);
+    if (o.vib) vibrato(R, t, end, o.vibRate || 28, o.vib, 0, [osc]);
+    osc.connect(g); g.connect(dest);
+  }
+  // filtered noise burst with an optional filter sweep
+  function burst(R, dest, t, dur, vol, type, f0, f1, q, tc) {
+    const ctx = R.ctx, n = noiseSrc(R, t, dur + 0.05), flt = ctx.createBiquadFilter(), g = ctx.createGain();
+    flt.type = type; flt.frequency.setValueAtTime(f0, t); if (q) flt.Q.value = q;
+    if (f1 && f1 !== f0) flt.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    g.gain.setValueAtTime(vol, t); g.gain.setTargetAtTime(0, t + 0.005, tc || dur / 4);
+    n.connect(flt); flt.connect(g); g.connect(dest);
+  }
+  const SFX = {
+    // quick rising pulse sweep
+    jump(R, t) { blip(R, R.sfx, t, 'p25', 290, 680, 0.13, 0.34, { tc: 0.05, sweep: 0.11 }); },
+    // soft thud
+    land(R, t) { blip(R, R.sfx, t, 'sine', 150, 52, 0.08, 0.5, { tc: 0.022 }); burst(R, R.sfx, t, 0.03, 0.1, 'lowpass', 900, 0, 0, 0.008); },
+    // bright two-note ding, a fifth apart
+    gem(R, t) {
+      blip(R, R.sfx, t, 'p25', 1318.5, 0, 0.06, 0.2, { tc: 0.03 });
+      blip(R, R.sfx, t + 0.062, 'p25', 1975.5, 0, 0.3, 0.2, { tc: 0.075, det: 6 });
+      vFM(R, R.sfx, t + 0.062, 1975.5, 0.2, 0.14, P.bell);
+    },
+    // rising bell arpeggio with echo
+    bigcoin(R, t) {
+      [1046.5, 1318.5, 1568, 2093, 2637].forEach((f, i) => {
+        vFM(R, R.sfxEcho, t + i * 0.058, f, 0.3, 0.3, P.bell);
+        blip(R, R.sfx, t + i * 0.058, 'p12', f, 0, 0.1, 0.1, { tc: 0.03 });
+      });
+      vFM(R, R.sfxEcho, t + 0.34, 3136, 0.5, 0.2, P.bell);
+    },
+    // "bop": falling square + snap
+    stomp(R, t) { blip(R, R.sfx, t, 'square', 540, 120, 0.1, 0.34, { tc: 0.035, sweep: 0.09 }); burst(R, R.sfx, t, 0.05, 0.3, 'bandpass', 1900, 700, 0.8, 0.014); },
+    // harsh falling buzz
+    hurt(R, t) {
+      blip(R, R.sfx, t, 'sawtooth', 430, 120, 0.26, 0.28, { tc: 0.09, sweep: 0.24, vib: 55, vibRate: 34 });
+      blip(R, R.sfx, t, 'square', 215, 60, 0.26, 0.2, { tc: 0.09, sweep: 0.24 });
+    },
+    // falling four notes and a long slide down
+    die(R, t) {
+      [[0, 659.3], [0.11, 523.3], [0.22, 440], [0.33, 349.2]].forEach(n => blip(R, R.sfx, t + n[0], 'p25', n[1], 0, 0.1, 0.3, { tc: 0.04 }));
+      blip(R, R.sfx, t + 0.47, 'p25', 311, 98, 0.5, 0.32, { tc: 0.16, sweep: 0.45, vib: 30, vibRate: 9 });
+      blip(R, R.sfx, t + 0.47, 'triangle', 155, 49, 0.5, 0.3, { tc: 0.16, sweep: 0.45 });
+    },
+    // boing
+    spring(R, t) {
+      blip(R, R.sfx, t, 'triangle', 170, 940, 0.24, 0.5, { tc: 0.07, sweep: 0.16, vib: 90, vibRate: 31 });
+      blip(R, R.sfx, t, 'p25', 340, 1880, 0.2, 0.12, { tc: 0.05, sweep: 0.16 });
+    },
+    // dull knock
+    block(R, t) { blip(R, R.sfx, t, 'square', 170, 105, 0.08, 0.36, { tc: 0.025 }); burst(R, R.sfx, t, 0.025, 0.2, 'lowpass', 1500, 0, 0, 0.006); },
+    // rising chime
+    checkpoint(R, t) { [784, 1046.5, 1318.5, 1568].forEach((f, i) => vFM(R, R.sfxEcho, t + i * 0.085, f, 0.32, 0.3, P.bell)); },
+    // warm rising third + sparkle
+    heart(R, t) {
+      vFM(R, R.sfxEcho, t, 880, 0.1, 0.34, P.flute);
+      vFM(R, R.sfxEcho, t + 0.1, 1318.5, 0.3, 0.34, P.flute);
+      vFM(R, R.sfxEcho, t + 0.2, 2637, 0.25, 0.14, P.bell);
+    },
+    // plop + spray
+    splash(R, t) {
+      burst(R, R.sfx, t, 0.45, 0.5, 'bandpass', 2100, 420, 0.7, 0.12);
+      blip(R, R.sfx, t, 'sine', 240, 80, 0.16, 0.4, { tc: 0.05 });
+    },
+    select(R, t) { blip(R, R.sfx, t, 'p25', 880, 0, 0.05, 0.24, { tc: 0.02 }); blip(R, R.sfx, t + 0.055, 'p25', 1318.5, 0, 0.14, 0.24, { tc: 0.04 }); },
+    pause(R, t) {
+      blip(R, R.sfx, t, 'square', 660, 0, 0.06, 0.2, { tc: 0.02 });
+      blip(R, R.sfx, t + 0.07, 'square', 440, 0, 0.06, 0.2, { tc: 0.02 });
+      blip(R, R.sfx, t + 0.14, 'square', 660, 0, 0.12, 0.2, { tc: 0.035 });
+    },
+  };
+
+  // ------------------------------------------------------------------ transport
+  const LOOKAHEAD = 0.18, TICK = 40; // schedule notes this far ahead (s), wake up this often (ms)
+  let ctx = null, R = null, cur = null, want = null;
+
+  function stopCur() {
+    const c = cur;
+    if (!c) return;
+    cur = null;
+    clearInterval(c.timer);
+    try { c.B.out.gain.cancelScheduledValues(ctx.currentTime); c.B.out.gain.setTargetAtTime(0, ctx.currentTime, 0.012); } catch (e) {}
+    setTimeout(() => { try { c.B.out.disconnect(); } catch (e) {} }, 350);
+  }
+  function tick() {
+    const c = cur;
+    if (!c || c.done || !ctx || ctx.state !== 'running') return;
+    const now = ctx.currentTime, song = c.song;
+    if (c.tNext < now - 0.25) c.tNext = now + 0.05; // the tab stalled: resynchronise instead of bursting late notes
+    while (c.tNext < now + LOOKAHEAD) {
+      const evs = song.steps[c.pos], t = Math.max(now, c.tNext + (c.pos & 1 ? song.swing * song.sd : 0));
+      if (evs) for (let i = 0; i < evs.length; i++) playEv(R, c.B, song, evs[i], t);
+      c.pos++; c.tNext += song.sd;
+      if (c.pos >= song.len) {
+        if (c.loops) c.pos = song.loopFrom;
+        else { // one-shot: let the tail ring, then release the bus
+          c.done = true; clearInterval(c.timer);
+          setTimeout(() => { if (cur === c) { cur = null; want = null; } try { c.B.out.disconnect(); } catch (e) {} }, 3000);
+          break;
+        }
+      }
+    }
+  }
+  function start(name) {
+    stopCur();
+    const song = getSong(name);
+    if (!song) return;
+    const c = (cur = { name: name, song: song, B: makeBus(R, song), pos: 0, tNext: ctx.currentTime + 0.09, loops: song.loopFrom >= 0, done: false });
+    c.timer = setInterval(tick, TICK);
+    tick();
+  }
+  function onState() {
+    A.ready = !!ctx && ctx.state === 'running';
+    if (A.ready && want && !(cur && cur.name === want)) start(want);
+  }
+  function ensure() {
+    if (ctx) return true;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return false;
+    try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
+    R = makeRack(ctx);
+    ctx.onstatechange = onState;
+    document.addEventListener('visibilitychange', () => {
+      try { if (document.hidden) ctx.suspend(); else ctx.resume().then(onState, nop); } catch (e) {}
+    });
+    return true;
+  }
+
+  // ------------------------------------------------------------------ public API
+  A.init = function () {
+    try {
+      if (!ensure()) return;
+      if (ctx.state !== 'running' && !document.hidden) { const p = ctx.resume(); if (p && p.then) p.then(onState, nop); }
+      onState();
+    } catch (e) {}
+  };
+  A.music = function (name) {
+    try {
+      if (!SONGS[name]) return;
+      want = name;
+      if (!A.ready) return;                                  // starts as soon as the context runs
+      if (cur && cur.name === name && cur.loops) return;     // already looping
+      start(name);
+    } catch (e) {}
+  };
+  A.stopMusic = function () { want = null; try { stopCur(); } catch (e) {} };
+  A.sfx = function (name) {
+    try { if (A.ready && !A.muted && SFX[name]) SFX[name](R, ctx.currentTime + 0.004); } catch (e) {}
+  };
+  A.setMuted = function (m) {
+    A.muted = !!m;
+    try { if (R) R.out.gain.setTargetAtTime(A.muted ? 0 : 1, ctx.currentTime, 0.015); } catch (e) {}
+  };
+  A.songs = Object.keys(SONGS);
+  A.sfxNames = Object.keys(SFX);
+  // Test hook: renders a song and/or a list of sfx offline through the same code path -> Promise<{peak, rms, seconds}>.
+  A._render = function (name, seconds, sfxList, raw) {
+    const OC = window.OfflineAudioContext || window.webkitOfflineAudioContext, sr = 44100;
+    const oc = new OC(2, Math.floor(sr * seconds), sr), R2 = makeRack(oc, { offline: true, raw: !!raw });
+    let notes = 0;
+    if (name) {
+      const song = getSong(name), B = makeBus(R2, song);
+      for (let pos = 0, t = 0.05; t < seconds; t += song.sd) {
+        const evs = song.steps[pos];
+        if (evs) evs.forEach(e => { playEv(R2, B, song, e, t + (pos & 1 ? song.swing * song.sd : 0)); notes++; });
+        if (++pos >= song.len) { if (song.loopFrom >= 0) pos = song.loopFrom; else break; }
+      }
+    }
+    (sfxList || []).forEach((n, i) => SFX[n](R2, 0.05 + i * 0.7));
+    return oc.startRendering().then(buf => {
+      let peak = 0, sum = 0, n = 0;
+      for (let ch = 0; ch < buf.numberOfChannels; ch++) {
+        const d = buf.getChannelData(ch);
+        for (let i = 0; i < d.length; i++) { const a = Math.abs(d[i]); if (a > peak) peak = a; sum += d[i] * d[i]; n++; }
+      }
+      return { peak: +peak.toFixed(4), rms: +Math.sqrt(sum / n).toFixed(4), seconds: seconds, notes: notes, errs: name ? getSong(name).errs : [] };
+    });
+  };
 })();

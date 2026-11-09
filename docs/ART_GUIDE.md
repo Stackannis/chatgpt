@@ -54,6 +54,8 @@ Only touch your own module file.
 ```
 node tools/sheet.js <name>          # -> shots/sheet-<name>.png   (auto zoom)
 node tools/sheet.js <name> 8        # force 8x zoom (file gets -8x suffix)
+node tools/sheet.js <name> 8 '' jump,fall   # only the assets whose path contains 'jump' or 'fall' (cheap, sharp close-ups;
+                                            # use 'demo' for the terrain / bg in-engine composites)
 ```
 
 Then open the PNG with the Read tool and critique it honestly against the bar above, as a harsh
