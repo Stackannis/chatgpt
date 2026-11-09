@@ -362,8 +362,8 @@ G.defineArt('player', G => {
     '....kDDdkkk.kDdrk',
     '....kDdOOOOkkkdrrkk',
     '.....kkOOqqqOOkkrrOkkkk',
-    '.......kkOOqqpOYyyOOOOrk',
-    '.........kyYYyOKKKOOKKrk',
+    '.......kkOOqqpOYyy' + head[8].slice(18),
+    head[9],
   ].concat(head.slice(10));
   const HEAD_SWEPT = sweep(HEAD_JUMP);
   const FARLEG = { Y: 'y', y: 'O', O: 'r', r: 'o', b: 'd' };          // far leg: darker fur, boot one step darker
@@ -630,10 +630,105 @@ G.defineArt('player', G => {
   ];
   const fall1 = frame([F1_TAIL], [F1_RIBBON], [F_ARM_FRONT, 0, 2, FAR], [F1_LEG_FAR, 0, 0, FARLEG], [F1_TORSO], [F1_LEG_NEAR], [HEAD_FALL, 1, 2], [F_ARM_BACK, 0, 2]);
 
+  // ---------------------------------------------------------------- DUCK (also the 3-frame landing squash)
+  // Kit drops on all fours: ears flat, lids lowered, tail curled up behind. 15px hitbox = rows 17..31.
+  const HEAD_DUCK = [6,
+    '..............kkkk',
+    '....kkkkkkkkkkDdrrkkkkk',
+    '...kDDdOOqqqOOyYyyOOOOrk',
+    '....kkdOOOqqpOOOOOOOOOrk',
+    '......kkkrrrrOKKKKKOKKKrk',
+  ].concat(HEAD.slice(11));
+  const D_BODY = [15,
+    '.kk',
+    'kwwk',
+    'kwwwk',
+    'kwwcck',
+    'kwcccOk.kkk',
+    '.kcOOOOkOyyOOOO',
+    '.kOyOOOOOyyOOOO',
+    '..kOyOOOOyOOOOO',
+    '..kOOOOOOOOOOOOOOOO',
+    '..krOOOOOOOOOOOOOOO',
+    '...krOOOOOOOOOOOOOO',
+    '...krrOOOOOOOOOOOOOcccc',
+    '....kkrOOOOOOrrOOOrscccsk',
+    '......kkkdddkkkkkkkrOOkrOk',
+    '.......kdbbbddk....kbbdkbdk',
+    '.......kDDDDDDk....kdddkddk',
+    '........kkkkkk......kkk.kk',
+  ];
+  const duck = frame([D_BODY], [HEAD_DUCK, 3, 9]);
+
+  // ---------------------------------------------------------------- HURT (knocked back, also the death pop)
+  const HEAD_HURT = sweep(patch(HEAD, {
+    8: '..........kyYYYyyyOOOOrk',
+    9: '.........kyYYyOOOOOOOOrk',
+    10: '........kyyyyOKKOOOOOOKrk',
+    11: '........kyyyOOOOKKOOOKOrk',
+    12: '........kyyOOOOOOOKOKOOOOk',
+    13: '........kOOOOOOOKKOOOKOwcckk',
+    14: '......kkcOOOOOKKOOOcccKccckk',
+    15: '.....kwwccrrOcccccccKccccck',
+    16: '......kkwwccccccccccKoqqqk',
+    17: '.......kkkk.......cscqppk',
+    18: '..................kcsscck',
+    19: '...................kkkkk',
+  }).concat(['...................kkkkk']));
+  const H_BODY = [16,
+    '..gg',
+    '.gTTgg',
+    '..gtTTgg',
+    '...ggtTTgggggggggggg',
+    '.....ggtThhTTTTttttg..kkk',
+    '.......ggtTTttTTTtttgkbbdk',
+    '..........kyyOOOOOOOOOdddk',
+    '.........kOyOOOrrrrrrkkkk.kkk',
+    '.........kOOOOrccwwck....kdbdk',
+    '........kOOOOOrcwwcsk..kkkdbDk',
+    '........kOOOOOOrccskkkkOOOddDk',
+    '........krOOOOOOOOOOOOOOOkdDk',
+    '.........krrOOOOOOOOOOOkkkkk',
+    '.........kkkrrrOOOrrkkkk',
+    '........kOOOkkkkkkkk',
+    '.......kOyyOOOkkk',
+    '.......kOOyyOOOOckk',
+    '........kkrOOOOccwwk',
+    '..........kkkkkkkkk',
+  ];
+  const hurt = frame([H_BODY], [HEAD_HURT, -1, 1]);
+
+  // ---------------------------------------------------------------- SKID
+  // Drawn like every other frame (facing right, light from the upper left): Kit leans back, heels dug in,
+  // tail and scarf whipping forward.
+  const HEAD_SKID = patch(HEAD, Object.assign({}, EYES_WIDE, {
+    15: '.....kwwccrrOccKKKcccKKKKKk',
+    16: '......kkwwcccccccccccKwwwk',
+    17: '.......kkkk.......csscKKK',
+  }));
+  const S_BODY = [17,
+    '.......gggggggggggg',
+    '.......ThhTTTTttttgggg',
+    '......gtTTttTTTtttTTTtgg',
+    '........kyyOOcwwckggtTTg',
+    '...kkk..kOyOOcwwwck.kggkk',
+    '..kbbdkkkOOOOrccwck.kwwwk',
+    '..kdddOOOOOOOrcccskkwwcck',
+    '...kkkkkkkrOOOOrcskcccOk',
+    '..........krOOOOOOkOOOkkkk',
+    '...........kkrOOOOOOOkkOOk.kk',
+    '.............kkkrOOOOOOOOkkdk',
+    '................kkkrOOOOkdbdk',
+    '...................kkkkkdbbdk',
+    '.......................kDddk',
+    '........................kkk',
+  ];
+  const skidR = frame([S_BODY], [HEAD_SKID, -3, 1]);
+
   const m = idle[0];
   return {
     idle, run,
-    jump: [jump0, jump1], fall: [fall0, fall1], skid: [m], hurt: [m], duck: [m],
+    jump: [jump0, jump1], fall: [fall0, fall1], skid: [skidR], hurt: [hurt], duck: [duck],
     win: [m, m], icon: G.copy(m, 16, 16, -8, -3),
   };
 });

@@ -494,13 +494,18 @@ G.defineArt('items', G => {
       '....############',
     ],
   ];
+  // Foam white on the lit left ~60% of every horizontal run, pale blue on the rest, a mid-blue
+  // rim on the right / bottom edges and a blue outline all around.
   const splash = SPL.map(rows => {
     const b = B(32, 24);
     const m = (x, y) => { if (y < 0 || y > 23 || x < 0 || x > 31) return false; const r = rows[y]; return r[x < 16 ? x : 31 - x] === '#'; };
     for (let y = 0; y < 24; y++) for (let x = 0; x < 32; x++) {
       if (!m(x, y)) continue;
-      const lit = !m(x - 1, y) || !m(x, y - 1), dark = !m(x + 1, y) || !m(x, y + 1);
-      S(b, x, y, lit && !dark ? WHT : dark && !lit ? BL[3] : lit && dark ? BL[4] : BL[4]);
+      let x0 = x, x1 = x;
+      while (m(x0 - 1, y)) x0--;
+      while (m(x1 + 1, y)) x1++;
+      const t = (x - x0 + 0.5) / (x1 - x0 + 1), rim = !m(x + 1, y) || !m(x, y + 1), top = !m(x, y - 1) || !m(x - 1, y);
+      S(b, x, y, rim && !top ? BL[3] : t > 0.6 + [0, 0.07, 0.1, 0.07, 0, -0.05][y % 6] && !top ? BL[4] : WHT);   // scalloped shade edge
     }
     outline(b, BL[2]);
     return out(b);
@@ -673,7 +678,7 @@ G.defineArt('items', G => {
     '-': '.... .... #### #### .... ....',
     "'": '## ## #. .. .. ..',
     x: '.... .... #..# .##. .##. #..#',
-    '+': '...... ..##.. ###### ###### ..##.. ......',
+    '+': '..##.. ..##.. ###### ###### ..##.. ..##..',
     '/': '....## ...##. ..##.. ..##.. .##... ##....',
   };
   const FACE = [WHT, WHT, GO[3], GO[3], GO[2], GO[2]];
@@ -739,7 +744,7 @@ G.defineArt('items', G => {
   // with a 2px bevel -> 2px ink outline -> 4px extruded block shadow. A rising sun crowns the
   // dip in the middle of the word and Kit's tail sweeps underneath as a swash.
   const logo = (function () {
-    const LW = 244, LH = 80;                        // the word (not the tail plume) is centred on the canvas
+    const LW = 250, LH = 80;                        // the word (not the tail plume) is centred on the canvas
     const MK = (w, h, f) => {
       const m = { w, h, d: new Uint8Array(w * h) };
       if (f) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (f(x, y)) m.d[y * w + x] = 1;
@@ -771,12 +776,12 @@ G.defineArt('items', G => {
     const GLY = {
       S: (W, H) => { const m0 = (H >> 1) - 4, m1 = m0 + 8; return not([rrect(T, 9, W + 20, m0, 4), rrect(-20, m1, W - T, H - 9, 4), cut(0, 0, 12, 1, 1), cut(0, m1, 12, 1, -1), cut(W, m0, 12, -1, 1), cut(W, H, 12, -1, -1)]); },
       U: (W, H) => not([rrect(T, -20, W - T, H - 9, (W - 2 * T) / 2), cut(0, H, 13, 1, -1), cut(W, H, 13, -1, -1)]),
-      N: (W, H) => (x, y) => x < T || x >= W - T || (x >= (y >> 1) && x < (y >> 1) + DG),
+      N: (W, H) => (x, y) => { const a = Math.floor(y * 2 / 3); return x < T || x >= W - T || (x >= a && x < a + 12); },   // wide, 2:3 diagonal keeps both notches open
       F: (W, H) => (x, y) => x < T || y < 9 || (y >= 15 && y < 23 && x < W - 5),
       O: (W, H) => { const a = rrect(0, 0, W, H, 13), c = rrect(T, 9, W - T, H - 9, (W - 2 * T) / 2); return (x, y) => a(x, y) && !c(x, y); },
       X: (W, H) => (x, y) => { const a = y >> 1; return (x >= a && x < a + DG) || (x >= W - DG - a && x < W - a); },
     };
-    const WORD = [['S', 29, 42], ['U', 29, 39], ['N', 29, 36], ['F', 25, 36], ['O', 30, 39], ['X', 31, 42]];
+    const WORD = [['S', 29, 42], ['U', 29, 39], ['N', 35, 36], ['F', 25, 36], ['O', 30, 39], ['X', 31, 42]];
     const GAP = [4, 4, 4, 3, 3], X0 = 26, YB = 61, PD = 4;
     const FACE = MK(LW, LH), LID = new Int8Array(LW * LH).fill(-1);
     let gx = X0;
@@ -795,22 +800,22 @@ G.defineArt('items', G => {
     const EXT = MK(LW, LH, (x, y) => !on(OUT, x, y) && depth(x, y) > 0);
 
     // ---- sun: disc crowned with triangular rays, only the cap above the N / F dip is kept
-    const SX = X0 + 97, SY = 42, SR = 27, SCLIP = 27;
+    const SX = LW / 2, SY = 42, SR = 27, SCLIP = 27;
     const inDisc = (x, y) => (x + .5 - SX) * (x + .5 - SX) + (y + .5 - SY) * (y + .5 - SY) <= SR * SR;
-    const RAYS = [[90, 12], [75, 8], [105, 8], [60, 12], [120, 12], [45, 9], [135, 9]];   // [angle, length]
+    const RAYS = [[90, 13], [75, 9], [105, 9], [60, 13], [120, 13], [45, 10], [135, 10]];   // [angle, length]
     const inRay = (x, y) => {
       const px = x + .5 - SX, py = y + .5 - SY;
       return RAYS.some(r => {
         const ux = Math.cos(r[0] * Math.PI / 180), uy = -Math.sin(r[0] * Math.PI / 180);
         const along = px * ux + py * uy - (SR - 1), across = -px * uy + py * ux;
-        return along >= 0 && along <= r[1] - 1.2 && Math.abs(across) <= 5 * (1 - along / r[1]);
+        return along >= 0 && along <= r[1] - 1.2 && Math.abs(across) <= 3.7 * (1 - along / r[1]);
       });
     };
     const SUN = MK(LW, LH, (x, y) => y < SCLIP && (inDisc(x, y) || inRay(x, y)));
 
     // ---- tail: a tapering tube around a Catmull-Rom centre line [x, y, radius]. It slips out from
     // under the X, runs below the word and curls up into a bushy cream-tipped plume left of the S.
-    const TP = [[218, 52, 2.5], [209, 60, 2.5], [200, 68.5, 3], [178, 72.5, 3.2], [140, 73.8, 3.6], [90, 74, 4], [46, 73.5, 4.8],
+    const TP = [[224, 52, 2.5], [215, 60, 2.5], [206, 68.5, 3], [184, 72.5, 3.2], [146, 73.8, 3.6], [93, 74, 4], [46, 73.5, 4.8],
       [25, 69.5, 6.5], [14.5, 58, 9], [11.5, 45, 8.5], [11.5, 34, 5.5], [14, 25.5, 1.2], [16, 21, 0.5]];
     const TS = [], ARC = [0];
     for (let i = 1; i < TP.length - 2; i++) for (let k = 0; k < 16; k++) {
@@ -855,8 +860,9 @@ G.defineArt('items', G => {
       else S(b, x, y, l > 0.3 ? OR[3] : l < -0.2 ? OR[1] : OR[2]);
     });
     inkAround(EXT);
+    const NEAR = dil(OUT, SE(5));                   // the side walls are lighter along the 2px next to the outline
     each((x, y) => {
-      if (on(EXT, x, y)) S(b, x, y, depth(x, y) <= 2 ? BL[1] : BL[0]);
+      if (on(EXT, x, y)) S(b, x, y, on(NEAR, x, y) ? BL[1] : BL[0]);
       else if (on(OUT, x, y)) S(b, x, y, INK);
     });
     // faces: banded gradient + bevel (ring 1 / ring 2 lit or shaded by the outward normal)
@@ -867,17 +873,15 @@ G.defineArt('items', G => {
       if (!on(FACE, x, y)) return;
       const H = WORD[LID[y * LW + x]][2], v = (y - (YB - H)) / H;
       const bi = BANDS.find(q => v < q[0])[1];
-      let best = 1e9, nx = 0, ny = 0;               // outward normal = mean direction to the nearest outside pixels
-      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-        if (on(FACE, x + dx, y + dy)) continue;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < best) { best = d2; nx = dx; ny = dy; } else if (d2 === best) { nx += dx; ny += dy; }
+      let nx = 0, ny = 0;                           // outward normal: pull of the empty pixels in a 7x7 window (weight 1/d2),
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {     // steady along stair-stepped diagonals
+        if ((dx || dy) && !on(FACE, x + dx, y + dy)) { const d2 = dx * dx + dy * dy; nx += dx / d2; ny += dy / d2; }
       }
       const l = -(nx + ny) / (Math.hypot(nx, ny) || 1) * Math.SQRT1_2;
       const ring = !on(E1, x, y) ? 1 : !on(E2, x, y) ? 2 : 0;
       let c = bi;
-      if (ring === 1) c = l > 0.3 ? 0 : l < -0.3 ? bi + 2 : bi;
-      else if (ring === 2) c = l > 0.3 ? bi - 1 : l < -0.3 ? bi + 1 : bi;
+      if (ring === 1) c = l > 0.25 ? 0 : l < -0.25 ? bi + 2 : bi;
+      else if (ring === 2) c = l > 0.25 ? bi - 1 : l < -0.25 ? bi + 1 : bi;
       S(b, x, y, RAMP[c]);
     });
     // plug enclosed see-through specks (letter counters, pinholes between the outlines)

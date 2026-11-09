@@ -203,31 +203,31 @@ G.defineArt('terrain', G => {
   const SH1 = 'rgba(43,22,34,0.62)', SH2 = 'rgba(43,22,34,0.32)';
   const gp = { h: GR[4], l: GR[3], g: GM, m: GR[2], d: GR[1], t: GCORE, o: GR[0], s: SH1, S: SH2 };
   function makeGrass() {
-    // clumps A (20px) + B (13px) + C (17px) + D (14px), rows 5..12
+    // clumps A (20px) + B (13px) + C (17px) + D (14px), rows 5..12 ('.' below a clump = filled in later)
     const CLUMPS = [
       ['....hhhhhhhll.......', '.............', '...hhhhhhll......', '..............'],
       ['..hhhhhhhlllllll....', '...hhhhll....', '.hhhhhhhlllllg...', '..hhhhhlll....'],
       ['.hhhhlllllllllllggg.', '.hhhllllllgg.', 'hhhhllllllllllgg.', 'hhhhlllllllgg.'],
       ['hhhlllllllllllllgggm', 'hhllllllllggm', 'hhlllllllllllgggm', 'hhllllllllgggm'],
       ['lllllllllllllllggggm', 'llllllllllggm', 'llllllllllllggggm', 'lllllllllggggm'],
-      ['tllllllllllllgggggmt', 'tlllllllgggmt', 'lllllllllllggggmt', 'llllllllggggmt'],
-      ['ttlllllllgggggggmttt', 'tttlllgggmttt', 'tlllllllggggggmtt', 'ttllllggggmttt'],
-      ['ttttggggggggmmtttttt', 'ttttttttttttt', 'tttggggggggmttttt', 'tttttttttttttt'],
+      ['.llllllllllllgggggm.', '.lllllllgggm.', 'lllllllllllggggm.', 'llllllllggggm.'],
+      ['..lllllllgggggggm...', '...lllgggm...', '.lllllllggggggm..', '..llllggggm...'],
+      ['....ggggggggmm......', '.............', '...ggggggggm.....', '..............'],
     ];
-    // hanging tongues, rows 14..20 (segments are the individual tongues / gaps)
+    // hanging tongues, rows 14..20 (one string per tongue / gap)
     const FRINGE = [
-      ['ggmmmd', '.', 'gmd', 'ggmmmmd', 'd', 'gmd', '.', 'ggmmmd', 'd', 'gm', 'd', 'ggmmmd', '.', 'ggmmd', 'gmd', 'ggmmmmd', 'd', 'gmmd', '.', 'gmmd'],
-      ['ggmmmd', '.', 'md.', 'ggmmmmd', '.', 'gmd', '.', 'mgmmmd', '.', 'md', '.', 'ggmmmd', '.', 'gmmmd', 'md.', 'ggmmmmd', '.', 'gmmd', '.', 'gmd.'],
-      ['mgmmd.', '.', '...', 'mggmmmd', '.', 'md.', '.', '.gmmmd', '.', '..', '.', 'mgmmmd', '.', 'mmmd.', '...', 'mggmmmd', '.', 'mmd.', '.', 'mmd.'],
-      ['.mmmd.', '.', '...', '.mgmmdd', '.', '...', '.', '.mmmd.', '.', '..', '.', '.mmmd.', '.', '.mdd.', '...', '.mgmmdd', '.', '....', '.', '.d..'],
-      ['..md..', '.', '...', '.mmmmd.', '.', '...', '.', '..mdd.', '.', '..', '.', '.mmdd.', '.', '.....', '...', '.mmmmd.', '.', '....', '.', '....'],
-      ['......', '.', '...', '..mmdd.', '.', '...', '.', '......', '.', '..', '.', '..dd..', '.', '.....', '...', '..mmdd.', '.', '....', '.', '....'],
-      ['......', '.', '...', '...dd..', '.', '...', '.', '......', '.', '..', '.', '......', '.', '.....', '...', '..mdd..', '.', '....', '.', '....'],
+      ['lggggm', '.', 'lgm', 'lgggggm', 'm', 'lgm', '.', 'lggggm', 'm', 'lg', 'm', 'lggggm', '.', 'lgggm', 'lgm', 'lgggggm', 'm', 'lggm', '.', 'lggm'],
+      ['lggggm', '.', 'mm.', 'lgggggm', '.', 'lgm', '.', 'lggggm', '.', 'mm', '.', 'lggggm', '.', 'lgggm', 'mm.', 'lgggggm', '.', 'lggm', '.', 'lgm.'],
+      ['lgggm.', '.', '...', 'llggggm', '.', 'mm.', '.', 'mggggd', '.', '..', '.', 'lggggd', '.', 'mggm.', '...', 'mlggggm', '.', 'mmd.', '.', 'mgm.'],
+      ['mgggm.', '.', '...', 'mlggggd', '.', '...', '.', '.gggm.', '.', '..', '.', 'mgggm.', '.', '.mmd.', '...', '.lggggm', '.', '....', '.', '.m..'],
+      ['.mmd..', '.', '...', '.ggggm.', '.', '...', '.', '.mmd..', '.', '..', '.', '.mggd.', '.', '.....', '...', '.gggggd', '.', '....', '.', '....'],
+      ['......', '.', '...', '.mgggd.', '.', '...', '.', '......', '.', '..', '.', '..md..', '.', '.....', '...', '.mgggd.', '.', '....', '.', '....'],
+      ['......', '.', '...', '..mmd..', '.', '...', '.', '......', '.', '..', '.', '......', '.', '.....', '...', '..mmd..', '.', '....', '.', '....'],
     ];
     const E = '.'.repeat(64);
     const rows = [E, E, E, E, E];
     for (const r of CLUMPS) rows.push(r.join(''));
-    rows.push('t'.repeat(64));
+    rows.push(E);
     for (const r of FRINGE) rows.push(r.join(''));
     rows.push(E, E, E);
     const g = rows.map((r, y) => {
@@ -235,12 +235,19 @@ G.defineArt('terrain', G => {
       return r.split('');
     });
     if (g.length !== 24) throw new Error('grass rows ' + g.length);
+    // under every clump: a 1px shadow line, then the tongues' roots; between two clumps a teal-dark pocket
+    for (let x = 0; x < 64; x++) {
+      let bt = 12;
+      while (g[bt][x] === '.') bt--;
+      const root = g[14][x] === '.' || bt <= 10 ? 't' : g[14][x];
+      for (let y = bt + 1; y <= 13; y++) g[y][x] = y === bt + 1 ? 'd' : root;
+    }
     // 4 irregular blade tufts poking above the clumps: [x, y, tone]
     const BLADES = [
-      [5, 2, 'h'], [5, 3, 'l'], [6, 4, 'l'], [8, 1, 'h'], [8, 2, 'l'], [7, 3, 'l'], [7, 4, 'l'], [10, 3, 'h'], [9, 4, 'l'],
-      [17, 6, 'l'], [18, 5, 'l'], [18, 4, 'h'],
-      [38, 4, 'l'], [38, 3, 'l'], [37, 2, 'h'], [40, 4, 'l'], [41, 3, 'l'], [41, 2, 'h'], [42, 1, 'h'],
-      [56, 5, 'l'], [55, 4, 'h'], [57, 5, 'l'], [57, 4, 'l'], [58, 3, 'h'],
+      [5, 4, 'l'], [6, 4, 'l'], [7, 4, 'l'], [8, 4, 'l'], [10, 4, 'l'], [5, 3, 'l'], [8, 3, 'l'], [11, 3, 'h'], [4, 2, 'h'], [8, 2, 'l'], [9, 1, 'h'],
+      [16, 6, 'l'], [17, 6, 'l'], [17, 5, 'l'], [18, 4, 'h'],
+      [39, 4, 'l'], [40, 4, 'l'], [41, 4, 'l'], [39, 3, 'l'], [41, 3, 'l'], [39, 2, 'h'], [42, 2, 'h'],
+      [56, 5, 'l'], [57, 5, 'l'], [55, 4, 'h'], [57, 4, 'l'], [58, 3, 'h'],
     ];
     for (const [x, y, v] of BLADES) g[y][x] = v;
     const at = (x, y) => (y < 0 || y > 23 ? '.' : g[y][mod(x, 64)]);
@@ -319,61 +326,63 @@ G.defineArt('terrain', G => {
 
   // ------------------------------------------------------------------
   // WALL EDGES (8x64, seamless vertically) + UNDERSIDE (64x8)
+  // The walls are translucent light / shade ramps laid over the strata, so
+  // every seam of the earth runs right up to the outline as a notch. The lit
+  // ramp swells in the belly of each stratum and pinches where the seams
+  // arrive (rows 0-4, 23-26, 31-35, 49-54 whatever the tile column).
   // ------------------------------------------------------------------
-  // Chipped rim of edge rock: per-row thickness (0 = crack between chunks).
-  const RIM = '1223333322211' + '0' + '122233221' + '0' + '11223333333222211' + '0' + '1233322211' + '0' + '1222233221' + '0';
-  const LITE = 'rgba(255,224,160,0.3)', DARK1 = 'rgba(43,22,34,0.3)', DARK2 = 'rgba(43,22,34,0.55)';
+  const SEAM_ZONE = [2, 24.5, 33, 51.5];
   function makeWall(right) {
     const c = G.cv(8, 64);
-    if (RIM.length !== 64) throw new Error('RIM length ' + RIM.length);
     for (let y = 0; y < 64; y++) {
-      const t = +RIM[y], first = +RIM[mod(y - 1, 64)] === 0, last = +RIM[mod(y + 1, 64)] === 0;
+      let d = 99;
+      for (const z of SEAM_ZONE) d = Math.min(d, Math.abs(y - z), 64 - Math.abs(y - z));
+      const lv = d <= 2 ? 0 : d <= 4.5 ? 1 : 2;      // 0 = slab corners at a seam .. 2 = belly of a slab
       if (!right) {
-        // sunlit side: warm outline, bright rim, light spilling onto the strata
-        if (t === 0) { dot(c, 0, y, BR[0]); dot(c, 1, y, BR[1]); dot(c, 2, y, BR[1]); dot(c, 3, y, '#73372b'); continue; }
-        dot(c, 0, y, BR[1]);
-        for (let i = 1; i <= t; i++) {
-          let col = i === 1 ? BR[5] : i === 2 ? BR[4] : '#d8944c';
-          if (first) col = BR[5];
-          if (last) col = i === 1 ? BR[4] : '#a9602f';
-          dot(c, i, y, col);
-        }
+        // sunlit face: warm outline at x=0, then highlight / light / base ramp fading into the earth
+        R(c, 0, y, 1, 1, BR[1]);
+        const A = [[0.42, 0.16], [0.56, 0.3, 0.12], [0.64, 0.42, 0.24, 0.1]][lv];
+        A.forEach((a, i) => R(c, 1 + i, y, 1, 1, 'rgba(255,236,176,' + a + ')'));
       } else {
-        // shadow side: ink outline, dark rim, shade creeping over the strata
-        dot(c, 7, y, P.ink);
-        if (t === 0) { dot(c, 6, y, BR[0]); dot(c, 5, y, BR[0]); dot(c, 4, y, BR[1]); dot(c, 3, y, DARK2); continue; }
-        for (let i = 1; i <= t; i++) {
-          let col = i === 1 ? BR[0] : i === 2 ? BR[1] : '#73372b';
-          if (first) col = i === 1 ? BR[1] : '#73372b';
-          if (last) col = BR[0];
-          dot(c, 7 - i, y, col);
-        }
-        dot(c, 6 - t, y, DARK2);
-        dot(c, 5 - t, y, DARK1);
+        // face turned away from the sun: ink outline at x=7 behind a dark purple shade
+        R(c, 7, y, 1, 1, P.ink);
+        const A = [[0.68, 0.5, 0.32, 0.14], [0.64, 0.44, 0.24], [0.6, 0.4, 0.2]][lv];
+        A.forEach((a, i) => R(c, 6 - i, y, 1, 1, 'rgba(42,16,52,' + a + ')'));
       }
     }
     return c;
   }
   const wallL = makeWall(false), wallR = makeWall(true);
 
-  // Underside: ink outline, chunky dark rock lip, shade fading up into the strata.
+  // Underside: rounded rock lumps of uneven width seen from below. Each lump's shadow
+  // deepens toward its right (away from the sun), ink creeps up the crevices between
+  // lumps, a couple of pale roots and moss drips hang over the dark band.
   function makeUnder() {
     const c = G.cv(64, 8);
-    const LIP = '1223332210' + '12233321' + '0' + '1222333332221' + '0' + '12332210' + '122333221' + '0' + '1223333322110';
-    if (LIP.length !== 64) throw new Error('LIP length ' + LIP.length);
-    for (let x = 0; x < 64; x++) {
-      const t = +LIP[x], first = +LIP[mod(x - 1, 64)] === 0, last = +LIP[mod(x + 1, 64)] === 0;
-      dot(c, x, 7, P.ink);
-      if (t === 0) { dot(c, x, 6, BR[0]); dot(c, x, 5, BR[0]); dot(c, x, 4, BR[1]); dot(c, x, 3, DARK2); continue; }
-      for (let j = 1; j <= t; j++) {
-        let col = j === 1 ? BR[0] : j === 2 ? BR[1] : '#73372b';
-        if (first) col = j === 1 ? BR[1] : '#73372b';
-        if (last) col = BR[0];
-        dot(c, x, 7 - j, col);
+    const U1 = 'rgba(43,22,34,0.28)', U2 = 'rgba(43,22,34,0.55)';
+    const LUMPS = [13, 9, 15, 11, 16];
+    let x = 0;
+    for (const w of LUMPS) {
+      for (let i = 0; i < w; i++, x++) {
+        R(c, x, 7, 1, 1, P.ink);
+        if (i === 0) {                                // crevice between two lumps
+          R(c, x, 4, 1, 3, P.ink); R(c, x, 3, 1, 1, BR[0]); R(c, x, 2, 1, 1, U2); R(c, x, 1, 1, 1, U1);
+          continue;
+        }
+        const t = i / (w - 1), th = t < 0.34 ? 2 : t < 0.72 ? 3 : 4, top = 7 - th;
+        for (let y = top; y <= 6; y++)
+          R(c, x, y, 1, 1, y === 6 || (y === 5 && th === 4) ? BR[0] : y === top && th >= 3 ? '#73372b' : BR[1]);
+        if (x % 16 === 15) R(c, x, top, 1, th, BR[0]); // never lighter than a wall outline it may cover
+        if (i === 1 || i === w - 1) R(c, x, 6, 1, 1, P.ink); // rounded lump corners
+        R(c, x, top - 1, 1, 1, U2); R(c, x, top - 2, 1, 1, U1);
       }
-      dot(c, x, 6 - t, DARK2);
-      dot(c, x, 5 - t, DARK1);
     }
+    if (x !== 64) throw new Error('under lumps cover ' + x);
+    // pale roots dangling over the dark band, moss drips
+    stamp(c, ['r.', 'r.', '.q', '.q', '.p'], 6, 2, { r: BR[3], q: '#a9602f', p: BR[2] });
+    stamp(c, ['.r', '.q', 'q.', 'p.'], 41, 3, { r: BR[3], q: '#a9602f', p: BR[2] });
+    stamp(c, ['.b.', 'cbb', 'bab'], 26, 4, { c: GR[2], b: GR[1], a: GR[0] });
+    stamp(c, ['c.', 'bb', 'ab'], 55, 4, { c: GR[2], b: GR[1], a: GR[0] });
     return c;
   }
   const under = makeUnder();

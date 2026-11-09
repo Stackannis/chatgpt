@@ -126,7 +126,7 @@ G.defineArt('bg', G => {
     const clip = o.clip == null ? null : typeof o.clip === 'function' ? o.clip : () => o.clip;
     const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
     const v = new Float32Array(bw * bh).fill(NaN);
-    const fl = o.flat || 1;
+    const fl = o.flat || 1, lg = o.light || [LX, LY, LZ], ln = Math.hypot(lg[0], lg[1], lg[2]), lx = lg[0] / ln, ly = lg[1] / ln, lz = lg[2] / ln;
     for (const p of list) {
       const cx = p[0], cy = p[1], rx = p[2], ry = p[3] || rx;
       const ya = Math.floor(cy - ry), yb = Math.ceil(cy + ry), xa = Math.floor(cx - rx), xb = Math.ceil(cx + rx);
@@ -136,7 +136,7 @@ G.defineArt('bg', G => {
           const dy = (y + 0.5 - cy) / ry, q = dx * dx + dy * dy;
           if (q > 1) continue;
           const nz = Math.sqrt(1 - q) * fl;
-          v[(y - y0) * bw + (x - x0)] = (dx * LX + dy * LY + nz * LZ) / Math.sqrt(q + nz * nz);
+          v[(y - y0) * bw + (x - x0)] = (dx * lx + dy * ly + nz * lz) / Math.sqrt(q + nz * nz);
         }
       }
     }
@@ -148,7 +148,8 @@ G.defineArt('bg', G => {
       for (let x = x0; x <= x1; x++) {
         const i = (y - y0) * bw + (x - x0);
         if (v[i] !== v[i]) continue;
-        const t = ty * (1 - gx) + ((x - x0) / bw) * gx, val = v[i] + g0 + (g1 - g0) * t - (o.foot || 0) * Math.max(0, ty * 5 - 4), dd = (d2(x, y) - 0.5) * 2;
+        const t = ty * (1 - gx) + ((x - x0) / bw) * gx, dd = (d2(x, y) - 0.5) * 2;
+        let val = (o.local ? lz + (v[i] - lz) * o.local : v[i]) + g0 + (g1 - g0) * t - (o.foot || 0) * Math.max(0, ty * 5 - 4);
         let k = 0;
         while (k < thr.length && val + (dith ? dd * (dith[k] || 0) : 0) < thr[k]) k++;
         out[i] = k + 1;
@@ -200,6 +201,30 @@ G.defineArt('bg', G => {
         if (best) for (const i of comp) out[i] = best;
       }
     }
+    if (o.shelf) {
+      // flat underside: the rows standing on the base line fall into shade (darkest at the very bottom)
+      const nt = o.tones.length;
+      for (let x = 0; x < bw; x++) {
+        let yb = bh - 1;
+        while (yb >= 0 && !out[yb * bw + x]) yb--;
+        if (yb < 0 || yb + y0 < base - 3) continue;
+        for (let d = 0; d < o.shelf && yb - d >= 0; d++) {
+          const i = (yb - d) * bw + x, c = out[i];
+          if (!c) break;
+          out[i] = Math.min(nt, d < 1 ? Math.max(c + 2, nt - 1) : d < 3 ? Math.max(c + 1, nt - 1) : c >= 3 ? c + 1 : c);
+        }
+      }
+    }
+    if (o.band) {
+      // Sonic-3 style: a 2px checker only where two neighbouring tones meet
+      const src = out.slice();
+      for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+        const c = src[y * bw + x];
+        if (!c) continue;
+        const n = [x > 0 ? src[y * bw + x - 1] : 0, x < bw - 1 ? src[y * bw + x + 1] : 0, y > 0 ? src[(y - 1) * bw + x] : 0, y < bh - 1 ? src[(y + 1) * bw + x] : 0];
+        if (((x + x0 + y + y0) & 1) === 0) { if (n.includes(c + 1)) out[y * bw + x] = c + 1; } else if (c > 1 && n.includes(c - 1)) out[y * bw + x] = c - 1;
+      }
+    }
     for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
       const c = out[y * bw + x];
       if (c) L.set(x + x0, y + y0, o.tones[Math.min(o.tones.length, c) - 1]);
@@ -242,92 +267,82 @@ G.defineArt('bg', G => {
     }
   }
 
-  const HERO = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0', '#869fe6']), thr: [0.84, 0.3, -0.12, -0.62], grad: [0.3, -0.6], gx: 0.3, flat: 1.9, foot: 0.5, blob: 12 };
-  const SMALL = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0']), thr: [0.6, 0.0, -0.5], grad: [0.35, -0.5], gx: 0.2, flat: 1.7 };
+  // Near clouds: a dominant tower with shoulders and small satellite puffs, the light side
+  // white, the body turning lavender toward the lower right, a flat darker shelf underneath.
+  const HERO = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0', '#869fe6']), thr: [0.76, 0.36, -0.06, -0.5], grad: [0.4, -0.75], gx: 0.5, flat: 1.5, local: 0.6, shelf: 5, blob: 10 };
+  const SMALL = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0']), thr: [0.7, 0.3, -0.2], grad: [0.35, -0.6], gx: 0.4, flat: 1.6, local: 0.7, shelf: 2, blob: 5 };
+  // Far clouds: small, flat, pale and close to the sky's own colour.
+  const FAR = { tones: CS(['#f9fcf2', '#e2f1f9', '#c6e3f8']), thr: [0.62, 0.1], grad: [0.3, -0.5], gx: 0.3, flat: 1.7, local: 0.7, shelf: 2, blob: 4 };
+
+  // small flat-based cumulus grown from a seed: w px wide, h px tall, standing on `base`
+  function flatCloud(L, x, base, w, h, o, q) {
+    const n = Math.max(2, Math.round(w / (h * 0.9))), pk = 0.3 + q() * 0.4, lobes = [[w / 2, 1, w / 2, Math.max(2, h * 0.2)]];
+    for (let i = 0; i < n; i++) {
+      const u = (i + 0.5 + (q() - 0.5) * 0.5) / n, prof = Math.pow(Math.max(0, 1 - Math.abs(u - pk) / (u < pk ? pk + 0.15 : 1.15 - pk)), 0.8);
+      const r = Math.max(2, h * (0.26 + 0.2 * q()) * (0.45 + 0.55 * prof));
+      lobes.push([u * w, Math.max(r * 0.7, h * prof - r), r]);
+    }
+    cumulus(L, x, base, lobes, o);
+  }
 
   function makeFloaters() {
     const L = layer(768, 112);
     // A — the big hero cumulus
-    cumulus(L, 52, 72, [
-      [86, 4, 62, 12], [146, 2, 26, 6],
-      [5, 3, 5], [15, 9, 9, [[130, 4]]], [24, 15, 9, [[140, 3]]], [140, 8, 12, [[60, 4], [20, 3]]],
-      [72, 55, 11, [[105, 4], [50, 4]]],
-      [58, 42, 22, [[165, 5], [130, 6], [95, 5]]],
-      [33, 25, 14, [[150, 5], [105, 5]]],
-      [88, 38, 15, [[80, 5], [35, 5]]],
-      [108, 27, 13, [[60, 4], [15, 4]]],
-      [124, 16, 11, [[50, 4]]],
-      [44, 14, 15], [70, 12, 14], [94, 8, 11], [25, 6, 9], [114, 5, 8], [160, 3, 6],
-    ], HERO, [[24, 62, 1], [34, 52, 2], [82, 128, 1], [94, 116, 2]]);
+    cumulus(L, 50, 74, [
+      [88, 3, 82, 7],
+      [106, 30, 20, [[70, 7], [25, 5]]], [28, 22, 15, [[155, 5], [110, 5]]],
+      [64, 40, 30, [[168, 6], [138, 8], [104, 6], [66, 9], [30, 6]]],
+      [130, 12, 11, [[50, 4]]], [18, 9, 10, [[145, 4]]],
+      [40, 16, 15, [[140, 4]]], [84, 18, 17, [[45, 5]]], [112, 12, 12],
+      [6, 4, 5], [150, 5, 7], [163, 3, 4], [60, 8, 10], [98, 6, 8], [30, 4, 6], [138, 4, 5],
+    ], HERO, [[30, 70, 1], [96, 132, 1], [104, 122, 2]]);
     // B — medium
     cumulus(L, 372, 50, [
-      [48, 3, 40, 8],
-      [3, 3, 4], [92, 4, 5], [12, 8, 8], [80, 10, 9, [[40, 3]]],
-      [44, 28, 15, [[150, 4], [100, 5], [50, 4]]],
-      [64, 22, 11, [[70, 4], [20, 3]]],
-      [26, 18, 11, [[140, 4]]],
-      [38, 8, 11], [58, 6, 9], [22, 4, 6], [74, 3, 5],
-    ], HERO, [[26, 66, 1], [34, 54, 2]]);
+      [50, 3, 48, 6],
+      [70, 15, 13, [[60, 4], [15, 4]]], [22, 13, 11, [[150, 4]]],
+      [46, 26, 19, [[160, 4], [125, 6], [80, 5], [40, 5]]],
+      [8, 6, 7], [86, 7, 8, [[30, 3]]], [34, 8, 10], [58, 7, 9], [96, 3, 4], [76, 4, 5],
+    ], HERO, [[28, 64, 1]]);
     // C — long and low
     cumulus(L, 566, 38, [
-      [62, 2, 54, 6],
-      [6, 3, 5], [120, 2, 3], [110, 4, 5], [20, 9, 9, [[130, 3]]], [96, 8, 8, [[40, 3]]],
-      [38, 15, 11, [[110, 4], [60, 4]]], [58, 18, 12, [[95, 4], [45, 4]]], [78, 14, 10, [[60, 4]]],
-      [30, 4, 7], [48, 5, 9], [68, 4, 8], [86, 3, 6],
+      [62, 2, 60, 5],
+      [70, 12, 11, [[60, 4]]], [24, 9, 9, [[140, 3]]],
+      [44, 16, 14, [[150, 4], [105, 5], [55, 4]]],
+      [92, 8, 9, [[40, 3]]], [58, 6, 8], [108, 5, 6], [10, 4, 5], [36, 5, 7], [80, 5, 7], [120, 2, 3],
     ], HERO, [[30, 90, 1]]);
     // D — small
     cumulus(L, 262, 28, [
-      [28, 2, 22, 5],
-      [3, 2, 3], [52, 4, 5], [12, 6, 7], [24, 13, 10, [[140, 3], [80, 4]]], [40, 10, 8, [[50, 3]]],
-      [22, 3, 6], [36, 3, 5],
+      [28, 2, 25, 4],
+      [24, 11, 10, [[140, 3], [75, 4]]], [39, 8, 7, [[45, 3]]], [12, 6, 6], [48, 4, 4], [30, 4, 6], [3, 2, 3],
     ], SMALL);
     // wisps
-    cumulus(L, 500, 84, [[20, 1, 16, 3], [8, 3, 4], [34, 2, 3], [16, 5, 5], [26, 3, 4]], SMALL);
-    cumulus(L, 706, 64, [[14, 1, 10, 3], [6, 3, 3], [22, 3, 3], [14, 4, 5]], SMALL);
+    const q = rng(9);
+    flatCloud(L, 486, 86, 40, 9, SMALL, q); flatCloud(L, 700, 66, 30, 8, SMALL, q); flatCloud(L, 232, 96, 22, 6, SMALL, q); flatCloud(L, 6, 30, 26, 7, SMALL, q);
     return L;
   }
 
-  // Far cloud bank: cumulus towers rising from behind the horizon, plus ranks of tiny
-  // flat-based clouds that shrink toward it (the classic depth cue).
+  // Far cloud field: ranks of small flat-based clouds that shrink toward the horizon (the
+  // classic depth cue), pale enough to sit well behind the big floaters.
   function makeBank() {
-    const L = layer(768, 96);
-    const BANK = { tones: CS(['#fffdf0', '#e6f0f6', '#cfe2f6', '#b6d1f0']), thr: [0.84, 0.3, -0.12], grad: [0.3, -0.6], gx: 0.3, flat: 1.9, blob: 12 };
-    const TINY = { tones: CS(['#fffdf0', '#e6f0f6', '#cfe2f6']), thr: [0.5, -0.15], grad: [0.3, -0.5], flat: 1.8, blob: 4 };
-    const tower = lobes => cumulus(L, 0, 96, lobes, Object.assign({ clip: null }, BANK));
-    const tiny = (x, up, k) => cumulus(L, x, 96 - up, [
-      [[13, 1, 11, 3], [5, 2, 3], [21, 2, 3], [11, 4, 5], [17, 3, 4]],
-      [[9, 1, 8, 2], [4, 2, 3], [14, 2, 2], [9, 3, 4]],
-      [[5, 1, 5, 2], [3, 1, 2], [6, 2, 3]],
-    ][k], TINY);
-    tower([
-      [112, 4, 70, 14],
-      [170, 10, 9], [40, 9, 8], [56, 16, 11, [[135, 4]]], [150, 18, 12, [[50, 4]]],
-      [100, 34, 18, [[150, 5], [105, 6], [60, 5]]], [76, 26, 13, [[140, 4], [95, 4]]], [128, 28, 14, [[70, 5], [25, 4]]],
-      [90, 14, 14], [114, 12, 13], [136, 8, 11], [68, 8, 10], [156, 5, 8], [50, 4, 7],
-    ]);
-    tower([[300, 3, 40, 9], [268, 7, 7], [336, 7, 7], [302, 20, 12, [[125, 4], [65, 4]]], [284, 13, 10, [[140, 3]]], [320, 13, 10, [[45, 3]]], [294, 8, 9], [312, 7, 8]]);
-    tower([
-      [516, 4, 86, 16],
-      [596, 10, 10], [452, 10, 9], [436, 5, 6], [610, 4, 6], [474, 20, 12, [[140, 4]]], [576, 20, 13, [[55, 4], [15, 4]]],
-      [524, 40, 20, [[160, 5], [120, 6], [80, 6], [40, 5]]], [498, 30, 15, [[145, 5], [100, 4]]], [552, 32, 15, [[70, 5], [30, 5]]],
-      [510, 16, 15], [538, 15, 14], [486, 9, 11], [562, 9, 11], [524, 6, 10], [466, 4, 7], [584, 4, 8],
-    ]);
-    tower([[706, 3, 40, 10], [670, 8, 8], [742, 8, 8], [704, 24, 14, [[135, 5], [75, 5]]], [686, 16, 11, [[150, 4]]], [724, 17, 11, [[45, 4]]], [698, 9, 10], [716, 8, 9]]);
-    for (const [x, up, k] of [[210, 22, 0], [366, 24, 0], [626, 22, 0], [196, 15, 1], [238, 14, 1], [392, 16, 1], [644, 14, 1], [752, 15, 1], [6, 14, 1],
-      [226, 10, 2], [352, 11, 2], [410, 10, 2], [660, 10, 2], [22, 10, 2], [380, 11, 2]]) tiny(x, up, k);
+    const L = layer(768, 96), q = rng(4);
+    for (const [x, w, h] of [[20, 96, 21], [214, 64, 15], [372, 112, 24], [566, 76, 17], [690, 58, 14]]) flatCloud(L, x, 70, w, h, FAR, q);
+    for (const [x, w, h] of [[136, 46, 10], [300, 38, 9], [500, 50, 11], [652, 34, 8], [742, 40, 9], [60, 30, 7]]) flatCloud(L, x, 80, w, h, FAR, q);
+    for (const [x, w, h] of [[10, 22, 5], [104, 28, 6], [190, 18, 4], [258, 26, 6], [352, 20, 5], [436, 28, 6], [548, 18, 4], [610, 26, 6], [704, 22, 5]]) flatCloud(L, x, 88, w, h, FAR, q);
     return L;
   }
 
   // ===================== sea =====================
-  const SEA = CS(['#2456c2', '#2864cc', '#2c74d6', '#3086de', '#3498e2', '#38aae2', '#3ebade', '#4ac8d8', '#5cd4d0', '#74e0cc', '#92ead0']);
+  const SEA = CS(['#2456c2', '#2864cc', '#2c74d6', '#3086de', '#3498e2', '#38aae2', '#3ebade', '#4ac8d8']);
   const GL = C('#f6ffff'), GL2 = C('#b4e6fc');
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   // rows of water, given as a string of ramp digits (line-interleaved gradient = no shimmer when scrolling)
-  function water(L, y, seq) {
-    for (const ch of seq) { L.row(0, L.w - 1, y++, SEA[parseInt(ch, 36)]); if (y >= L.h) break; }
+  function water(L, y, seq, pal) {
+    for (const ch of seq) { L.row(0, L.w - 1, y++, (pal || SEA)[parseInt(ch, 36)]); if (y >= L.h) break; }
     return y;
   }
+  // one row of horizontal glints: a dash of lmin..lmax px somewhere in every `cell` px, `skip` = chance of none
   function dashRow(L, rnd, y, cell, lmin, lmax, skip, core, tip) {
-    const n = Math.round(L.w / cell), cw = L.w / n;
+    const n = Math.max(1, Math.round(L.w / cell)), cw = L.w / n;
     for (let i = 0; i < n; i++) {
       const len = lmin + Math.floor(rnd() * (lmax - lmin + 1)), x = Math.floor(i * cw + rnd() * Math.max(1, cw - len - 1));
       if (rnd() < skip) continue;
@@ -337,6 +352,7 @@ G.defineArt('bg', G => {
 
   // Faceted mountain: ridge polyline [x, y, 'p'|'v'?]; 'p' peaks grow a zig-zag spine,
   // 'v' valleys a gully. Left of a spine = lit face, right of it (up to the gully) = shade.
+  // o.snow: height above which the summit is capped with the pale pal.snow / pal.snowSh.
   function zig(x, y0, y1, pat) {
     const out = new Float32Array(Math.max(1, y1 - y0 + 1));
     let k = 0, left = pat[0][0];
@@ -347,6 +363,7 @@ G.defineArt('bg', G => {
     }
     return out;
   }
+  const JAG = [0, 2, 4, 1, 3, 6, 2, 0, 3, 5, 1, 4];
   function mountain(L, base, ptsUp, pal, o) {
     o = o || {};
     const pts = ptsUp.map(p => [p[0], base - p[1], p[2]]);
@@ -362,9 +379,9 @@ G.defineArt('bg', G => {
       if (p[2] === 'v') div.push({ k: 'G', y0: p[1], x: zig(p[0] + 0.5, p[1], base, o.gully || [[5, -0.6], [2, 0.3]]) });
     }
     for (let i = 0; i < div.length - 1; i++) {
-      const s = div[i], g = div[i + 1];
-      if (s.k !== 'S' || g.k !== 'G') continue;
-      for (let y = g.y0; y < base; y++) if (s.x[y - s.y0] >= g.x[y - g.y0]) { s.y1 = g.y1 = y; break; }
+      const sp = div[i], g = div[i + 1];
+      if (sp.k !== 'S' || g.k !== 'G') continue;
+      for (let y = g.y0; y < base; y++) if (sp.x[y - sp.y0] >= g.x[y - g.y0]) { sp.y1 = g.y1 = y; break; }
     }
     for (let x = xa; x <= xb; x++) for (let y = top[x - xa]; y < base; y++) {
       let best = -1e9, kind = 'G', d = 1e9;
@@ -375,108 +392,165 @@ G.defineArt('bg', G => {
         if (dv.k === 'S' && px > x + 0.5) d = Math.min(d, px - x);
       }
       // lit faces: brightest right beside their spine, mid tone further down the slope
-      let c = kind === 'S' ? pal.shade : d < 3 + (y - top[x - xa]) * 0.35 || !pal.mid ? pal.lit : pal.mid;
-      if (pal.haze && (base - y <= 2 || (base - y <= 4 && d2(x, y) < 0.5))) c = pal.haze;
+      const shade = kind === 'S', up = base - y;
+      let c = shade ? pal.shade : d < 3 + (y - top[x - xa]) * 0.35 || !pal.mid ? pal.lit : pal.mid;
+      if (o.snow && up > o.snow + JAG[((x * 5) % 12 + 12) % 12] * (shade ? 0.5 : 1) + (shade ? 4 : 0)) c = shade ? pal.snowSh : pal.snow;
+      if (pal.haze && (up <= 2 || (up <= 4 && d2(x, y) < 0.5))) c = pal.haze;
       L.set(x, y, c);
     }
   }
 
-  const HZ = 40; // horizon row inside the far-sea layer
+  const HZ = 56; // horizon row inside the far-sea layer
   function makeSeaFar() {
-    const L = layer(640, 150);
+    const L = layer(640, 166);
     const rnd = rng(11);
     // islands (drawn first; the sea covers their feet)
-    const far = { lit: C('#c6dcf4'), shade: C('#b2cdf0'), haze: C('#d8e9f6') };
-    const mid = { lit: C('#b4cff2'), mid: C('#a2c0ec'), shade: C('#88a8e2'), haze: C('#c6dbf4') };
-    mountain(L, HZ, [[262, 0], [276, 3], [290, 7, 'p'], [300, 5, 'v'], [312, 9, 'p'], [330, 4], [348, 0]], far);
-    mountain(L, HZ, [[536, 0], [548, 5], [556, 11, 'p'], [574, 10], [584, 8, 'v'], [592, 12, 'p'], [606, 5], [626, 0]], far);
-    mountain(L, HZ, [[60, 0], [74, 3], [92, 8], [104, 16], [112, 26], [118, 30], [124, 36, 'p'], [128, 31], [134, 27, 'v'], [142, 30, 'p'], [150, 22], [158, 18, 'v'], [166, 20, 'p'], [178, 12], [196, 7], [214, 3], [230, 0]], mid);
-    mountain(L, HZ, [[392, 0], [404, 6], [412, 14], [420, 22, 'p'], [426, 16, 'v'], [434, 19, 'p'], [444, 10], [458, 5], [478, 0]], mid);
-    mountain(L, HZ, [[504, 0], [508, 4, 'p'], [514, 0]], mid);
-    // a ring of mist round the big peak
-    puffs(L, [[104, HZ - 15, 13, 3], [124, HZ - 18, 15, 3], [146, HZ - 16, 12, 2.5], [164, HZ - 13, 9, 2]], { tones: CS(['#fbfcf2', '#dfeaf6']), thr: [0.2], blob: 3 });
+    const far = { lit: C('#c9def6'), shade: C('#b3cdf0'), haze: C('#dcebf6') };
+    const mid = { lit: C('#b9d2f4'), mid: C('#a6c3ee'), shade: C('#8aa9e3'), haze: C('#cbdff5'), snow: C('#f6f8f0'), snowSh: C('#c4d8f6') };
+    // two tiny islets on the horizon, a long twin-humped island...
+    mountain(L, HZ, [[4, 0], [14, 3], [22, 6, 'p'], [30, 4, 'v'], [38, 5, 'p'], [50, 2], [60, 0]], far);
+    mountain(L, HZ, [[292, 0], [302, 2], [310, 5, 'p'], [322, 2], [330, 0]], far);
+    mountain(L, HZ, [[356, 0], [372, 4], [388, 10], [400, 17], [408, 22, 'p'], [416, 19], [424, 16, 'v'], [436, 20], [446, 25], [452, 27, 'p'], [460, 22], [470, 15, 'v'], [480, 16, 'p'], [494, 9], [512, 4], [534, 0]], far, { spine: [[5, 0.5], [3, -0.3]] });
+    // ...and the old volcano: long concave slopes, a notched crater, a sunlit snow cap
+    mountain(L, HZ, [[70, 0], [92, 3], [112, 7], [128, 12], [140, 18, 'p'], [146, 19], [152, 22, 'v'], [160, 30], [166, 38], [171, 46], [175, 52, 'p'], [179, 49], [182, 50, 'v'], [186, 53, 'p'], [191, 47], [197, 38], [205, 29], [214, 22, 'v'], [222, 21, 'p'], [234, 14], [250, 8], [270, 3], [288, 0]], mid, { snow: 37 });
+    // a ring of mist round its shoulders
+    puffs(L, [[138, HZ - 23, 14, 3], [160, HZ - 26, 17, 3.5], [186, HZ - 25, 15, 3], [208, HZ - 22, 12, 2.5], [224, HZ - 19, 8, 2]], { tones: CS(['#fbfcf2', '#dfeaf6']), thr: [0.2], blob: 3 });
     // water
     let y = HZ;
     L.row(0, L.w - 1, y, C('#5a92e0'));
     dashRow(L, rnd, y, 16, 5, 13, 0.25, C('#c4e6f8'));
     y = water(L, y + 1, '1100000001001011011121121222232232333');
     while (y < L.h) L.row(0, L.w - 1, y++, SEA[3]);
-    for (let r = 2; r <= 18; r++) dashRow(L, rnd, HZ + r, r < 8 ? 20 : 34, 1, r < 8 ? 3 : 5, r < 8 ? 0.35 : 0.5, r % 3 ? GL : GL2, GL2);
+    // horizon glitter: a bright band of short dashes right under the horizon, thinning out below
+    for (const [r, cell, lmin, lmax, skip] of [[1, 8, 2, 4, 0.3], [2, 9, 2, 4, 0.3], [3, 10, 2, 4, 0.4], [4, 13, 2, 4, 0.45], [5, 17, 2, 3, 0.5], [6, 24, 2, 3, 0.5], [7, 34, 2, 3, 0.5], [9, 52, 2, 3, 0.5], [11, 80, 2, 3, 0.5], [14, 128, 2, 2, 0.5]])
+      dashRow(L, rnd, HZ + r, cell, lmin, lmax, skip, r <= 3 || r === 6 ? GL : GL2, GL2);
     return L;
   }
 
   function makeSeaNear() {
-    const L = layer(384, 100);
+    const L = layer(384, 96);
     const rnd = rng(23);
-    let y = 0;
     dashRow(L, rnd, 0, 12, 4, 9, 0.2, SEA[3]);
     L.row(0, L.w - 1, 2, SEA[3]);
     dashRow(L, rnd, 1, 12, 5, 10, 0.1, SEA[3]);
-    y = water(L, 3, '3334334344344454454555655656667667777');
+    let y = water(L, 3, '3343444545556566676777');
     while (y < L.h) L.row(0, L.w - 1, y++, SEA[7]);
-    for (let r = 2; r <= 30; r += 2) dashRow(L, rnd, r + (r % 4 ? 1 : 0), 40, 2, 7, 0.45, r % 3 ? GL : GL2, GL2);
+    // sparser, longer glints than out at the horizon
+    for (const [r, cell, lmin, lmax, c] of [[3, 64, 3, 5, GL2], [6, 96, 3, 6, GL], [9, 80, 4, 7, GL2], [12, 128, 4, 8, GL], [15, 96, 5, 9, GL2], [19, 128, 6, 10, GL], [23, 128, 6, 12, GL2]])
+      dashRow(L, rnd, r, cell, lmin, lmax, 0.35, c, c === GL ? GL2 : null);
     return L;
   }
 
-  // ===================== mid headlands + lagoon =====================
-  const WL = 64; // waterline row inside the headland layer
-  const GRASS = { tones: CS(['#bfeba4', '#8cd79e', '#60bf98', '#44a792', '#358e8e']), thr: [0.9, 0.52, 0.12, -0.3], grad: [0.22, -0.5], gx: 0.15, dith: [0.08, 0.1, 0.1, 0.1] };
-  const WOOD = { tones: CS(['#98dc94', '#60c08c', '#3ea486', '#308882', '#28707c']), thr: [0.9, 0.5, 0.0, -0.5], grad: [0.15, -0.35], flat: 1.6, blob: 4 };
-  const ROCK = CS(['#f8f0dc', '#e2d6d0', '#bcb2c8', '#978fb6', '#7872a2']);
-  const FOAM = C('#f8ffff'), FOAM2 = C('#c6ecf8'), FOAM3 = C('#94d6f2');
-  const SAND = C('#f6eebc'), SAND2 = C('#dccf9e');
-  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-
-  // Rock face. pts: silhouette [x, up] (up = height above the waterline row `base`).
-  // o.folds: fold lines [[x, up], ...] running top -> bottom; they split the face into
-  // planes toned by o.tones (lit / shade alternating). A ridge (lit plane meeting a darker
-  // one) catches a highlight, a crease gets a dark crack. o.strata: [[up, xa, xb]] bedding
-  // lines, o.cracks: [[x, upTop, upBottom]], o.cap: rows of shade under overhanging growth.
-  function cliff(L, base, pts, o) {
-    const rows = polyRows(pts.map(p => [p[0], base - p[1]])), topY = {};
-    for (const [y, x0, x1] of rows) for (let x = x0; x <= x1; x++) if (topY[x] == null) topY[x] = y;
-    const fx = (fl, y) => {
-      const up = base - y;
-      if (up >= fl[0][1]) return fl[0][0];
-      for (let i = 0; i < fl.length - 1; i++) {
-        const p = fl[i], q = fl[i + 1];
-        if (up <= p[1] && up >= q[1]) return p[0] + ((p[1] - up) / Math.max(1e-6, p[1] - q[1])) * (q[0] - p[0]);
-      }
-      return fl[fl.length - 1][0];
-    };
-    const plane = (x, y) => { let p = 0; for (const fl of o.folds) if (fx(fl, y) <= x) p++; return p; };
-    const darker = (x, y, n) => { const i = ROCK.indexOf(L.get(x, y)); if (i >= 0) L.set(x, y, ROCK[Math.min(4, i + n)]); };
-    for (const [y, x0, x1] of rows) for (let x = x0; x <= x1; x++) {
-      const p = plane(x, y), pn = x < x1 ? plane(x + 1, y) : p;
-      let t = o.tones[p];
-      const capped = y - topY[x] < (o.cap || 0);
-      if (pn !== p) t += o.tones[pn] > t ? -1 : 1;
-      else if (x === x0 && t <= 2 && !capped) t--;
-      if (capped) t++;
-      if (base - y <= 2) t++;
-      L.set(x, y, ROCK[clamp(t, 0, 4)]);
+  // The lagoon: bands that deepen toward the viewer. Water only, so it line-scrolls (raster).
+  function makeLagoon() {
+    const L = layer(512, 96), rnd = rng(41);
+    const LG = CS(['#84e6d0', '#62d6cf', '#46c4cc', '#32b0c5', '#259cbb', '#1f8ab0']);
+    const flats = [4, 5, 6, 8, 10, 99], TRN = [1, 0, 0, 1, 1, 0];
+    const broken = (y, on, off, c) => { for (let x = Math.floor(rnd() * 16); x < L.w;) { x += off[0] + Math.floor(rnd() * off[1]); const n = on[0] + Math.floor(rnd() * on[1]); L.row(x, Math.min(L.w - 1, x + n - 1), y, c); x += n; } };
+    let y = 0;
+    for (let i = 0; i < LG.length && y < L.h; i++) {
+      for (let k = 0; k < flats[i] && y < L.h; k++) L.row(0, L.w - 1, y++, LG[i]);
+      if (i === LG.length - 1) break;
+      // transition: full lines of the two tones interleaved; its first and last line broken into long dashes
+      TRN.forEach((b, k) => {
+        if (y >= L.h) return;
+        if (k === 0) { L.row(0, L.w - 1, y, LG[i]); broken(y, [14, 22], [5, 9], LG[i + 1]); }
+        else if (k === TRN.length - 1) { L.row(0, L.w - 1, y, LG[i + 1]); broken(y, [14, 22], [5, 9], LG[i]); }
+        else L.row(0, L.w - 1, y, LG[i + b]);
+        y++;
+      });
     }
-    for (const [up, xa, xb] of o.strata || []) for (let x = xa; x <= xb; x++) darker(x, base - up, 1);
-    for (const h of o.holes || []) {
-      // see-through arch [x, w, height]: rounded opening, its left + top inner wall in shade
-      const [hx, hw, hh] = h, r = hw / 2;
-      const inside = (x, up, k) => { const dx = x + 0.5 - (hx + r + k), top = hh - r - k; return up >= 0 && Math.abs(dx) <= r && (up <= top || dx * dx + (up - top) * (up - top) <= r * r); };
-      for (let up = 0; up <= hh + 1; up++) for (let x = hx - 3; x <= hx + hw + 3; x++) {
-        if (inside(x, up + 0.5, 0)) L.set(x, base - 1 - up, inside(x, up + 2.5, 2) ? 0 : ROCK[4]);
-      }
+    // the reef line where the open sea meets the lagoon
+    dashRow(L, rnd, 0, 14, 6, 12, 0.2, C('#d6f8f2'));
+    // glints: short and close together far out, longer and sparser toward the viewer
+    const toneAt = r => LG.indexOf(L.get(0, r));
+    for (let r = 2; r < 84; r += r < 12 ? 1 : r < 40 ? 2 : 3) {
+      const len = 2 + r * 0.17, i = Math.max(0, toneAt(r));
+      const white = rnd() < 0.4;
+      dashRow(L, rnd, r, 30 + r * 2.4, Math.round(len), Math.round(len * 1.8), 0.4, white ? GL : LG[Math.max(0, i - 1)] === LG[i] ? GL : LG[Math.max(0, i - 1)], white ? C('#c8f6ee') : null);
     }
-    for (const [x, ua, ub] of o.cracks || []) for (let up = ub; up <= ua; up++) darker(x, base - up, 2);
+    return L;
   }
-  // Waterfall: long white streaks between paler edges, a lip on top, mist at its foot.
-  const FPH = [0, 7, 3, 10, 5, 1, 8, 4];
-  function falls(L, x, y0, y1, w, mist) {
-    for (let i = 0; i < w; i++) for (let y = y0; y < y1; y++) {
-      const edge = i === 0 || i === w - 1, ph = (y - y0 + FPH[i % 8]) % 12;
-      L.set(x + i, y, edge ? (ph < 7 ? FOAM2 : FOAM3) : ph < 9 ? FOAM : FOAM2);
+
+  // ===================== mid headlands =====================
+  const WL = 64; // waterline row inside the island layer (the lagoon layer starts on the same screen row)
+  const GRASS = { tones: CS(['#bfeba4', '#8cd79e', '#60bf98', '#44a792', '#358e8e']), thr: [0.93, 0.6, 0.25, -0.1], grad: [0.08, -0.16], light: [-0.6, -0.6, 0.35], band: 1, blob: 10 };
+  const WOOD = { tones: CS(['#98dc94', '#60c08c', '#3ea486', '#308882', '#28707c']), thr: [0.9, 0.5, 0.0, -0.5], grad: [0.15, -0.35], flat: 1.6, blob: 4 };
+  const ROCK = CS(['#f8f0dc', '#e2d6d0', '#c2b7ca', '#9d94b8', '#7b76a4', '#5f6194']);
+  const FALL = CS(['#f8ffff', '#c6ecf8', '#94d6f2', '#6cb6e6']);
+  const SAND = C('#f6eebc'), SAND2 = C('#dccf9e');
+
+  // Faceted rock is built from slabs: a lit top plane, a lighter left bevel, the face, a darker
+  // right bevel and a crack line underneath. `recess` flips the bevels (an alcove: its left
+  // wall in shade, its right wall catching the light).
+  function slab(L, x0, x1, y0, y1, t, cap, recess, crack) {
+    const w = x1 - x0 + 1, bl = w >= 9 ? 2 : 1, br = w >= 7 ? 2 : 1;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const i = x - x0, j = y - y0;
+      let c = t;
+      if (recess) c = i < bl ? t + 1 : i >= w - br ? t - 1 : t;
+      else {
+        if (j === 0 && (i === 0 || i === w - 1)) continue; // chipped corners
+        if (j < cap) c = i >= w - br ? t - 1 : t - 2;
+        else if (i < bl) c = t - 1;
+        else if (i >= w - br) c = t + 1;
+        if (crack && y === y1) c = Math.max(c, t) + 1;
+      }
+      L.set(x, y, ROCK[clamp(c, 0, 5)]);
     }
-    L.row(x - 1, x + w, y0, FOAM); L.row(x, x + w - 1, y0 + 1, FOAM);
-    L.col(x + w, y0 + 1, y1 - 1, ROCK[4]);
-    if (mist) puffs(L, mist.map(m => [x + m[0], y1 - m[1], m[2]]), { tones: [FOAM, FOAM2], thr: [-0.3], grad: [0.3, -0.3], blob: 3 });
+  }
+  // A column of jittered slabs between x0..x1, rising `up` px above the waterline
+  // (o.from = height of its foot, o.recess = alcove).
+  function rockCol(L, q, x0, x1, up, t, o) {
+    o = o || {};
+    const bottom = WL - (o.from || 0);
+    let y = WL - up, first = true;
+    for (let x = x0; x <= x1; x++) L.col(x, y + 1, bottom - 1, ROCK[4]);
+    while (y < bottom) {
+      let h = 5 + Math.floor(q() * 11);
+      if (bottom - (y + h) < 5) h = bottom - y;
+      const jit = first || o.recess ? 0 : 1;
+      const a = x0 + jit * Math.round((q() - 0.5) * 3), b = x1 + jit * Math.round((q() - 0.5) * 3);
+      const last = y + h >= bottom, tt = t + (jit && q() < 0.3 ? 1 : 0), cap = first ? 2 : 1;
+      if (!o.recess && b - a >= 11 && q() < 0.45) {
+        const m = a + 4 + Math.floor(q() * (b - a - 8));
+        slab(L, a, m, y, y + h - 1, tt, cap, false, !last);
+        slab(L, m + 1, b, y + (first && q() < 0.5 ? 1 : 0), y + h - 1, tt + 1, cap, false, !last);
+      } else slab(L, a, b, y, y + h - 1, tt, cap, o.recess, !last);
+      y += h; first = false;
+    }
+  }
+  // Waterfall: streaked white water between paler edges, w0 px wide at the lip and w1 at its
+  // foot, with layered foam and a dithered halo of mist over the rock and the lagoon.
+  function falls(L, x, up, w0, w1) {
+    const y0 = WL - up, c2 = x * 2 + w0 - 1;
+    for (let y = y0; y < WL; y++) {
+      const f = (y - y0) / Math.max(1, WL - 1 - y0), w = Math.round(w0 + (w1 - w0) * Math.pow(f, 0.75)), xa = (c2 - w + 1) >> 1;
+      for (let i = 0; i < w; i++) {
+        const X = xa + i, ph = (y + ((X * 7) % 13) * 3) % 13;
+        let c = ph < 8 ? FALL[0] : FALL[1];
+        if (w > 2 && i === 0) c = ph < 6 ? FALL[1] : FALL[2];
+        else if (w > 2 && i === w - 1) c = ph < 5 ? FALL[2] : FALL[3];
+        else if (w > 4 && i === w - 2) c = ph < 8 ? FALL[1] : FALL[2];
+        L.set(X, y, c);
+      }
+    }
+    L.row(x - 1, x + w0, y0, FALL[0]);
+    L.row(x, x + w0 - 1, y0 - 1, FALL[1]);
+    // mist halo
+    const cx = c2 / 2, rx = w1 / 2 + 11;
+    for (let y = WL - 11; y <= WL + 5; y++) for (let X = Math.floor(cx - rx); X <= Math.ceil(cx + rx); X++) {
+      const dx = (X + 0.5 - cx) / rx, dy = (y + 0.5 - (WL - 1)) / (y < WL ? 10 : 6), e = dx * dx + dy * dy;
+      if (e < 1 && (1 - e) * 0.62 > d4(X, y)) L.set(X, y, y < WL ? FALL[1] : FALL[0]);
+    }
+    // foam piled at its foot, ripples running out over the water
+    const hw = w1 / 2;
+    puffs(L, [[cx - hw - 3, WL - 1, 3, 2.5], [cx + hw + 3, WL - 1, 3.5, 2.5], [cx - hw * 0.5 - 1, WL - 4, 2.6], [cx + hw * 0.5 + 2, WL - 3.5, 2.4], [cx, WL - 1.5, hw + 2.5, 3.6]],
+      { tones: [FALL[0], FALL[1], FALL[2]], thr: [0.3, -0.45], clip: WL + 1, blob: 3 });
+    L.row(Math.round(cx - hw - 4), Math.round(cx + hw + 4), WL, FALL[0]);
+    L.row(Math.round(cx - hw - 7), Math.round(cx - hw - 6), WL, FALL[0]); L.row(Math.round(cx + hw + 6), Math.round(cx + hw + 8), WL, FALL[0]);
+    L.row(Math.round(cx - hw - 2), Math.round(cx - 1), WL + 1, FALL[1]); L.row(Math.round(cx + 2), Math.round(cx + hw + 5), WL + 1, FALL[1]);
+    L.row(Math.round(cx - hw - 6), Math.round(cx - hw - 4), WL + 2, FALL[1]); L.row(Math.round(cx + 1), Math.round(cx + 4), WL + 3, FALL[1]);
   }
   // Tiny far palms (a = lit frond, b = frond, t = trunk, c = lit trunk)
   const PALM_S = [
@@ -501,9 +575,9 @@ G.defineArt('bg', G => {
     L.col(cx, y + 2, y + 3, ROCK[4]);
   }
 
-  function makeHills() {
-    const L = layer(1024, 152);
-    const rnd = rng(31);
+  function makeIsles() {
+    const L = layer(1024, WL + 24);
+    const rnd = rng(31), rq = rng(5);
     const PM = { a: WOOD.tones[0], b: WOOD.tones[2], c: C('#a09cb0'), t: C('#74709a') };
     let ox = 0;
     // rolling mound: upper cap of an ellipse [x, sink, rx, ry] (centre `sink` px under water)
@@ -524,29 +598,23 @@ G.defineArt('bg', G => {
     const palmS = (x, up, k, flip) => stamp(L, ox + x - (flip ? PALM_S[k][0].length - 1 - 6 : 6), WL - up - PALM_S[k].length + 1, PALM_S[k], PM, flip);
     const boulders = list => puffs(L, list.map(p => [ox + p[0], WL - p[1], p[2], p[3]]), { tones: [ROCK[1], ROCK[2], ROCK[3]], thr: [0.55, -0.1], clip: WL, blob: 3 });
     const vines = list => { for (const [x, up, n] of list) L.col(ox + x, WL - up, WL - up + n - 1, WOOD.tones[3]); };
-    const rockface = (pts, o) => cliff(L, WL, pts.map(p => [ox + p[0], p[1]]), Object.assign({}, o, {
-      folds: o.folds.map(fl => fl.map(p => [ox + p[0], p[1]])), strata: (o.strata || []).map(q => [q[0], ox + q[1], ox + q[2]]),
-      cracks: (o.cracks || []).map(q => [ox + q[0], q[1], q[2]]), holes: (o.holes || []).map(q => [ox + q[0], q[1], q[2]]) }));
-    const fall = (x, up, w, mist) => falls(L, ox + x, WL - up, WL, w, mist);
+    const col = (x0, x1, up, t, o) => rockCol(L, rq, ox + x0, ox + x1, up, t, o);
+    const fallsAt = [];
+    const fall = (x, up, w0, w1) => fallsAt.push([ox + x, up, w0, w1]);
 
     // ---- headland A: table mountain with the twin falls ----
     ox = 50;
     spit(20, 26, 4);
     hill([150, 30, 76, 68], [56, 12, 40, 28], [88, 16, 40, 40]);
     grove(60, 17, 3, 4, 1.5, 1); grove(78, 23, 3, 5, 1, 21);
-    rockface([[100, 0], [101, 9], [104, 11], [105, 24], [107, 26], [108, 38], [110, 41], [113, 44], [124, 45], [136, 44], [150, 46], [158, 44], [160, 41], [161, 30], [164, 28], [178, 28], [181, 26], [182, 14], [185, 11], [186, 0]], {
-      folds: [[[120, 46], [120, 30], [121, 28], [121, 12], [122, 10], [122, 0]], [[127, 46], [127, 0]], [[151, 46], [151, 32], [152, 30], [152, 16], [154, 14], [154, 0]],
-        [[161, 46], [161, 30], [160, 28], [160, 14], [162, 12], [162, 0]], [[174, 28], [174, 14], [176, 12], [176, 0]]],
-      tones: [1, 3, 1, 3, 2, 4], cap: 3,
-      strata: [[30, 106, 118], [29, 136, 149], [14, 103, 119], [13, 135, 152], [12, 163, 173], [21, 141, 150], [36, 109, 114]],
-      cracks: [[112, 41, 37], [143, 20, 15], [110, 8, 3], [146, 43, 38], [168, 24, 18], [115, 24, 17]],
-    });
-    fall(128, 45, 6, [[-4, 1, 3], [3, 2, 4], [9, 1, 3], [-1, 4, 2], [6, 5, 3], [2, 6, 2]]);
-    fall(166, 28, 3, [[-2, 1, 2], [2, 2, 3], [5, 1, 2]]);
-    vines([[106, 37, 4], [116, 43, 6], [139, 43, 5], [147, 44, 3], [156, 42, 6], [171, 27, 4]]);
-    grove(124, 52, 4, 5, 0.5, 3); grove(111, 46, 3, 5, 1, 4); grove(137, 47, 4, 5, 0.3, 5); grove(162, 29, 3, 3, 0, 6);
+    col(108, 121, 42, 1); col(120, 128, 45, 2); col(128, 135, 43, 4, { recess: 1 }); col(135, 150, 46, 2); col(149, 161, 44, 3);
+    col(160, 171, 28, 2); col(167, 170, 27, 4, { recess: 1 }); col(171, 181, 29, 3); col(180, 186, 13, 3);
+    col(104, 114, 25, 1); col(100, 110, 10, 1); col(138, 147, 8, 1); col(152, 159, 5, 2);
+    fall(129, 43, 5, 7); fall(168, 27, 2, 4);
+    vines([[111, 40, 5], [117, 42, 6], [139, 45, 5], [146, 46, 3], [156, 43, 6], [174, 28, 4]]);
+    grove(124, 52, 4, 5, 0.5, 3); grove(111, 46, 3, 5, 1, 4); grove(137, 49, 4, 5, 0.3, 5); grove(160, 30, 2, 3, 0, 6); grove(172, 31, 2, 3, 0, 7);
     palmS(118, 53, 1); palmS(150, 53, 0, true);
-    boulders([[98, 1, 3], [118, 0, 3], [140, 1, 4, 3], [158, 1, 3], [189, 0, 3]]);
+    boulders([[98, 1, 3], [189, 0, 3]]);
     hill([214, 14, 38, 38], [246, 12, 36, 26]);
     spit(280, 24, 4);
     grove(204, 22, 3, 5, 0.5, 8); grove(236, 15, 3, 4, -1, 22);
@@ -570,56 +638,52 @@ G.defineArt('bg', G => {
 
     // ---- sea stacks + the arch ----
     ox = 0;
-    rockface([[745, 0], [746, 8], [749, 12], [749, 26], [752, 30], [760, 31], [763, 26], [764, 12], [767, 9], [768, 0]], { folds: [[[757, 31], [757, 14], [759, 12], [759, 0]]], tones: [1, 3], strata: [[14, 750, 756], [22, 750, 756]] });
-    rockface([[771, 0], [772, 10], [774, 15], [780, 16], [783, 11], [784, 0]], { folds: [[[779, 16], [779, 0]]], tones: [1, 3], strata: [[8, 773, 778]] });
+    col(749, 756, 30, 1); col(756, 763, 27, 3); col(745, 752, 10, 1); col(761, 768, 11, 3);
+    col(772, 778, 16, 1); col(778, 784, 12, 3);
     grove(753, 31, 2, 3, 0, 12);
     boulders([[742, 0, 3], [769, 1, 3], [786, 0, 2]]);
-    rockface([[800, 0], [801, 8], [804, 12], [805, 19], [809, 23], [822, 26], [836, 25], [842, 21], [844, 12], [847, 9], [848, 0]], {
-      folds: [[[812, 27], [812, 16], [814, 14], [814, 0]], [[817, 27], [817, 0]], [[836, 27], [836, 12], [838, 10], [838, 0]]],
-      tones: [1, 3, 1, 3], strata: [[18, 806, 811], [19, 820, 834], [9, 802, 812]], holes: [[819, 14, 15]],
-    });
-    grove(810, 25, 4, 3, 0.3, 32); palmS(828, 26, 1);
+    col(804, 818, 23, 1); col(832, 844, 22, 3); col(812, 838, 27, 2, { from: 15 }); col(800, 808, 9, 1); col(842, 848, 10, 3);
+    L.row(819, 831, WL - 16, ROCK[5]); L.row(819, 820, WL - 15, ROCK[4]); L.set(819, WL - 14, ROCK[4]); L.row(830, 831, WL - 15, ROCK[4]); L.set(831, WL - 14, ROCK[3]);
+    grove(810, 26, 4, 3, 0.3, 32); palmS(828, 27, 1);
     boulders([[798, 0, 3], [850, 0, 3]]);
 
     // ---- headland D: the green bluff ----
     ox = 16;
     spit(858, 20, 3);
     hill([940, 28, 74, 76], [886, 12, 36, 28]);
-    rockface([[910, 0], [911, 9], [915, 12], [916, 24], [920, 27], [922, 34], [944, 39], [948, 36], [949, 20], [953, 17], [954, 0]], {
-      folds: [[[928, 40], [928, 26], [929, 24], [929, 0]], [[933, 40], [933, 0]], [[944, 40], [944, 22], [946, 20], [946, 0]]],
-      tones: [1, 3, 1, 3], cap: 3, strata: [[24, 917, 927], [12, 912, 928], [22, 939, 943], [11, 940, 945]], cracks: [[922, 30, 26], [940, 34, 29]],
-    });
-    fall(934, 37, 4, [[-3, 1, 3], [2, 2, 3], [6, 1, 2], [1, 4, 2]]);
-    vines([[918, 28, 4], [925, 35, 5], [941, 38, 4], [947, 36, 3]]);
+    col(916, 928, 34, 1); col(927, 933, 38, 2); col(933, 938, 37, 4, { recess: 1 }); col(938, 949, 39, 2); col(948, 954, 19, 3); col(910, 920, 12, 1); col(941, 947, 7, 1);
+    fall(934, 37, 3, 5);
+    vines([[919, 32, 4], [925, 33, 5], [941, 38, 4], [946, 38, 3]]);
     grove(916, 37, 3, 5, 1.5, 13); grove(938, 42, 5, 5, 0.5, 14);
     hill([988, 16, 40, 36]);
     grove(970, 30, 3, 5, -2, 15);
     palmS(960, 47, 0); palmS(856, 3, 1); palmS(866, 2, 0, true); palmS(1004, 14, 0, true); palmS(882, 14, 1);
-    boulders([[908, 0, 3], [930, 1, 3], [955, 0, 3]]);
+    boulders([[908, 0, 3], [955, 0, 3]]);
     ox = 0;
 
-    // ---- beaches: pale sand where grass meets the water ----
+    // ---- beaches: pale sand where grass meets the water; rock goes dark and wet ----
     const grassy = new Set(GRASS.tones.concat(WOOD.tones));
     for (let x = 0; x < L.w; x++) {
       const c = L.get(x, WL - 1);
       if (grassy.has(c)) { L.set(x, WL - 1, SAND); if (grassy.has(L.get(x, WL - 2)) && (x * 7) % 11 < 7) L.set(x, WL - 2, SAND2); }
+      for (let y = WL - 2; y < WL; y++) { const i = ROCK.indexOf(L.get(x, y)); if (i >= 0) L.set(x, y, ROCK[Math.min(5, i + 1)]); }
     }
-    // ---- lagoon ----
-    const land = new Uint8Array(L.w);
-    for (let x = 0; x < L.w; x++) { const c = L.get(x, WL - 1); land[x] = !c ? 0 : c === SAND || c === SAND2 ? 1 : c === FOAM || c === FOAM2 ? 3 : 2; }
-    let y = water(L, WL, '7778778788788898898999a99a9aaa');
-    while (y < L.h) L.row(0, L.w - 1, y++, SEA[10]);
-    // reef line where the open sea meets the lagoon, reflections under the land
-    const REFL = [0, C('#42b4b0'), C('#7f9cc4'), C('#d6f6f6')];
-    for (let r = 0; r < 5; r++) {
-      let on = 0, n = 0;
+    // ---- reflections: the land mirrored into the lagoon, breaking up into ripples ----
+    const RF = new Map(), RG = CS(['#66d2b6', '#4cbeaa']), RR = CS(['#b6d6de', '#90b4ce']);
+    GRASS.tones.concat(WOOD.tones).forEach((c, i) => RF.set(c, RG[i % 5 < 2 ? 0 : 1]));
+    ROCK.forEach((c, i) => RF.set(c, RR[i < 3 ? 0 : 1]));
+    RF.set(SAND, C('#ccf4de')); RF.set(SAND2, C('#ccf4de')); RF.set(C('#fff8d2'), C('#ccf4de'));
+    FALL.forEach(c => RF.set(c, C('#eafdfb')));
+    for (let r = 0; r < 20; r++) {
+      const wob = r % 4 === 1 ? 1 : r % 4 === 3 ? -1 : 0;
+      let on = false, n = 0;
       for (let x = 0; x < L.w; x++) {
-        if (n-- <= 0) { on = rnd() < 0.86 - r * 0.2; n = on ? 3 + Math.floor(rnd() * 8) : 1 + Math.floor(rnd() * (2 + r * 2)); }
-        if (land[x] && on) L.set(x, WL + r, REFL[land[x]]);
+        if (n-- <= 0) { on = !on; n = on ? 3 + Math.floor(rnd() * Math.max(2, 9 - r * 0.4)) : Math.floor(rnd() * (1.5 + r * 0.45)); }
+        const c = RF.get(L.get(x + wob, WL - 1 - Math.floor(r * 1.5)));
+        if (c && (r < 2 || on)) L.set(x, WL + r, c);
       }
     }
-    for (let x = 0; x < L.w; x++) if (!land[x] && (x * 5) % 23 < 15) L.set(x, WL, C('#bfeef0'));
-    for (let r = 4; r <= 44; r += 3) dashRow(L, rnd, WL + r + (r & 1), 60, 3, 9, 0.4, GL, C('#c8f6ee'));
+    for (const f of fallsAt) falls(L, f[0], f[1], f[2], f[3]);
     return L;
   }
 
@@ -664,8 +728,7 @@ G.defineArt('bg', G => {
         t = lit > 0.55 ? (outer ? 0 : 1) : lit > 0.2 && outer ? 1 : shade ? 3 : 2;
       } else if (!ins(i, x - 1, y - 1)) t = 3;
       else if (!ins(i, x - 1, y - 2) && b <= i && lit > 0.62 && (b < 0 || all[b].g !== c.g)) t = 1;
-      else if (cast) t = shade ? 4 : 3;
-      else if (shade) t = 3;
+      else if (cast || shade) t = 3;
       out[y * W + x] = sets[c.set][t];
     }
     melt(out, W, bh, 5, 2);
@@ -796,8 +859,9 @@ G.defineArt('bg', G => {
       { img: bake(makeBank()), y: 20, speed: 0.02, auto: 1 },
       { img: bake(makeFloaters()), y: 4, speed: 0.04, auto: 2.5 },
       { img: bake(makeSeaFar()), y: 108 - HZ, speed: 0.06 },
-      { img: bake(makeSeaNear()), y: 120, speed: 0.11 },
-      { img: bake(makeHills()), y: 130 - WL, speed: 0.22 },
+      { img: bake(makeSeaNear()), y: 120, speed: 0.11, raster: 5 },
+      { img: bake(makeLagoon()), y: 130, speed: 0.22, raster: 2.6 },
+      { img: bake(makeIsles()), y: 130 - WL, speed: 0.22 },
       { img: bake(makeJungle()), y: 90, speed: 0.45 },
     ],
   };
