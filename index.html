@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>SUNFOX — Emerald Coast</title>
+<style>
+  html { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #0d0916; color: #fff8e8; overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  #wrap { position: fixed; inset: 0; box-sizing: border-box; display: flex;
+          padding-block: max(6px, env(safe-area-inset-top, 0px)) max(6px, env(safe-area-inset-bottom, 0px));
+          padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  #stage { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+  #screen { image-rendering: pixelated; image-rendering: crisp-edges; background: #5cc8f8; box-shadow: 0 0 0 2px #1a1226, 0 8px 40px rgba(0,0,0,.6); }
+  .pad { position: fixed; bottom: max(14px, env(safe-area-inset-bottom)); display: none; gap: 12px; z-index: 5; }
+  .touch .pad { display: flex; }
+  #padL { left: max(14px, env(safe-area-inset-left)); }
+  #padR { right: max(14px, env(safe-area-inset-right)); }
+  .btn { width: 68px; height: 68px; border-radius: 50%; background: rgba(255,248,232,.16); border: 2px solid rgba(255,248,232,.5); color: rgba(255,248,232,.85);
+         font: bold 26px/64px system-ui, sans-serif; text-align: center; box-sizing: border-box; }
+  .btn.on { background: rgba(255,214,48,.45); }
+  #bJump { width: 84px; height: 84px; line-height: 80px; font-size: 20px; }
+  #bPause { position: fixed; top: max(8px, env(safe-area-inset-top)); right: max(8px, env(safe-area-inset-right)); width: 40px; height: 40px; line-height: 36px; font-size: 14px; display: none; z-index: 5; }
+  .touch #bPause { display: block; }
+  #rot { display: none; position: fixed; left: 0; right: 0; top: 10px; text-align: center; color: #fff8e8; font: 13px system-ui, sans-serif; opacity: .7; z-index: 4; }
+  @media (orientation: portrait) { .touch #rot { display: block; } }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"><canvas id="screen" width="384" height="216"></canvas></div></div>
+<div id="rot">Tourne ton téléphone en paysage pour un plus grand écran ↻</div>
+<div class="pad" id="padL"><div class="btn" id="bLeft">◀</div><div class="btn" id="bRight">▶</div></div>
+<div class="pad" id="padR"><div class="btn" id="bJump">JUMP</div></div>
+<div class="btn" id="bPause">II</div>
+<!--SCRIPTS-->
+<script src="src/lib.js"></script>
+<script src="src/terrain_render.js"></script>
+<script src="src/art/terrain.js"></script>
+<script src="src/art/decor.js"></script>
+<script src="src/art/bg.js"></script>
+<script src="src/art/player.js"></script>
+<script src="src/art/enemies.js"></script>
+<script src="src/art/items.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/level.js"></script>
+<script src="src/game.js"></script>
+<!--/SCRIPTS-->
+<script>
+(function () {
+  const manual = /[?&]manual/.test(location.search);
+  G.boot(document.getElementById('screen'), { manual });
+  if (G.isTouch) document.body.classList.add('touch');
+  // Touch controls: each finger is tracked so you can slide between ◀ and ▶.
+  const btns = { bLeft: 'left', bRight: 'right', bJump: 'jump' };
+  const els = Object.keys(btns).map(id => document.getElementById(id));
+  function scan(ev) {
+    const st = { left: false, right: false, jump: false };
+    for (const t of ev.touches) {
+      for (const el of els) {
+        const r = el.getBoundingClientRect(), m = 14;
+        if (t.clientX >= r.left - m && t.clientX <= r.right + m && t.clientY >= r.top - m * 2 && t.clientY <= r.bottom + m) st[btns[el.id]] = true;
+      }
+    }
+    for (const el of els) { const k = btns[el.id]; G.touch[k] = st[k]; el.classList.toggle('on', st[k]); }
+  }
+  ['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(n => document.addEventListener(n, e => {
+    if (e.target.id === 'bPause') { if (n === 'touchstart') G.pressStart(); e.preventDefault(); return; }
+    if (n === 'touchstart') G.pressAny();
+    scan(e); e.preventDefault();
+  }, { passive: false }));
+  document.addEventListener('mousedown', () => G.pressAny());
+  document.addEventListener('contextmenu', e => e.preventDefault());
+})();
+</script>
+</body>
+</html>

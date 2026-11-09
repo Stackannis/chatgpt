@@ -1,0 +1,122 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>sheet</title>
+<style>
+  body { margin: 0; background: #2a2640; color: #e6ecf4; font: 11px monospace; }
+  #out { padding: 8px; width: 1480px; }
+  .row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 6px; margin: 0 0 10px; }
+  .lab { width: 100%; color: #ffd630; margin-bottom: 2px; }
+  canvas { image-rendering: pixelated; display: block; }
+  .err { color: #ff7a5a; font-size: 16px; white-space: pre-wrap; }
+</style>
+<div id="out"></div>
+<script src="../src/lib.js"></script>
+<script src="../src/terrain_render.js"></script>
+<script>
+(function () {
+  const q = new URLSearchParams(location.search);
+  const mods = (q.get('m') || 'player').split(',');
+  const S = +(q.get('s') || 0);
+  const BG = q.get('bg') || '#5cc8f8';
+  const out = document.getElementById('out');
+  window.__errors = [];
+  window.onerror = (m, s, l) => { window.__errors.push(m + ' @' + s + ':' + l); out.insertAdjacentHTML('beforeend', '<div class="err">' + m + ' @' + l + '</div>'); };
+
+  function scaled(src, s, bg) {
+    const c = G.cv(src.width * s, src.height * s);
+    if (bg) { c.ctx.fillStyle = bg; c.ctx.fillRect(0, 0, c.width, c.height); }
+    c.ctx.drawImage(src, 0, 0, c.width, c.height);
+    return c;
+  }
+  function row(label) {
+    const d = document.createElement('div'); d.className = 'row';
+    d.innerHTML = '<div class="lab">' + label + '</div>'; out.appendChild(d); return d;
+  }
+  function walk(path, v) {
+    if (!v) return;
+    if (v instanceof HTMLCanvasElement) v = [v];
+    if (Array.isArray(v) && v.length && v[0] instanceof HTMLCanvasElement) {
+      const big = Math.max(v[0].width, v[0].height);
+      const s = S || (big > 200 ? 2 : big > 64 ? 3 : 5);
+      const r = row(path + '  [' + v.length + ' x ' + v[0].width + 'x' + v[0].height + ']  @' + s + 'x');
+      v.forEach(f => r.appendChild(scaled(f, s, BG)));
+      // same frames on a dark + a grass-green backdrop at 2x to judge readability
+      if (big <= 64) { v.forEach(f => r.appendChild(scaled(f, 2, '#1a6b3a'))); v.forEach(f => r.appendChild(scaled(f, 1, '#5cc8f8'))); }
+      return;
+    }
+    if (Array.isArray(v)) { v.forEach((x, i) => walk(path + '[' + i + ']', x && x.img ? x.img : x)); return; }
+    if (typeof v === 'object') for (const k in v) walk(path + '.' + k, v[k]);
+  }
+
+  function demoGrid() {
+    const R = 12, C = 40, g = [];
+    for (let y = 0; y < R; y++) g.push(new Array(C).fill(' '));
+    const fill = (x0, x1, y0, y1, ch) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) g[y][x] = ch || '#'; };
+    fill(0, 23, 9, 11); fill(27, 39, 9, 11);
+    g[8][4] = '1'; g[8][5] = '2'; fill(6, 7, 8, 8); g[8][8] = '3'; g[8][9] = '4';
+    g[8][13] = '/'; g[7][14] = '/'; g[8][14] = '#'; g[6][15] = '/'; fill(15, 15, 7, 8);
+    fill(16, 18, 6, 8); g[6][19] = '\\'; fill(19, 19, 7, 8); g[7][20] = '\\'; g[8][20] = '#'; g[8][21] = '\\';
+    fill(32, 39, 4, 8); fill(25, 29, 3, 4);
+    return g.map(r => r.join(''));
+  }
+  function terrainDemo() {
+    const T = G.art.terrain || {};
+    const grid = demoGrid();
+    const t = G.buildTerrain(grid, T);
+    const c = G.cv(t.W, t.H);
+    c.ctx.fillStyle = BG; c.ctx.fillRect(0, 0, t.W, t.H);
+    t.chunks.forEach((ch, i) => c.ctx.drawImage(ch, i * 512, 0));
+    // props placed like the engine does
+    const put = (img, tx, ty) => img && c.ctx.drawImage(img, tx * 16, ty * 16 - (img.height - 16));
+    if (T.platform) { put(T.platform.l, 9, 5); put(T.platform.m, 10, 5); put(T.platform.m, 11, 5); put(T.platform.r, 12, 5); }
+    if (T.block) { put(T.block[0], 1, 5); put(T.blockUsed, 2, 5); }
+    if (T.spring) put(T.spring[0], 22, 8);
+    if (T.spikes) { put(T.spikes, 10, 8); put(T.spikes, 11, 8); }
+    if (T.checkpoint) put(T.checkpoint.on[0], 28, 8);
+    if (T.goal) put(T.goal[0], 35, 3);
+    if (T.sign) put(T.sign, 1, 8);
+    if (T.moving) c.ctx.drawImage(T.moving, 23 * 16 + 4, 6 * 16);
+    row('TERRAIN DEMO (engine renderer: flat, gentle slope, 45deg slope, pit, cliff, floating island) @2x').appendChild(scaled(c, 2));
+    const crop = G.cv(336, 144); crop.ctx.drawImage(c, 0, -48);
+    row('TERRAIN DEMO crop @4x').appendChild(scaled(crop, 4));
+    const crop2 = G.cv(336, 192); crop2.ctx.drawImage(c, -304, 0);
+    row('TERRAIN DEMO crop (right side) @4x').appendChild(scaled(crop2, 4));
+  }
+  function bgDemo() {
+    const B = G.art.bg; if (!B) return;
+    [[0, 0], [650, 0], [2400, 0], [1500, 200]].forEach(([camX, up]) => {
+      const c = G.cv(G.W, G.H);
+      G.drawBackground(c.ctx, B, camX, up, 1.5);
+      row('BG COMPOSITE camX=' + camX + ' cameraRaisedBy=' + up + 'px  @3x').appendChild(scaled(c, 3));
+    });
+  }
+  // Reference implementation of how the engine draws G.art.bg (kept in sync with src/game.js).
+  G.drawBackground = G.drawBackground || function (ctx, B, camX, camUp, time) {
+    ctx.drawImage(B.sky, 0, 0);
+    for (const L of B.layers) {
+      const w = L.img.width;
+      let x = -((camX * L.speed + (L.auto || 0) * time) % w);
+      if (x > 0) x -= w;
+      const y = Math.round(L.y + camUp * L.speed * 0.5);
+      for (x = Math.floor(x); x < G.W; x += w) ctx.drawImage(L.img, x, y);
+    }
+  };
+
+  let i = 0;
+  (function next() {
+    if (i >= mods.length) return finish();
+    const s = document.createElement('script');
+    s.src = '../src/art/' + mods[i++] + '.js';
+    s.onload = next; s.onerror = () => { window.__errors.push('cannot load ' + s.src); next(); };
+    document.body.appendChild(s);
+  })();
+  function finish() {
+    try {
+      if (mods.includes('terrain')) terrainDemo();
+      if (mods.includes('bg')) bgDemo();
+      mods.forEach(m => walk(m, G.art[m]));
+    } catch (e) { window.onerror(e.stack || e.message, '', 0); }
+    window.__done = true;
+  }
+})();
+</script>
