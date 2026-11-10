@@ -66,13 +66,20 @@ G.defineArt('decor', G => {
     }
   }
 
+  // Ruin stone (blue-violet shadows, warm highlights) and warmer natural rock ramps.
+  const RS = [ST[0], ST[1], ST[2], '#b6b4ba', '#eee6cc'];
+  const RK = ['#33263a', '#5e4c5c', '#8e7d80', '#c0b2a0', '#efe3c2'];
+  const DEEP = '#0a2a2e', WD = '#2668c8';
+
   // Outline families: colour -> [dark outline, lit-side outline]
   const FAM = {};
   function fam(ramp, d, l) { ramp.forEach(c => { FAM[c] = [d, l]; }); }
   fam(GR, GR[0], GR[1]); fam(BR, BR[0], BR[1]); fam(ST, ST[0], ST[1]); fam(BL, BL[1], BL[2]);
   fam(OR, OR[0], OR[1]); fam(RD, RD[0], RD[1]); fam(GO, GO[0], OR[1]); fam(PK, RD[0], PK[0]);
   fam(TE, TE[0], TE[1]); fam(PU, PU[0], PU[1]); FAM[W] = [ST[1], ST[2]];
+  fam(RS, '#1e1a36', ST[1]); fam(RK, '#241a2e', RK[1]);
   // Expand the silhouette by 1px with a dark local colour (selout: lighter on the lit top/left side).
+  // opt.col forces one colour; opt.flat disables the lit variant.
   function outline(b, opt) {
     opt = opt || {};
     const src = b.d.slice(), g = (x, y) => (x >= 0 && y >= 0 && x < b.w && y < b.h ? src[y * b.w + x] : null);
@@ -80,6 +87,7 @@ G.defineArt('decor', G => {
       if (g(x, y)) continue;
       const dn = g(x, y + 1), rt = g(x + 1, y), up = g(x, y - 1), lf = g(x - 1, y);
       const n = dn || rt || up || lf; if (!n) continue;
+      if (opt.col) { b.d[y * b.w + x] = opt.col; continue; }
       const f = (opt.fam && opt.fam[n]) || FAM[n] || [P.ink, P.ink];
       const lit = !up && !lf && !opt.flat;
       b.d[y * b.w + x] = lit ? f[1] : f[0];
@@ -144,7 +152,36 @@ G.defineArt('decor', G => {
       lobes.forEach(l => lobe(b, l[0], l[1], l[2], o.r));
     });
   }
-  // Feathered frond along a quadratic bezier. Leaflets hang from the spine as slanted saw-teeth.
+  // Leaf cluster: flat-toned leaf discs laid like roof tiles (light ones on top), which gives
+  // clean scalloped tone bands: lit upper-left rim, mid tone, dark under-shadow. No dithering.
+  // Each cluster gets its own dark rim so neighbouring clusters stay separated.
+  function clump(b, cx, cy, rx, ry, bias, r) {
+    layer(b, t => {
+      const lobes = [], R = r || 3;
+      let row = 0;
+      for (let gy = -ry + R - 1; gy <= ry - R + 1.01; gy += 3, row++) for (let gx = -rx + R - 1 + (row & 1 ? 2 : 0); gx <= rx - R + 1.01; gx += 4) {
+        const ex = gx / (rx - R + 1), ey = gy / (ry - R + 1);
+        if (ex * ex + ey * ey > 1.08) continue;
+        const v = -(gx / rx * 0.55 + gy / ry * 0.85) + (bias || 0);
+        lobes.push([cx + gx, cy + gy, v > 0.62 ? 4 : v > 0.14 ? 3 : v > -0.42 ? 2 : 1, v]);
+      }
+      for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        const dx = (x + 0.5 - cx) / (rx - 1), dy = (y + 0.5 - cy) / (ry - 1);
+        if (dx * dx + dy * dy <= 0.8) S(t, x, y, GR[1]);
+      }
+      lobes.sort((a, c) => a[3] - c[3]);
+      lobes.forEach(l => {
+        for (let y = Math.floor(l[1] - R); y <= Math.ceil(l[1] + R); y++) for (let x = Math.floor(l[0] - R - 1); x <= Math.ceil(l[0] + R + 1); x++) {
+          const dx = (x + 0.5 - l[0]) / (R + 0.3), dy = (y + 0.5 - l[1]) / (R - 0.1);
+          if (dx * dx + dy * dy <= 1) S(t, x, y, GR[l[2]]);
+        }
+      });
+    }, { col: GR[0] });
+  }
+
+  // Palm / fern frond: midrib along a quadratic bezier with separate saw-tooth leaflets.
+  // Each leaflet is a stroke of a light + dark pixel pair ending in a single pointed pixel;
+  // the gap between leaflets is left empty (the layer rim fills it with the darkest tone).
   function frond(b, p0, p1, p2, o) {
     const pts = []; let last = null;
     for (let i = 0; i <= 600; i++) {
@@ -157,33 +194,30 @@ G.defineArt('decor', G => {
         last = [xi, yi, tx, ty]; pts.push(last);
       }
     }
-    const n = pts.length, per = o.per || 5, c = o.cols;
-    const sideLo = o.side || 0;
-    const FAC = per >= 5 ? [1, 0.86, 0.64, 0.4, 0.14] : per === 4 ? [1, 0.78, 0.48, 0.14] : [1, 0.6, 0.15];
-    function leaflets(up) {
-      const CC = up ? [c.a, c.a, c.m, c.m, c.b] : per >= 5 ? [c.a, c.m, c.m, c.b, c.b] : per === 4 ? [c.a, c.m, c.b, c.b] : [c.a, c.m, c.b];
-      for (let i0 = (o.phase || 0) % per; i0 < n; i0 += per) {
-        const [, , tx, ty] = pts[i0], s = i0 / (n - 1);
-        let nx = -ty, ny = tx; // normal
-        if (sideLo ? sideLo * nx < 0 : ny < 0) { nx = -nx; ny = -ny; } // lower / chosen side
-        if (up) { nx = -nx; ny = -ny; }
-        const g = up ? (o.gravUp || 0) : (o.grav == null ? 0.55 : o.grav), ln = o.lean == null ? 0.45 : o.lean;
-        let dx = nx * (1 - g) + tx * ln, dy = ny * (1 - g) + g + ty * ln;
+    const n = pts.length, step = o.step || 3, c = o.cols, pair = step >= 3;
+    const g = o.grav == null ? 0.5 : o.grav, ln = o.lean == null ? 0.5 : o.lean;
+    for (let pass = 0; pass < 2; pass++) for (let side = -1; side <= 1; side += 2) {
+      for (let i = (o.phase || 0) + 1; i < n - 1; i += step) {
+        const x = pts[i][0], y = pts[i][1], tx = pts[i][2], ty = pts[i][3], s = i / (n - 1);
+        const nx = -ty * side, ny = tx * side;
+        const L0 = o.lenUp + (o.len - o.lenUp) * (ny + 1) / 2;
+        const env = Math.pow(Math.sin(Math.PI * Math.min(1, (o.e0 == null ? 0.12 : o.e0) + s * (1 - (o.e0 == null ? 0.12 : o.e0)))), 0.6);
+        const L = Math.round(L0 * env);
+        let dx = nx + tx * ln, dy = ny + ty * ln + g;
         const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
-        const env = Math.pow(Math.sin(Math.PI * Math.min(1, (o.e0 == null ? 0.03 : o.e0) + Math.pow(s, 0.8) * 0.93)), o.pow || 0.7);
-        for (let q = 0; q < per && i0 + q < n; q++) {
-          const len = Math.round((up ? o.lenUp || 0 : o.len) * env * FAC[q]);
-          for (let k = 1; k <= len; k++) S(b, pts[i0 + q][0] + dx * k, pts[i0 + q][1] + dy * k, CC[q]);
+        const ox = Math.abs(dy) >= Math.abs(dx) ? 1 : 0, oy = 1 - ox;
+        for (let k = 1; k <= L; k++) {
+          const X = Math.round(x + dx * k), Y = Math.round(y + dy * k);
+          if (pass === 0) { if (pair && k < L) S(b, X + ox, Y + oy, c.b); }
+          else S(b, X, Y, k === L && L > 2 ? c.t || c.a : c.a);
         }
       }
     }
-    leaflets(false);
-    if (o.lenUp) leaflets(true);
-    for (let i = 0; i < n; i++) S(b, pts[i][0], pts[i][1], i > n * 0.8 ? c.a : c.spine);
+    for (let i = 0; i < n; i++) S(b, pts[i][0], pts[i][1], i > n * 0.85 ? c.a : c.spine);
   }
-  const FR_FRONT = { spine: GR[4], a: GR[3], m: GR[2], b: GR[1] };
-  const FR_MID = { spine: GR[3], a: GR[3], m: GR[2], b: GR[1] };
-  const FR_BACK = { spine: GR[2], a: GR[2], m: GR[1], b: GR[0] };
+  const FR_LIT = { spine: GR[4], a: GR[3], b: GR[2], rim: GR[1] };
+  const FR_MID = { spine: GR[3], a: GR[2], b: GR[1], rim: GR[0] };
+  const FR_BACK = { spine: GR[1], a: GR[1], b: GR[0], rim: DEEP };
 
   // grass blade / stem: quadratic lean, 2px at the base tapering to 1px
   function blade(b, x0, y0, h, lean, cl, cd, w) {
@@ -195,22 +229,33 @@ G.defineArt('decor', G => {
 
   // ----------------------------------------------------------------- stone
   // Bump-map renderer: rows of height chars (' '/'.' empty, 'o' recess, '#' base, '+' raised, '*' higher).
+  // Raised planes are a full tone lighter than the base, recesses a tone darker; edges facing the
+  // upper-left catch a highlight, edges facing lower-right and anything under a ledge fall in shadow.
   const HV = { o: 0, '#': 1, '+': 2, '*': 3 };
   function mirrorRows(rows) { return rows.map(r => r + r.split('').reverse().join('')); }
   function stone(b, rows, ox, oy, opt) {
     opt = opt || {};
+    const R = opt.ramp || RS;
     const h = (x, y) => { const r = rows[y]; if (!r) return -1; const v = HV[r[x]]; return v == null ? -1 : v; };
     const wd = rows[0].length;
     for (let y = 0; y < rows.length; y++) for (let x = 0; x < wd; x++) {
       const v = h(x, y); if (v < 0) continue;
       const l = h(x - 1, y), u = h(x, y - 1), r = h(x + 1, y), d = h(x, y + 1);
-      let t = v === 0 ? 1 : 2;
-      const litE = (l < v && l >= -1) || (u < v), shE = (r < v) || (d < v), inSh = (l > v) || (u > v);
+      let t = v === 0 ? 1 : v === 1 ? 2 : 3;
+      const litE = l < v || u < v, shE = r < v || d < v, inSh = l > v || u > v;
       if (inSh) t -= 1; else if (litE && !shE) t += 1; else if (shE && !litE) t -= 1;
-      if (v >= 2 && litE && u < v && l < v) t = 4; // sparkling raised corner
-      if (opt.shadeFrom != null && x >= opt.shadeFrom && t > 1) t -= 1; // cylinder falloff on the right
-      if (opt.lightTo != null && x <= opt.lightTo && v > 0 && t < 3 && !inSh && !shE) t += 1;
-      S(b, ox + x, oy + y, ST[Math.max(0, Math.min(4, t))]);
+      if (v >= 2 && u < v && l < v) t = 4; // sparkling raised corner
+      if (opt.shadeFrom != null && x >= opt.shadeFrom) t -= 1; // falloff on the right
+      if (opt.lightTo != null && x <= opt.lightTo && v > 0 && t < 4 && !inSh && !shE) t += 1;
+      S(b, ox + x, oy + y, R[Math.max(0, Math.min(4, t))]);
+    }
+  }
+  // moss that follows the top silhouette between two columns, with drips (pattern = thickness per column)
+  function mossTop(b, x0, pattern) {
+    for (let i = 0; i < pattern.length; i++) {
+      const x = x0 + i, th = pattern[i]; let y = 0;
+      while (y < b.h && !Gt(b, x, y)) y++;
+      for (let k = 0; k < th; k++) S(b, x, y + k, k === 0 ? GR[3] : k === th - 1 && th > 2 ? GR[1] : GR[2]);
     }
   }
   // moss lying on a top surface: list of [x, y, thickness] columns
@@ -228,105 +273,113 @@ G.defineArt('decor', G => {
   function makePalm() {
     const b = B(64, 96);
     const crown = [35, 29];
-    const fr = (p1, p2, o) => layer(b, t => frond(t, crown, p1, p2, o));
-    // back fronds (shaded)
-    fr([45, 30], [50, 57], { len: 7, cols: FR_BACK, grav: 0.5, lenUp: 2 });
-    fr([25, 30], [20, 56], { len: 7, cols: FR_BACK, grav: 0.5, lenUp: 2, phase: 2 });
-    fr([40, 8], [52, 3], { len: 7, cols: FR_MID, lenUp: 3 });
-    fr([31, 8], [19, 3], { len: 7, cols: FR_MID, lenUp: 3, phase: 3 });
+    const fr = (p1, p2, cols, o) => layer(b, t => frond(t, crown, p1, p2, Object.assign({ len: 8, lenUp: 4, cols }, o)), { col: cols.rim });
+    // back fronds (darkest green)
+    fr([37, 13], [43, 3], FR_BACK, { len: 5, lenUp: 4, grav: 0.2 });
+    fr([31, 14], [25, 5], FR_BACK, { len: 5, lenUp: 4, grav: 0.2, phase: 1 });
+    fr([46, 27], [50, 55], FR_BACK, { len: 7, lenUp: 5, phase: 2 });
     // trunk
-    const cxAt = y => 26 + 9 * Math.pow((95 - y) / 66, 1.7);
-    for (let y = 95; y >= 29; y--) {
-      const t = (95 - y) / 66, seg = (95 - y) % 6;
-      let hw = 3.6 - 1.2 * t + (y > 90 ? (y - 90) * 0.5 : 0);
-      const cx = cxAt(y - seg + 2); // each ring is a straight cup, stepping along the curve
-      let xa = Math.round(cx - hw), xb = Math.round(cx + hw);
-      if (seg === 5) { xa -= 1; xb += 1; } // lip of each ring
-      for (let x = xa; x <= xb; x++) {
-        const f = (x - xa) / Math.max(1, xb - xa);
-        let c = f < 0.18 ? BR[4] : f < 0.5 ? BR[3] : f < 0.82 ? BR[2] : BR[1];
-        if (seg === 0) c = f < 0.5 ? BR[2] : BR[1]; // shadow under the lip
-        if (seg === 5 && f < 0.6) c = f < 0.3 ? BR[5] : BR[4];
-        S(b, x, y, c);
+    layer(b, t => {
+      const cxAt = y => 26 + 9 * Math.pow((95 - y) / 66, 1.7);
+      for (let y = 95; y >= 29; y--) {
+        const tt = (95 - y) / 66, seg = (95 - y) % 6;
+        const hw = 3.6 - 1.2 * tt + (y > 90 ? (y - 90) * 0.5 : 0);
+        const cx = cxAt(y - seg + 2); // each ring is a straight cup, stepping along the curve
+        let xa = Math.round(cx - hw), xb = Math.round(cx + hw);
+        if (seg === 5) { xa -= 1; xb += 1; } // lip of each ring
+        for (let x = xa; x <= xb; x++) {
+          const f = (x - xa) / Math.max(1, xb - xa);
+          let c = f < 0.18 ? BR[4] : f < 0.5 ? BR[3] : f < 0.82 ? BR[2] : BR[1];
+          if (seg === 0) c = f < 0.5 ? BR[2] : BR[1]; // shadow under the lip
+          if (seg === 5 && f < 0.6) c = f < 0.3 ? BR[5] : BR[4];
+          if (y < 38 && c !== BR[1]) c = BR[BR.indexOf(c) - 1]; // crown shade
+          S(t, x, y, c);
+        }
       }
-    }
-    // coconuts
-    const nut = ['.kk.', 'knmk', 'kmmk', '.kk.'], NP = { k: BR[0], n: BR[3], m: BR[1] };
-    stamp(b, nut, NP, 30, 30); stamp(b, nut, NP, 36, 31); stamp(b, nut, NP, 33, 33);
-    // front fronds
-    fr([19, 20], [4, 46], { len: 9, cols: FR_FRONT, lenUp: 3 });
-    fr([52, 20], [60, 48], { len: 9, cols: FR_FRONT, lenUp: 3, phase: 1 });
-    fr([23, 1], [3, 22], { len: 9, cols: FR_FRONT, lenUp: 3, phase: 2 });
-    fr([48, 1], [61, 23], { len: 9, cols: FR_FRONT, lenUp: 3 });
+    });
+    // right-hand fronds (mid tone), then the frond drooping across the trunk
+    fr([53, 21], [59, 49], FR_MID, { phase: 1 });
+    fr([49, 5], [62, 23], FR_MID, {});
+    fr([27, 29], [24, 55], FR_MID, { len: 7, lenUp: 5, phase: 2 });
+    // sunlit fronds, upper-left
+    fr([17, 22], [5, 48], FR_LIT, { phase: 1 });
+    fr([21, 4], [2, 24], FR_LIT, {});
+    // coconut cluster at the crown join
+    const nut = ['.kkk.', 'knhmk', 'kmmdk', 'kmddk', '.kkk.'], NP = { k: BR[0], n: BR[3], h: BR[4], m: BR[2], d: BR[1] };
+    stamp(b, nut, NP, 35, 30); stamp(b, nut, NP, 29, 31); stamp(b, nut, NP, 32, 34);
     // crown heart
-    stamp(b, ['.dd.', 'dedc', 'dccb', '.cb.'], LEAFP, 33, 27);
-    outline(b);
+    stamp(b, ['.aaa.', 'adeda', 'adcca', '.aaa.'], LEAFP, 32, 26);
     return out(b);
   }
 
   // =================================================================== TREE
   function makeTree() {
     const b = B(56, 72);
-    // limbs disappearing into the canopy
-    for (let i = 0; i <= 12; i++) {
-      rect(b, 25 - Math.round(i * 0.7), 52 - i, 3, 1, BR[1]); S(b, 25 - Math.round(i * 0.7), 52 - i, BR[2]);
-      rect(b, 30 + Math.round(i * 0.7), 52 - i, 3, 1, BR[1]);
-    }
-    // trunk with root flare
-    for (let y = 70; y >= 40; y--) {
-      const k = y > 62 ? (y - 62) : 0;
-      const xa = 24 - Math.round(k * k * 0.1) - (y < 50 ? 0 : 0), xb = 32 + Math.round(k * k * 0.085);
-      for (let x = xa; x <= xb; x++) {
-        const f = (x - xa) / (xb - xa);
-        let t = f < 0.14 ? 4 : f < 0.42 ? 3 : f < 0.8 ? 2 : 1;
-        if (y < 51) t = Math.max(1, t - 1); // canopy shade
-        S(b, x, y, BR[t]);
+    layer(b, t => {
+      // limbs disappearing into the canopy
+      for (let i = 0; i <= 12; i++) {
+        rect(t, 25 - Math.round(i * 0.7), 52 - i, 3, 1, BR[1]); S(t, 25 - Math.round(i * 0.7), 52 - i, BR[2]);
+        rect(t, 30 + Math.round(i * 0.7), 52 - i, 3, 1, BR[1]);
       }
-    }
-    // bark: staggered grooves + root creases
-    [[27, 52, 5], [30, 56, 6], [26, 60, 5], [29, 64, 4], [31, 48, 4]].forEach(g => rect(b, g[0], g[1], 1, g[2], BR[1]));
-    [[26, 54, 3], [28, 61, 3]].forEach(g => rect(b, g[0], g[1], 1, g[2], BR[4]));
-    line(b, 25, 66, 22, 70, BR[2]); line(b, 31, 66, 34, 70, BR[1]); line(b, 28, 67, 28, 70, BR[1]);
-    leafMass(b, [
-      [28, 14, 13, 10], [13.5, 23, 10.5, 10], [42, 23, 10.5, 10], [28, 26, 14, 10],
-      [11, 34, 8, 7.5], [44.5, 34, 8, 7.5], [21, 38, 10, 7.5], [36, 38, 10, 7.5],
-    ], [28, 24, 26, 22], 7);
-    outline(b);
+      // trunk with root flare
+      for (let y = 70; y >= 40; y--) {
+        const k = y > 62 ? (y - 62) : 0;
+        const xa = 24 - Math.round(k * k * 0.1), xb = 32 + Math.round(k * k * 0.085);
+        for (let x = xa; x <= xb; x++) {
+          const f = (x - xa) / (xb - xa);
+          let tn = f < 0.14 ? 4 : f < 0.42 ? 3 : f < 0.8 ? 2 : 1;
+          if (y < 51) tn = Math.max(1, tn - 1); // canopy shade
+          S(t, x, y, BR[tn]);
+        }
+      }
+      // bark: staggered grooves + root creases
+      [[27, 52, 5], [30, 56, 6], [26, 60, 5], [29, 64, 4], [31, 48, 4]].forEach(g => rect(t, g[0], g[1], 1, g[2], BR[1]));
+      [[26, 54, 3], [28, 61, 3]].forEach(g => rect(t, g[0], g[1], 1, g[2], BR[4]));
+      line(t, 25, 66, 22, 70, BR[2]); line(t, 31, 66, 34, 70, BR[1]); line(t, 28, 67, 28, 70, BR[1]);
+    });
+    // canopy: six separate clusters, back to front
+    clump(b, 29, 13, 13, 10, 0.1);
+    clump(b, 42, 25, 12, 10, -0.15);
+    clump(b, 14, 24, 12, 10, 0.05);
+    clump(b, 41, 38, 10, 7, -0.25);
+    clump(b, 15, 38, 10, 7, -0.1);
+    clump(b, 28, 32, 12, 9, 0);
     return out(b);
   }
 
   // ================================================================= BUSHES
+  const BERRY = ['.kk.', 'kprk', 'krdk', '.kk.'], BERRYP = { k: RD[0], p: PK[1], r: RD[2], d: RD[1] };
   function makeBush1() {
     const b = B(32, 16);
-    rect(b, 3, 10, 26, 6, GR[0]);
-    leafMass(b, [[16, 9, 7, 5], [8, 12, 5, 3.5], [24, 12, 5, 3.5], [12, 14, 5, 2.5], [21, 14, 5, 2.5]], [16, 9, 15, 8], 3, { bias: 0.1 });
-    outline(b);
+    clump(b, 17, 9, 9, 7, 0);
+    clump(b, 24, 12, 7, 5, -0.2);
+    clump(b, 8, 12, 7, 5, 0);
+    clump(b, 16, 14, 6, 4, -0.1);
     return out(b);
   }
   function makeBush2() {
     const b = B(48, 24);
-    rect(b, 4, 14, 40, 10, GR[0]);
-    leafMass(b, [[21, 10.5, 8, 6], [32, 12, 8, 6], [10, 16.5, 6, 5], [39.5, 18, 5.5, 4.5], [17, 19.5, 8, 4], [29, 20.5, 8, 3.5]], [24, 13, 23, 12], 5, { bias: 0.1 });
-    // berries
-    const berry = ['.r.', 'rRr', '.r.'], BP = { r: RD[2], R: RD[3] };
-    stamp(b, berry, BP, 24, 10); stamp(b, berry, BP, 12, 15); stamp(b, berry, BP, 35, 15); stamp(b, berry, BP, 28, 19);
-    outline(b);
+    clump(b, 25, 11, 12, 9, 0.05);
+    clump(b, 38, 16, 9, 7, -0.2);
+    clump(b, 11, 16, 10, 7, 0);
+    clump(b, 25, 20, 10, 5, -0.1);
+    // berries: 2x2 with a highlight, in pairs
+    [[20, 9], [24, 11], [8, 15], [35, 13], [39, 16], [27, 18]].forEach(p => stamp(b, BERRY, BERRYP, p[0], p[1]));
     return out(b);
   }
 
   // =================================================================== FERN
   function makeFern() {
     const b = B(24, 16);
-    const o = { len: 3, lenUp: 2, cols: FR_FRONT, per: 3, grav: 0.3, gravUp: 0, lean: 0.5, pow: 0.5 };
-    const ob = Object.assign({}, o, { cols: FR_BACK });
-    frond(b, [12, 15], [9, 4], [5, 1], Object.assign({ side: -1 }, ob));
-    frond(b, [12, 15], [15, 4], [19, 2], Object.assign({ side: 1 }, ob));
-    frond(b, [12, 15], [7, 6], [1, 8], o);
-    frond(b, [12, 15], [17, 6], [22, 8], o);
-    frond(b, [12, 15], [8, 10], [3, 13], o);
-    frond(b, [12, 15], [16, 10], [21, 13], o);
-    frond(b, [12, 15], [12, 6], [12, 2], Object.assign({ side: 1 }, o));
-    outline(b);
+    const base = [12, 16];
+    const fr = (p1, p2, cols, o) => frond(b, base, p1, p2, Object.assign({ len: 3, lenUp: 2, step: 2, grav: 0.25, lean: 0.7, e0: 0.3, cols }, o));
+    const BK = { spine: GR[1], a: GR[1], b: GR[1] }, MD = { spine: GR[2], a: GR[2], b: GR[2] }, LT = { spine: GR[4], a: GR[3], b: GR[3] };
+    fr([12, 5], [11, 1], BK, {});
+    fr([16, 0], [21, 4], MD, { phase: 1 });
+    fr([7, 0], [3, 4], LT, {});
+    fr([20, 6], [23, 13], MD, {});
+    fr([4, 6], [0, 13], LT, { phase: 1 });
+    outline(b, { col: GR[0] });
     return out(b);
   }
 
@@ -388,26 +441,40 @@ G.defineArt('decor', G => {
   }
 
   // ================================================================== ROCKS
+  // Faceted, warm grey: lit top plane, left face, front, cast-shadow side, dark contact line.
   function makeRock1() {
     const b = B(16, 12);
-    poly(b, [[1, 12], [1, 8], [3, 4], [7, 1], [11, 2], [14, 6], [15, 12]], ST[2]);
-    poly(b, [[3, 4], [7, 1], [11, 2], [9, 5], [5, 6]], ST[3]);
-    poly(b, [[9, 5], [11, 2], [14, 6], [15, 12], [10, 12]], ST[1]);
-    S(b, 6, 2, ST[4]); S(b, 7, 2, ST[4]); S(b, 5, 3, ST[4]);
-    line(b, 5, 7, 6, 9, ST[1]);
+    poly(b, [[1, 12], [1, 8], [3, 4], [7, 1], [11, 2], [14, 6], [15, 12]], RK[2]);
+    poly(b, [[1, 12], [1, 8], [3, 4], [5, 6], [4, 12]], RK[3]);
+    poly(b, [[3, 4], [7, 1], [11, 2], [9, 5], [5, 6]], RK[4]);
+    poly(b, [[9, 5], [11, 2], [14, 6], [15, 12], [10, 12]], RK[1]);
+    poly(b, [[12, 8], [15, 9], [15, 12], [11, 12]], RK[0]);
+    S(b, 9, 3, RK[3]); S(b, 10, 3, RK[3]); S(b, 8, 4, RK[3]); S(b, 9, 4, RK[3]); // top plane turning away
+    line(b, 6, 7, 7, 9, RK[1]); S(b, 7, 7, RK[3]); S(b, 8, 9, RK[3]);
+    for (let x = 1; x <= 14; x++) if (Gt(b, x, 11)) S(b, x, 11, x < 5 ? RK[1] : RK[0]);
     outline(b);
     return out(b);
   }
   function makeRock2() {
     const b = B(32, 24);
-    poly(b, [[1, 24], [1, 17], [4, 10], [9, 5], [16, 3], [23, 5], [28, 10], [31, 17], [31, 24]], ST[2]);
-    poly(b, [[9, 5], [16, 3], [23, 5], [20, 9], [11, 10]], ST[3]);
-    poly(b, [[20, 9], [23, 5], [28, 10], [31, 17], [31, 24], [22, 24], [23, 15]], ST[1]);
-    poly(b, [[1, 17], [4, 10], [9, 5], [11, 10], [8, 16]], ST[3]);
-    poly(b, [[26, 18], [31, 17], [31, 24], [25, 24]], ST[0]);
-    line(b, 11, 11, 13, 16, ST[1]); line(b, 13, 16, 12, 20, ST[1]);
-    line(b, 8, 17, 4, 20, ST[1]);
-    moss(b, 8, 4, [1, 2, 2, 3, 2, 2, 3, 4, 3, 2, 2, 3, 2, 2, 1, 1]);
+    poly(b, [[2, 24], [1, 18], [3, 12], [7, 6], [13, 2], [20, 2], [26, 6], [29, 12], [31, 18], [30, 24]], RK[2]);
+    poly(b, [[2, 24], [1, 18], [3, 12], [7, 6], [10, 9], [8, 15], [6, 24]], RK[3]);
+    poly(b, [[7, 6], [13, 2], [20, 2], [23, 6], [17, 9], [10, 9]], RK[4]);
+    poly(b, [[23, 6], [26, 6], [29, 12], [31, 18], [30, 24], [21, 24], [22, 15], [17, 9]], RK[1]);
+    poly(b, [[25, 16], [31, 18], [30, 24], [23, 24]], RK[0]);
+    // top plane rolling off to the right, chiselled cracks with a lit lip
+    poly(b, [[18, 4], [23, 6], [17, 9], [15, 8]], RK[3]);
+    line(b, 12, 10, 14, 15, RK[1]); line(b, 14, 15, 13, 19, RK[1]);
+    line(b, 13, 10, 15, 15, RK[3]); S(b, 14, 17, RK[3]);
+    line(b, 7, 16, 4, 19, RK[2]); line(b, 17, 12, 19, 16, RK[1]);
+    S(b, 4, 12, RK[4]); S(b, 5, 10, RK[4]); S(b, 4, 13, RK[4]); // sunlit edge
+    for (let x = 1; x <= 30; x++) {
+      if (Gt(b, x, 23)) S(b, x, 23, x < 6 ? RK[1] : RK[0]);
+      if (x > 8 && x < 21 && Gt(b, x, 22)) S(b, x, 22, RK[1]);
+    }
+    // moss: a cap following the top facets, dripping down the faces
+    mossTop(b, 6, [1, 2, 2, 4, 5, 3, 2, 2, 3, 6, 7, 4, 2, 2, 3, 2, 4, 5, 2, 1, 1]);
+    S(b, 4, 15, GR[2]); S(b, 5, 15, GR[2]); S(b, 4, 16, GR[1]); S(b, 24, 13, GR[1]); S(b, 25, 13, GR[1]);
     outline(b);
     return out(b);
   }
@@ -438,68 +505,71 @@ G.defineArt('decor', G => {
   function makeTotem() {
     const b = B(24, 48);
     const half = [
-      '............',
-      '...#........',
-      '..###.......',
-      '..####......',
-      '..#o###.....',
-      '..#oo###....',
-      '..#ooo###...',
+      '...+........',
+      '..++........',
+      '..+++.......',
+      '.++o++......',
+      '.++oo++.....',
+      '.++ooo++....',
+      '.++oooo+++++',
+      '.+++oo++++++',
+      '.###########',
+      '.###########',
+      '.##++++#####',
+      '###+++++####',
+      '###oooo+####',
+      '+###ooo#####',
+      '++####o###++',
+      '.+########++',
+      '..+#######++',
+      '...+######++',
+      '....+####+++',
+      '....o+###+++',
+      '....oo+##+oo',
+      '....ooo+#+oo',
+      '....oooo+###',
       '.+++++++++++',
       '.+++++++++++',
-      '..##########',
-      '..##oo######',
-      '..##oooo####',
-      '..###oooo###',
-      '..#######+++',
-      '..######++++',
-      '..######++++',
-      '..#o####++++',
-      '..######++oo',
-      '..#o####++oo',
-      '..#######+++',
-      '..##oooooooo',
-      '..##########',
       '...#########',
-      '....########',
-      '....#o#o#o#o',
-      '....########',
-      '.+++++++++++',
-      '.+++++++++++',
-      '..#########o',
-      '..###o#####o',
-      '..####o#####',
-      '..#######ooo',
-      '..######o+++',
-      '..#####o++++',
-      '..oo###o++++',
-      '..#####o++++',
-      '..######o+++',
-      '..#######ooo',
-      '..####o#####',
-      '..###o#####o',
-      '..#########o',
-      '..##########',
-      '.+++++++++++',
-      '.+++++++++++',
-      '.###########',
-      '.###########',
-      '.###########',
-      '.###########',
+      '...########+',
+      '...#+######+',
+      '...##+######',
+      '...#####++++',
+      '...####+++++',
+      '...###++++oo',
+      '...###+++o++',
+      '...++#+++o+*',
+      '...++#+++o+*',
+      '...###+++o++',
+      '...###++++oo',
+      '...####+++++',
+      '...#####++++',
+      '...##+######',
+      '...#+######+',
+      '...########+',
+      '...#########',
+      '++++++++++++',
+      '++++++++++++',
+      '############',
+      '############',
+      '############',
     ];
     const rows = mirrorRows(half).map(r => r.split(''));
     // weathering: broken right ear, chipped corners
-    for (let y = 0; y <= 3; y++) for (let x = 12; x < 24; x++) rows[y][x] = '.';
-    rows[4][20] = '.'; rows[4][19] = '.'; rows[5][21] = '.';
-    rows[26][22] = '.'; rows[7][22] = '.'; rows[47][22] = '.'; rows[42][1] = '.';
-    stone(b, rows.map(r => r.join('')), 0, 0, { shadeFrom: 17, lightTo: 3 });
+    for (let y = 0; y <= 2; y++) for (let x = 12; x < 24; x++) rows[y][x] = '.';
+    rows[3][21] = rows[3][20] = '.'; rows[4][22] = '.';
+    rows[13][23] = '.'; rows[23][1] = '.'; rows[24][22] = '.';
+    rows[30][20] = rows[31][20] = rows[32][20] = '.'; rows[31][19] = 'o';
+    rows[43][23] = rows[43][22] = rows[44][23] = '.'; rows[47][0] = '.';
+    stone(b, rows.map(r => r.join('')), 0, 0, { shadeFrom: 16, lightTo: 2 });
+    // eyes: deep sockets
+    rect(b, 4, 12, 2, 1, RS[0]); rect(b, 18, 12, 2, 1, RS[0]);
     // cracks
-    line(b, 16, 9, 18, 12, ST[1]); line(b, 5, 37, 7, 40, ST[1]);
-    // moss
-    moss(b, 9, 6, [1, 2, 2, 3, 2, 1]);
-    moss(b, 1, 26, [2, 3, 2, 1, 2, 1]);
-    moss(b, 15, 42, [1, 2, 2, 3, 2, 2, 1]);
-    moss(b, 1, 44, [3, 2, 2, 1]);
+    line(b, 15, 8, 17, 10, RS[1]); line(b, 6, 37, 8, 41, RS[1]); S(b, 7, 37, RS[4]);
+    // moss on the top-facing ledges only
+    moss(b, 8, 6, [1, 2, 3, 2, 1, 1, 2]);
+    moss(b, 2, 23, [2, 3, 2, 1]); moss(b, 18, 23, [1, 2, 2, 1]);
+    moss(b, 0, 43, [2, 3, 2]); moss(b, 19, 43, [1, 2, 1]);
     outline(b);
     return out(b);
   }
@@ -507,23 +577,29 @@ G.defineArt('decor', G => {
   // ================================================================= PILLAR
   function makePillar() {
     const b = B(16, 48);
-    const top = [12, 10, 9, 10, 8, 7, 8, 11, 13, 14];
-    const tone = [3, 3, 2, 3, 2, 2, 1, 2, 1, 1];
-    for (let i = 0; i < 10; i++) for (let y = top[i]; y <= 40; y++) {
+    // fluted shaft (x 3..12), jagged fracture across the top
+    const top = [15, 12, 10, 11, 7, 6, 9, 13, 12, 16];
+    const tone = [3, 4, 2, 3, 3, 1, 2, 2, 0, 1];
+    for (let i = 0; i < 10; i++) for (let y = top[i]; y <= 39; y++) {
       let t = tone[i];
-      if (y === top[i]) t = Math.min(4, t + 1);
-      S(b, 3 + i, y, ST[t]);
+      if (y === top[i]) t = i < 7 ? 4 : 3; else if (y === top[i] + 1) t = Math.min(4, t + 1); // fresh break
+      S(b, 3 + i, y, RS[t]);
     }
-    // band
-    for (let x = 2; x <= 13; x++) { S(b, x, 17, ST[x < 6 ? 4 : x < 10 ? 3 : 2]); S(b, x, 18, ST[x < 6 ? 3 : x < 10 ? 2 : 1]); if (x > 2 && x < 13) S(b, x, 19, ST[1]); }
-    // base
-    const base = ['..############..', '.++++++++++++++.', '.##############.', '.##############.', '++++++++++++++++', '################', '################'];
-    stone(b, base, 0, 41, { shadeFrom: 11 });
-    line(b, 6, 24, 8, 29, ST[1]); line(b, 8, 29, 7, 33, ST[1]);
-    moss(b, 4, 7, [2, 3, 2]);
-    moss(b, 0, 45, [1, 2, 3, 2, 1]);
-    moss(b, 10, 41, [1, 2, 2, 1]);
+    // bitten-out notch on the shadow side, crack running down from the fracture
+    rect(b, 12, 24, 1, 5, null); rect(b, 11, 25, 1, 3, RS[0]); S(b, 12, 29, RS[2]);
+    line(b, 7, 11, 6, 16, RS[1]); line(b, 6, 16, 7, 21, RS[1]); S(b, 7, 14, RS[4]);
+    const base = ['..++++++++++++..', '..############..', '.++++++++++++++.', '.##############.', '.##############.', '++++++++++++++++', '################', '################', '################'];
+    stone(b, base, 0, 39, { shadeFrom: 11 });
+    moss(b, 4, 12, [1, 2, 1]); moss(b, 9, 13, [1, 2]);
+    moss(b, 9, 39, [1, 2, 3, 2, 1]);
     outline(b);
+    // fallen chunks lying in front of the base
+    const CP = { 0: RS[0], 1: RS[1], 2: RS[2], 3: RS[3], 4: RS[4] };
+    layer(b, t => {
+      stamp(t, ['.344.', '34432', '43321', '33211', '32110'], CP, 0, 43);
+      stamp(t, ['.43.', '4321', '3210'], CP, 11, 45);
+    });
+    moss(b, 1, 43, [1, 2, 1]);
     return out(b);
   }
 
@@ -539,19 +615,28 @@ G.defineArt('decor', G => {
       }
       rows.push(r.split(''));
     }
-    // carved square spiral
-    const sp = [[8, 8, 21, 8], [21, 8, 21, 21], [21, 21, 8, 21], [8, 21, 8, 12], [8, 12, 17, 12], [17, 12, 17, 17], [17, 17, 12, 17], [12, 17, 12, 15]];
-    sp.forEach(s => {
-      const dx = Math.sign(s[2] - s[0]), dy = Math.sign(s[3] - s[1]);
-      for (let x = s[0], y = s[1]; ; x += dx, y += dy) { rows[y][x] = 'o'; if (x === s[2] && y === s[3]) break; }
+    // hand-carved, worn sun-spiral: segments of uneven length, cut corners, weathered gaps
+    const seg = [
+      [9, 7, 13, 7], [14, 8, 19, 8], [21, 9, 22, 11], [22, 12, 22, 14], [21, 17, 21, 20],
+      [19, 22, 15, 22], [13, 21, 10, 21], [8, 19, 8, 17], [7, 16, 7, 13], [9, 11, 11, 11], [12, 12, 16, 12],
+      [17, 13, 17, 16], [15, 17, 13, 17], [12, 16, 12, 15], [14, 14, 15, 14],
+    ];
+    seg.forEach(s => {
+      const n = Math.max(Math.abs(s[2] - s[0]), Math.abs(s[3] - s[1]));
+      for (let i = 0; i <= n; i++) rows[Math.round(s[1] + (s[3] - s[1]) * i / n)][Math.round(s[0] + (s[2] - s[0]) * i / n)] = 'o';
     });
-    // chips
-    rows[0][29] = rows[0][28] = rows[1][29] = '.'; rows[29][0] = rows[28][0] = rows[29][1] = rows[29][2] = '.';
-    rows[0][0] = '.';
-    stone(b, rows.map(r => r.join('')), 1, 1, { shadeFrom: 27 });
-    line(b, 24, 4, 26, 8, ST[1]); line(b, 26, 8, 25, 11, ST[1]);
+    // corner studs (one worn away)
+    [[6, 23], [23, 23], [23, 6]].forEach(p => { rows[p[1]][p[0]] = rows[p[1]][p[0] + 1] = rows[p[1] + 1][p[0]] = rows[p[1] + 1][p[0] + 1] = '+'; });
+    // chipped edges and corners
+    const chip = (x, y) => { rows[y][x] = '.'; };
+    [[29, 0], [28, 0], [27, 0], [29, 1], [28, 1], [29, 2], [0, 29], [0, 28], [1, 29], [2, 29], [0, 27], [0, 0],
+      [29, 13], [29, 14], [29, 15], [28, 14], [12, 29], [13, 29], [14, 29], [13, 28], [29, 29], [0, 9], [0, 10]].forEach(p => chip(p[0], p[1]));
+    rows[28][12] = rows[28][14] = rows[13][28] = rows[15][28] = '#'; rows[14][27] = '#';
+    stone(b, rows.map(r => r.join('')), 1, 1, { shadeFrom: 26 });
+    line(b, 24, 4, 26, 8, RS[1]); line(b, 26, 8, 25, 12, RS[1]); S(b, 25, 6, RS[3]);
+    line(b, 16, 25, 18, 29, RS[1]);
     moss(b, 2, 1, [2, 3, 2, 2, 4, 3, 2, 1, 1, 2, 2, 3, 5, 3, 2, 1]);
-    moss(b, 22, 1, [1, 2, 2, 1]);
+    moss(b, 21, 1, [1, 2, 3, 2, 1]);
     // vine draped over the left
     const vx = [5, 5, 6, 6, 6, 5, 5, 4, 4, 5, 5, 6, 6, 6, 5, 5, 5, 6];
     for (let i = 0; i < vx.length; i++) S(b, vx[i], 5 + i, GR[1]);
@@ -583,89 +668,113 @@ G.defineArt('decor', G => {
   }
 
   // ============================================================== WATERFALL
+  // The column is shaded as a cylinder (dark flanks, light band on the left third) and carries
+  // long streaks that all fall 8px per frame over a 32px period, so 4 frames loop seamlessly.
+  const EDGE = 'rgba(184,240,255,0.6)';
+  const WCOL = x => (x <= 2 || x >= 29 ? BL[1] : x <= 4 || x >= 27 ? WD : x === 6 || x === 9 || x === 10 ? BL[3] : x === 7 || x === 8 ? BL[4] : BL[2]);
   const STR = [
-    // x, w, period, colour, [y0,len]...
-    [1, 2, 32, BL[4], [0, 14], [18, 10]], [1, 1, 32, W, [2, 8], [20, 5]],
-    [4, 3, 32, BL[3], [6, 18], [28, 8]], [5, 1, 32, W, [10, 8]],
-    [3, 1, 16, BL[1], [4, 7]],
-    [8, 2, 32, BL[1], [0, 9], [16, 6]],
-    [10, 3, 16, BL[3], [0, 10]], [11, 1, 16, BL[4], [2, 6]],
-    [14, 2, 32, BL[3], [14, 16]], [13, 1, 32, W, [20, 10], [4, 4]],
-    [17, 2, 16, BL[1], [8, 5]],
-    [19, 3, 32, BL[3], [0, 12], [18, 8]], [20, 1, 32, W, [2, 7], [20, 4]],
-    [23, 1, 16, BL[4], [10, 5]],
-    [24, 2, 32, BL[1], [6, 10], [24, 5]],
-    [26, 3, 16, BL[3], [5, 9]], [27, 1, 16, W, [7, 5]],
-    [29, 2, 32, BL[4], [8, 14], [28, 8]], [30, 1, 32, W, [10, 8], [30, 4]],
+    // x, width, colour, y0, length
+    [7, 1, W, 3, 17], [8, 1, W, 23, 9], [8, 1, BL[3], 6, 9], [9, 2, BL[2], 12, 11], [6, 1, BL[2], 26, 9],
+    [13, 2, BL[3], 2, 23], [13, 1, BL[4], 6, 12],
+    [17, 2, BL[3], 13, 27], [18, 1, BL[4], 20, 13], [18, 1, W, 25, 6],
+    [21, 2, BL[3], 5, 19], [21, 1, BL[4], 10, 8],
+    [24, 2, BL[3], 19, 22], [25, 1, BL[4], 22, 9],
+    [15, 1, BL[3], 27, 12],
+    [11, 2, WD, 10, 21], [19, 2, WD, 22, 20], [23, 1, WD, 1, 16], [12, 1, WD, 0, 8], [16, 1, WD, 4, 7],
+    [26, 2, BL[1], 8, 19], [4, 1, BL[1], 16, 15], [27, 1, BL[2], 28, 11],
+    [2, 1, BL[2], 0, 13], [1, 1, WD, 14, 10], [29, 1, WD, 18, 15], [30, 1, BL[2], 2, 9],
   ];
+  // ragged outer edges: how many pixels are bitten out of each side, per row of the 32px period
+  const RAGL = '00011222110000111221100011222110', RAGR = '11000112221100001122211000011221';
   function wfBuf(f, h, yOff) {
     const b = B(32, h);
-    rect(b, 1, 0, 30, h, BL[2]);
+    for (let x = 0; x < 32; x++) rect(b, x, 0, 1, h, WCOL(x));
     STR.forEach(s => {
-      const [x, w, per, col] = s, sp = per / 4;
-      for (let k = 4; k < s.length; k++) {
-        const [y0, len] = s[k];
-        for (let i = 0; i < len; i++) for (let j = 0; j < w; j++) {
-          if (w > 1 && (i === 0 && j !== 0 || i === len - 1 && j !== w - 1)) continue; // tapered ends
-          for (let y = ((y0 + i + sp * f + yOff) % per + per) % per; y < h; y += per) S(b, x + j, y, col);
-        }
+      const x = s[0], w = s[1], col = s[2], y0 = s[3], len = s[4];
+      for (let i = 0; i < len; i++) for (let j = 0; j < w; j++) {
+        if (w > 1 && ((i < 2 && j !== 0) || (i >= len - 2 && j !== w - 1))) continue; // tapered ends
+        for (let y = ((y0 + i + 8 * f + yOff) % 32 + 32) % 32; y < h; y += 32) S(b, x + j, y, col);
       }
     });
-    // ragged foam edges
     for (let y = 0; y < h; y++) {
-      const a = ((y - f * 4 - yOff) % 16 + 16) % 16;
-      if (a < 6) S(b, 0, y, a === 0 || a === 5 ? BL[4] : W);
-      const c = ((y - f * 4 - yOff + 7) % 16 + 16) % 16;
-      if (c < 5) S(b, 31, y, c === 0 || c === 4 ? BL[4] : W);
+      const q = ((y - 8 * f - yOff) % 32 + 32) % 32;
+      const l = +RAGL[q], r = +RAGR[q];
+      for (let x = 0; x < l; x++) S(b, x, y, null);
+      for (let x = 0; x < r; x++) S(b, 31 - x, y, null);
+      S(b, l, y, EDGE); S(b, 31 - r, y, EDGE);
+      if (l !== +RAGL[(q + 31) % 32]) S(b, l + 1, y, BL[3]); // foam fleck where the edge steps
+      if (r !== +RAGR[(q + 31) % 32]) S(b, 30 - r, y, BL[2]);
     }
     return b;
   }
   function makeWaterfall(f) { return out(wfBuf(f, 32, 0)); }
+  // Lip: a bright rounded roll where the water bulges over the edge; its highlight thins into
+  // the falling streaks, and foam bumps travel along the crest (4px per frame, 16px apart).
   function makeWaterfallTop(f) {
     const b = wfBuf(f, 16, 16);
-    const hgt = x => (x === 0 || x === 31 ? 3 : x === 1 || x === 30 ? 2 : x === 2 || x === 29 ? 1 : 0);
+    const arc = x => { const e = Math.min(x, 31 - x); return e === 0 ? 5 : e === 1 ? 3 : e === 2 ? 2 : e <= 4 ? 1 : 0; };
+    const BUMP = [1, 2, 2, 2, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0];
+    const TONG = { 7: 6, 8: 4, 13: 4, 14: 2, 17: 3, 21: 5, 22: 2, 25: 3, 3: 2, 28: 2, 11: 1, 19: 1 };
     for (let x = 0; x < 32; x++) {
-      const h0 = hgt(x);
-      for (let y = 0; y < h0; y++) S(b, x, y, null);
-      const g = ((x + f * 8) % 32 + 32) % 32;
-      const gl = (g % 11) < 7;
-      S(b, x, h0, gl ? W : BL[4]);
-      S(b, x, h0 + 1, gl && (g % 11) > 1 && (g % 11) < 5 ? W : BL[4]);
-      S(b, x, h0 + 2, BL[4]);
-      S(b, x, h0 + 3, BL[3]);
-      if ((x * 7 + 3) % 5 < 3) S(b, x, h0 + 4, BL[3]);
-      if ((x * 7 + 3) % 5 < 1) S(b, x, h0 + 5, BL[3]);
+      const bump = BUMP[((x - 4 * f) % 16 + 16) % 16];
+      const a = arc(x), T = 2 + a - (a > 2 ? 0 : bump);
+      for (let y = 0; y < T; y++) S(b, x, y, null);
+      const edge = a >= 3;
+      S(b, x, T, edge ? EDGE : W); S(b, x, T + 1, edge ? BL[4] : W);
+      const base = 2 + a + 2; // rows below the white roll
+      for (let y = T + 2; y < base; y++) S(b, x, y, W);
+      S(b, x, base, x >= 6 && x <= 10 ? W : BL[4]); S(b, x, base + 1, BL[4]);
+      S(b, x, base + 2, a >= 2 ? BL[2] : BL[3]);
+      const tg = TONG[x] || 0;
+      for (let k = 0; k < tg; k++) S(b, x, base + 2 + k, k < tg / 2 ? BL[4] : BL[3]);
+      if (!tg && a < 2 && (x % 5 === 0 || x % 5 === 1)) S(b, x, base + 3, WD); // shadow tucked under the roll
     }
     return out(b);
   }
+  // Base foam: four distinct poses (gather, rise, burst, collapse outward) + 2x2 droplets on arcs.
   function makeSplash(f) {
     const b = B(48, 16);
     const FO = [BL[3], BL[4], W, W];
-    const puffs = [
-      [6, 3, 0.5], [42, 3, 0], [11, 4, 0.25], [37, 4.5, 0.75], [17, 5.5, 0], [31, 5.5, 0.5], [24, 6.5, 0.25],
-      [14, 3.5, 0.6], [34, 3.5, 0.1], [21, 4, 0.8], [27, 4, 0.4],
-    ];
-    puffs.forEach(p => {
-      const r = p[1] + 1.1 * Math.sin(2 * Math.PI * (f / 4 + p[2]));
-      puff(b, p[0], 16 - r * 0.55, r, r, FO);
-    });
-    // droplets
-    [[3, 0], [45, 2], [9, 1], [39, 3], [20, 2], [29, 0]].forEach(d => {
-      const ph = (f + d[1]) % 4, dir = d[0] < 24 ? -1 : 1;
-      const y = [9, 5, 3, 6][ph] - (Math.abs(d[0] - 24) < 8 ? 2 : -1), x = d[0] + dir * ph;
-      S(b, x, y, W); if (ph === 1) S(b, x, y + 1, BL[4]);
+    const POSE = [
+      [[8, 3], [40, 3], [15, 4], [33, 4], [24, 5]],
+      [[5, 2.5], [43, 2.5], [10, 4], [38, 4], [31, 6], [17, 6], [24, 8]],
+      [[7, 4.5], [41, 4.5], [36, 6], [13, 6], [24, 6], [29, 8.5], [20, 9.5]],
+      [[19, 4], [29, 4], [24, 5], [42, 5], [6, 5], [34, 6.5], [14, 6.5]],
+    ][f];
+    POSE.forEach(p => puff(b, p[0], 16 - p[1] * 0.45, p[1] * 1.15, p[1], FO));
+    // bottom edge melts into the water surface colour
+    for (let x = 0; x < 48; x++) {
+      if (Gt(b, x, 15)) S(b, x, 15, BL[3]);
+      if (Gt(b, x, 14) && (x >> 1) % 3 !== 0) S(b, x, 14, BL[4]);
+    }
+    for (let x = 1; x < 47; x++) if (!Gt(b, x, 15) && (Gt(b, x - 1, 15) === BL[3] || Gt(b, x + 1, 15) === BL[3])) S(b, x, 15, EDGE);
+    // droplets thrown up and out on both sides, falling back
+    const AX = [1, 4, 7, 9], AY = [4, 9, 10, 6];
+    [[14, -1, 0, 0], [9, -1, 2, 2], [19, -1, 3, -1], [33, 1, 1, 0], [37, 1, 3, 2], [28, 1, 2, -1]].forEach(d => {
+      const t = (f + d[2]) % 4, x = d[0] + d[1] * AX[t] - (d[1] < 0 ? 0 : 1), y = 12 - AY[t] + d[3];
+      if (Gt(b, x, y) || Gt(b, x + 1, y + 1)) return; // hidden inside the foam
+      S(b, x, y, W); S(b, x + 1, y, W); S(b, x, y + 1, W); S(b, x + 1, y + 1, BL[4]);
+      if (t === 3) S(b, x + (d[1] < 0 ? 1 : 0), y - 1, BL[4]); // falling tail
     });
     return out(b);
   }
 
   // ================================================================== WATER
+  // One large and one small crest per 32px, travelling 8px per frame; sparkles blink on and off.
   function makeSurface(f) {
     const b = B(32, 8);
+    const PROF = [4, 3, 3, 2, 1, 1, 1, 2, 3, 3, 4, 4, 5, 5, 5, 5, 5, 4, 4, 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 5, 4];
     for (let x = 0; x < 32; x++) {
-      const h = Math.round(2.5 + 1.4 * Math.sin(2 * Math.PI * (x / 16 - f / 4)));
-      S(b, x, h, W); S(b, x, h + 1, BL[4]); S(b, x, h + 2, BL[3]);
+      const q = ((x - 8 * f) % 32 + 32) % 32, h = PROF[q], crest = h <= 3;
+      S(b, x, h, crest ? W : BL[4]);
+      S(b, x, h + 1, h <= 1 ? W : crest ? BL[4] : BL[3]);
+      if (h + 2 < 8) S(b, x, h + 2, crest ? BL[3] : BL[2]);
       for (let y = h + 3; y < 8; y++) S(b, x, y, BL[2]);
+      if (q === 7 || q === 8) S(b, x, h - 1, W); // curling foam tip of the big crest
     }
+    [[[12, 6], [27, 7]], [[3, 7], [21, 6]], [[10, 7], [30, 6]], [[16, 6], [5, 7]]][f].forEach(p => {
+      if (Gt(b, p[0], p[1]) === BL[2] && Gt(b, p[0] + 1, p[1]) === BL[2]) { S(b, p[0], p[1], BL[4]); S(b, p[0] + 1, p[1], BL[3]); }
+    });
     return out(b);
   }
   function makeBody() {
