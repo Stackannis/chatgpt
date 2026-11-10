@@ -44,7 +44,9 @@ G.defineArt('terrain', G => {
   // ------------------------------------------------------------------
   // ramp index:       0 seam     1 crack    2 dk shade 3 shade    4 base B   5 base A   6 light    7 hilite   8 glint
   const DIRT_RAMP = ['#5a2a2a', '#73372b', '#8a4532', '#a9602f', '#b26736', '#c47a3c', '#d8944c', '#eab368', '#ffe0a0'];
-  const DEEP_RAMP = ['#46202c', '#5a2a30', '#6c3432', '#8c4a36', '#965038', '#a65d39', '#b86e40', '#ca8349', '#ca8349'];
+  // exactly one step down dirt's own ramp (each tone = dirt's next darker tone, nudged purple),
+  // so the engine's ordered dither between the two reads as a soft tonal band
+  const DEEP_RAMP = ['#4c2230', '#5c2a2e', '#74372f', '#8b4634', '#a05a32', '#b26736', '#c47a3c', '#d48e4a', '#d48e4a'];
   const DI = { k: 0, D: 1, d: 2, s: 3, n: 4, m: 5, L: 6, H: 7, W: 8 };
   // 64-long seam profile from [length, step] runs: the seam moves 1px down (step > 0)
   // or up (step < 0) every |step| px, or stays flat (step 0).

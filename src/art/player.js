@@ -637,12 +637,7 @@ G.defineArt('player', G => {
 
   // ---------------------------------------------------------------- DUCK (also the 3-frame landing squash)
   // Head sunk onto the knees, ear pinned flat, lids lowered, tail curled up behind. Hitbox = rows 17..31.
-  const HEAD_DUCK = [7,
-    '......kkkkkkkkkkkkkkkkk',
-    '....kkdOOOOyYYYyyyOOOOrk',
-    '...kDDddOOOrYyOOOOOOOOrk',
-    '....kkkkkyyyyOKKKKKOKKKrk',
-  ].concat(HEAD.slice(11));
+  const HEAD_DUCK = sweep(patch(HEAD, { 10: '........kyyyyOKKKKKOKKKrk' }));
   const D_BODY = [16,
     '...kkk',
     '..kwwwkk',
@@ -701,23 +696,45 @@ G.defineArt('player', G => {
     16: '......kkwwcccccccccccKwwwk',
     17: '.......kkkk.......csscKKK',
   }));
-  const S_BODY = [18,
-    '.......gggggggggggg',
-    '.......ThhTTTTttttggg',
-    '..kkk.gtTTttTTTtttTTtgg',
-    '.kbbdkkkkkyOOcwwckggtTTg',
-    '.kdddOOOOyyOOcwwwck.gggg.kkk',
-    '..kkkkkkkkOOOOrccwck...kkwwk',
-    '..........kOOOOrcccskkkOccwwk',
-    '..........krOOOOOrssOOOOccck',
-    '...........krOOOOOOOOOOkkkk',
-    '...........kkkrOOOOOOOOkk..kkk',
-    '..........kdddkkkkrOOOOOOkkdbdk',
-    '.........kdbbdk...kkkrOOOkdbbDk',
-    '.........kdddbbdk....kkkkddDDk',
-    '.........kDDDDDDk.......kkkkk',
+  const SK_TORSO = [18,
+    '......gggggggggggg',
+    '......ThhTTTTttttg',
+    '.....gtTTttTTTtttg',
+    '.......kyyOOcwwck',
+    '.......kOyOOcwwwck',
+    '........kOOOrccwcsk',
+    '........krOOOOcccsk',
+    '.........krrOOOOOk',
+    '..........kkkkkkk',
   ];
-  const skidR = frame([S_BODY], [HEAD_SKID, -3, 1]);
+  const SK_LEG_NEAR = [23,
+    '..............kkkk',
+    '.............kOOOOkkk',
+    '.............kOyOOOOOkk.....kkk',
+    '..............krOOOOOOOkkk.kdbdk',
+    '...............kkrrOOOOOOOkkdbbk',
+    '.................kkkkrrOOdddbbDk',
+    '.....................kkkkdddDDk',
+    '........................kkdDDk',
+    '..........................kkk',
+  ];
+  const SK_LEG_FAR = [25,
+    '...........kOOOk',
+    '...........kOOOOk',
+    '............kdddk',
+    '............kdbbdkk',
+    '............kddbbddk',
+    '............kDDDDDDk',
+    '.............kkkkkk',
+  ];
+  const SK_RIBBON = [18,
+    '........................ggg',
+    '...................gggggTTTg',
+    '..................gTTTTTttg',
+    '...................ggggggg',
+  ];
+  const skidR = frame([RUN_TAIL[2], -1, 6], [SK_RIBBON], [SK_LEG_FAR, 0, 0, FARLEG], [SK_TORSO], [SK_LEG_NEAR],
+    [HEAD_SKID, -4, 1], [ARM[0], -6, 0]);
 
   // ---------------------------------------------------------------- WIN (facing the camera, 2 beats)
   const W_HEAD = [1,
@@ -774,26 +791,24 @@ G.defineArt('player', G => {
     '.....kdddk',
     '......kkk',
   ];
-  const W_ARM_R_A = [17,
+  const W_ARM_UP = [3,                 // raised fist, drawn behind the head
+    '...........................kkk',
+    '..........................kbbdk',
+    '..........................kdbbk',
+    '..........................kdddk',
+    '...........................kOOOk',
+    '...........................kyOOk',
+    '...........................kyOOk',
+    '...........................kOOrk',
+    '...........................kOOrk',
+    '..........................kOOrk',
+    '..........................kOOrk',
+    '.........................kOOrk',
+    '........................kOOrk',
+    '.......................kOOrk',
+    '.......................kOrk',
+    '......................kOrk',
     '......................kkk',
-    '.....................kbbdk',
-    '.....................kdddk',
-    '.....................kOOk',
-    '.....................kOyk',
-    '.....................kOOk',
-    '......................kk',
-  ];
-  const W_ARM_R_B = [11,
-    '..........................kkk',
-    '.........................kbbdk',
-    '.........................kdddk',
-    '.........................kOOk',
-    '........................kOOk',
-    '........................kOyk',
-    '.......................kOOk',
-    '.......................kOOk',
-    '......................kOOk',
-    '......................kOk',
   ];
   const W_TAIL = [14,
     '..kk',
@@ -819,8 +834,8 @@ G.defineArt('player', G => {
     '.....ggtT',
   ];
   const win = [
-    frame([W_TAIL, 0, 1], [W_RIBBON, 0, 2], [W_TORSO, 0, 1], [W_ARM_L, 0, 1], [W_LEGS_A, 0, 1], [W_HEAD, 0, 1], [W_ARM_R_A, 0, 1]),
-    frame([W_TAIL, 1, -2], [W_RIBBON, 0, -1], [W_TORSO, 0, -1], [W_ARM_L, 0, -1], [W_LEGS_B, 0, -1], [W_HEAD, -1, -1], [W_ARM_R_B, 0, 0]),
+    frame([W_TAIL, 0, 1], [W_RIBBON, 0, 2], [W_ARM_UP, 0, 6], [W_TORSO, 0, 1], [W_ARM_L, 0, 1], [W_LEGS_A, 0, 1], [W_HEAD, 0, 1]),
+    frame([W_TAIL, 1, -2], [W_RIBBON, 0, -1], [W_ARM_UP, 0, 0], [W_TORSO, 0, -1], [W_ARM_L, 0, -1], [W_LEGS_B, 0, -1], [W_HEAD, -1, -1]),
   ];
 
   // ---------------------------------------------------------------- HUD icon (16x16)
