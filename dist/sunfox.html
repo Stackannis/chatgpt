@@ -373,160 +373,271 @@ G.defineArt('terrain', G => {
   function R(c, x, y, w, h, col) { c.ctx.fillStyle = col; c.ctx.fillRect(x, y, w, h); }
 
   // ------------------------------------------------------------------
-  // EARTH — zigzag strata of chunky sun-baked rock slabs (64x64 seamless)
-  // Four 16px courses per tile; every course is a light slab over a dark
-  // seam, the whole stack folded into a stepped chevron (period 32px).
+  // EARTH — layered rock strata (64x64 seamless)
+  // Four strata of uneven height (tall / thin / medium / thin). Every seam
+  // has its own wave so no row lines up with the next; each stratum is
+  // cracked into slabs with a lit top-left corner and a shaded bottom-right.
+  // A boulder cluster, a root, a pebble group and a wedged stone are embedded
+  // so the eye never finds the 64px grid. `dirtDeep` is the very same pixel
+  // map drawn with a ramp one step darker and more purple (no highlights).
   // ------------------------------------------------------------------
-  const ZOFF = [0, 2, 4, 6, 6, 4, 2, 0];          // chevron lift per 4px column group
-  const SLAB = [10, 9, 11, 10];                   // slab thickness in each 16px course
-  const JOINT = [[9, 38], [24, 52], [3, 29, 46], [17, 60]]; // vertical cracks per course
-  const TONE = [[0, 1], [1, 0], [0, 2, 1], [1, 0]];           // slab tone left→right between cracks
-  function band(x, y) {
-    x = mod(x, 64);
-    const yy = mod(y + ZOFF[(x & 31) >> 2], 64);
-    const k = yy >> 4, r = yy & 15, s = SLAB[k];
-    if (r >= s) return { slab: 0, k, r: r - s, n: 16 - s };
-    const J = JOINT[k];
-    let tone = TONE[k][J.length - 1];
-    for (let j = 0; j < J.length; j++) {
-      const jx = mod(J[j] + (r >= (s >> 1) ? 1 : 0), 64); // cracks step sideways halfway down
-      if (x === jx) return { slab: 0, k, r, n: s };
-      if (x > jx) tone = TONE[k][j];
-    }
-    return { slab: 1, k, r, n: s, tone };
+  // ramp index:       0 seam     1 crack    2 dk shade 3 shade    4 base B   5 base A   6 light    7 hilite   8 glint
+  const DIRT_RAMP = ['#5a2a2a', '#73372b', '#8a4532', '#a9602f', '#b26736', '#c47a3c', '#d8944c', '#eab368', '#ffe0a0'];
+  const DEEP_RAMP = ['#46202c', '#5a2a30', '#6c3432', '#8c4a36', '#965038', '#a65d39', '#b86e40', '#ca8349', '#ca8349'];
+  const DI = { k: 0, D: 1, d: 2, s: 3, n: 4, m: 5, L: 6, H: 7, W: 8 };
+  // 64-long seam profile from [length, step] runs: the seam moves 1px down (step > 0)
+  // or up (step < 0) every |step| px, or stays flat (step 0).
+  function prof(segs) {
+    const a = []; let y = 0;
+    for (const [len, step] of segs)
+      for (let i = 0; i < len; i++) { if (step && i % Math.abs(step) === 0) y += Math.sign(step); a.push(y); }
+    if (a.length !== 64 || y !== 0) throw new Error('seam profile: length ' + a.length + ', ends at ' + y);
+    return a;
   }
-  function makeDirt(p, rich) {
-    const c = G.cv(64, 64);
-    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) {
-      const b = band(x, y), ph = (x & 31) >> 2;
-      const up = band(x, y - 1), lf = band(x - 1, y), rt = band(x + 1, y), dn = band(x, y + 1), dn2 = band(x, y + 2);
-      const lit = ph >= 1 && ph <= 4;             // rising flank + crest face the sun
-      let col;
-      if (b.slab) {
-        if (!up.slab) col = lit ? p.hi : p.hi2;
-        else if (!lf.slab) col = p.hi;
-        else if (!dn.slab || !rt.slab) col = p.sh;
-        else if (!dn2.slab && !lit) col = p.sh;
-        else col = p.slab[b.tone];
-      } else {
-        col = up.slab || lf.slab || band(x - 1, y - 1).slab ? p.cast : p.seam;
-      }
-      dot(c, x, y, col);
+  const SEAM_Y = [0, 23, 33, 51];
+  const SEAM = [
+    prof([[10, 0], [12, 3], [14, 0], [8, -2], [20, 0]]),
+    prof([[24, 0], [12, 4], [10, 0], [6, -2], [12, 0]]),
+    prof([[6, 0], [8, -4], [10, 0], [8, 4], [4, 0], [8, 4], [12, 0], [8, -4]]),
+    prof([[8, 0], [9, 3], [14, 0], [6, -2], [11, 0], [8, -4], [4, 0], [4, 2]]),
+  ];
+  const CRACK = [                                   // per stratum: [x at the top, lean in px]
+    [[9, 4], [30, -5], [55, 3]],
+    [[19, 2], [45, -3]],
+    [[6, -4], [27, 5], [46, -3]],
+    [[16, 3], [50, -2]],
+  ];
+  const BASE = [5, 4, 5, 4];                         // base tone of each stratum
+  function dirtIndex(x, y) {
+    const s0 = SEAM_Y[0] + SEAM[0][x];
+    const yy = y < s0 ? y + 64 : y;
+    let k = 3;
+    while (k > 0 && yy < SEAM_Y[k] + SEAM[k][x]) k--;
+    const top = SEAM_Y[k] + SEAM[k][x];
+    const bot = k === 3 ? s0 + 64 : SEAM_Y[k + 1] + SEAM[k + 1][x];
+    if (yy === top) return DI.k;
+    const h = bot - top - 1, dt = yy - top - 1, db = bot - 1 - yy;
+    let dl = 99, dr = 99;
+    for (const [x0, lean] of CRACK[k]) {
+      const cx = x0 + Math.round(lean * (dt + 0.5) / h);
+      const a = mod(x - cx, 64), b = mod(cx - x, 64);
+      if (a === 0) return DI.D;
+      dl = Math.min(dl, a - 1); dr = Math.min(dr, b - 1);
     }
-    if (!rich) return c;
-    // embedded sandstone cobbles (hand-placed, wedged into the seams)
-    const sp = { h: BR[5], l: BR[4], m: '#d8944c', s: '#a9602f', d: '#73372b', o: BR[1] };
-    const cobA = [
-      '...lllll...',
-      '.llhhhlllm.',
-      'lhhhlllllms',
-      'lhhllllmmms',
-      'llllllmmmsd',
-      'lllmmmmmssd',
-      '.mmmmssssdo',
-      '..sssddddo.',
-      '....oooo...',
-    ];
-    const cobB = [
-      '..llll.',
-      '.lhhllm',
-      'lhhllms',
-      'lllmmsd',
-      '.mmssdo',
-      '..dddo.',
-    ];
-    const cobC = [
-      '.lhl.',
-      'lhlms',
-      'lmmsd',
-      '.sdo.',
-    ];
-    stamp(c, cobB, 26, 8, sp);
-    stamp(c, cobC, 53, 40, sp);
-    stamp(c, cobC, 8, 55, sp);
+    const w = dl + dr + 1, base = BASE[k], tall = h >= 13, wide = w >= 16;
+    // a lit ledge along the top (thick at the left, tapering right) + lit left end,
+    // a shaded wedge along the bottom-right, dark purple-brown just above the seam
+    if (dt <= 1 && dl <= 1) return DI.H;
+    if (db + dr <= 2) return DI.d;
+    if (dt === 0) return dl < w * 0.62 ? DI.H : DI.L;
+    if (db === 0) return dr < w * 0.62 ? DI.d : DI.s;
+    if (dl === 0) return dt < h * 0.45 ? DI.H : dt < h * 0.7 ? DI.L : base;
+    if (dr === 0) return db < h * 0.55 ? DI.d : DI.s;
+    if (dt === 1 && dl < w * 0.22) return DI.H;
+    if (dt === 1 && dl < w * (tall ? 0.8 : 0.6)) return DI.L;
+    if (dl === 1 && dt < h * 0.4) return DI.L;
+    if (db === 1 && dr < w * 0.8) return DI.s;
+    if (dr === 1 && db < h * 0.62) return DI.s;
+    if (tall && dt === 2 && dl < w * 0.5) return DI.L;
+    if (h >= 18 && dt === 3 && dl < w * 0.25) return DI.L;
+    if (tall && db === 2 && dr < w * 0.5) return DI.s;
+    if (h >= 18 && db === 3 && dr < w * 0.22) return DI.s;
+    if (wide && dl === 2 && dt < h * 0.22) return DI.L;
+    if (wide && dr === 2 && db < h * 0.3) return DI.s;
+    return base;
+  }
+  const dirtMap = [];
+  for (let y = 0; y < 64; y++) { const r = []; for (let x = 0; x < 64; x++) r.push(dirtIndex(x, y)); dirtMap.push(r); }
+  function dstamp(rows, x, y) {
+    for (let j = 0; j < rows.length; j++)
+      for (let i = 0; i < rows[j].length; i++) {
+        const ch = rows[j][i];
+        if (ch !== '.') dirtMap[mod(y + j, 64)][mod(x + i, 64)] = DI[ch];
+      }
+  }
+  const BOULDER = [
+    '....ddddd....',
+    '..ddHHHHHdd..',
+    '.dHHWWHHLLLd.',
+    'dHWWHHHLLLLsD',
+    'dHWHHLLLLLssk',
+    'dHHLLLLLLsssk',
+    'dHLLLLLLsssdk',
+    '.DLLLLssssddk',
+    '..kLsssddddk.',
+    '...kkddddkk..',
+    '.....kkkk....',
+  ];
+  const STONE = [
+    '..ddd..',
+    '.dHHLd.',
+    'dHWLLsk',
+    'dHLLssk',
+    '.kLssdk',
+    '..kkkk.',
+  ];
+  const PEBBLE = [
+    '.dd.',
+    'dHLk',
+    'dLsk',
+    '.kk.',
+  ];
+  const ROOT = [
+    'HH................',
+    'WHHH..............',
+    'LLWHHH............',
+    'DDLLWHH...........',
+    '..DDLLHH..........',
+    '....DDLHH..HH.....',
+    '......DLHHHLLHH...',
+    '......DLLHDDLLLH..',
+    '.......DLH..DDDLH.',
+    '.......DLH.....DD.',
+    '........DLH.......',
+    '........DDLH......',
+    '..........DL......',
+    '...........D......',
+  ];
+  const PEB_A = [
+    '.dddd.',
+    'dHHLLd',
+    'dHLLsk',
+    'dLssdk',
+    '.kkkk.',
+  ];
+  const PEB_B = [
+    '.ddd.',
+    'dHLsk',
+    'dLsdk',
+    '.kkk.',
+  ];
+  const SHELL = [
+    '..ddddd..',
+    '.dHLHLHd.',
+    'dHLdLdLLk',
+    'dLLdLdLsk',
+    '.dLdLdsk.',
+    '..dLLsk..',
+    '...kkk...',
+  ];
+  dstamp(BOULDER, 15, 6); dstamp(STONE, 25, 12); dstamp(PEBBLE, 12, 14);   // boulder cluster wedged in the tall stratum
+  dstamp(ROOT, 34, 20);                                                    // root crossing the thin stratum
+  dstamp(PEB_A, 48, 40); dstamp(PEB_B, 54, 42); dstamp(PEBBLE, 50, 45);     // pebble group
+  dstamp(SHELL, 25, 56);                                                   // fossil shell
+  // hairline cracks and a chipped ledge in the big slabs
+  dstamp(['.D', '.D', 'D.', 's.', 's.'], 43, 5);
+  dstamp(['..s', '.s.', '.D.', 'D..'], 34, 45);
+  dstamp(['LLLLL.', 'ssssss'], 8, 44);
+  function paintDirt(ramp) {
+    const c = G.cv(64, 64);
+    for (let y = 0; y < 64; y++) for (let x = 0; x < 64; x++) R(c, x, y, 1, 1, ramp[dirtMap[y][x]]);
     return c;
   }
-  const dirt = makeDirt({ slab: ['#c47a3c', '#b96d38', '#cc8742'], hi: BR[4], hi2: '#d8944c', sh: '#a9602f', seam: BR[2], cast: '#73372b' }, true);
-  const dirtDeep = makeDirt({ slab: ['#8f4a2e', '#874530', '#8f4a2e'], hi: '#a9602f', hi2: '#9a5330', sh: '#7e402c', seam: '#73372b', cast: '#62302a' }, false);
+  const dirt = paintDirt(DIRT_RAMP), dirtDeep = paintDirt(DEEP_RAMP);
 
   // ------------------------------------------------------------------
   // GRASS CAP — 64x24, row 8 = collision surface
-  // Puffy sunlit top, three stacked rows of blade teeth, dark fringe,
-  // outline and a cast shadow on the earth below.
+  // Four big rounded clumps of uneven width (lit yellow-green top-left,
+  // mid green flank) rest on a teal-dark core; rounded tongues of uneven
+  // length (2-7px) hang from it, outlined, with a cast shadow on the earth.
   // ------------------------------------------------------------------
   const GM = '#4ab842';                            // extra mid green between GR[2] and GR[3]
-  const SHADOW = 'rgba(43,22,34,0.45)';
-  const GCOL = [GR[0], GR[1], GR[2], GM, GR[3], GR[4]]; // 0 outline .. 5 highlight
+  const GCORE = '#14664e';                         // teal-shifted dark green (core of the mat)
+  const SH1 = 'rgba(43,22,34,0.62)', SH2 = 'rgba(43,22,34,0.32)';
+  const gp = { h: GR[4], l: GR[3], g: GM, m: GR[2], d: GR[1], t: GCORE, o: GR[0], s: SH1, S: SH2 };
   function makeGrass() {
-    const c = G.cv(64, 24);
-    const g = []; for (let y = 0; y < 24; y++) g.push(new Array(64).fill(-1));
-    // hand-authored per-column profiles (64 columns each)
-    const TUFTS = ['0122210', '013310', '0111', '0123332210', '012210', '0110', '01233210', '011110', '0122210', '013210']; // bump above row 8
-    const MID = '0123321' + '0' + '12321' + '00' + '123321' + '0' + '1232' + '10' + '1233321' + '0' + '12321' + '0' + '123321' + '00' + '12321' + '0' + '1233210' + '0'; // GR[3] teeth: rows below 10
-    const FRONT = '2456542' + '0' + '12331' + '0' + '1356531' + '0' + '1221' + '13466531' + '0' + '13431' + '0' + '2466431' + '1221' + '0' + '135531' + '0' + '1231'; // rows below 13
-    const BACK = '10000135' + '42113431' + '00013542' + '34310000' + '13542013' + '43100013' + '43245310' + '01354213'; // rows below 15
-    const top = [], ti = [], tw = [];
-    for (const s of TUFTS) for (let i = 0; i < s.length; i++) { top.push(8 - +s[i]); ti.push(i); tw.push(s.length); }
-    if (top.length !== 64 || MID.length !== 64 || FRONT.length !== 64 || BACK.length !== 64)
-      throw new Error('grass profile lengths ' + [top.length, MID.length, FRONT.length, BACK.length]);
+    // clumps A (20px) + B (13px) + C (17px) + D (14px), rows 5..12 ('.' below a clump = filled in later)
+    const CLUMPS = [
+      ['....hhhhhhhll.......', '.............', '...hhhhhhll......', '..............'],
+      ['..hhhhhhhlllllll....', '...hhhhll....', '.hhhhhhhlllllg...', '..hhhhhlll....'],
+      ['.hhhhlllllllllllggg.', '.hhhllllllgg.', 'hhhhllllllllllgg.', 'hhhhlllllllgg.'],
+      ['hhhlllllllllllllgggm', 'hhllllllllggm', 'hhlllllllllllgggm', 'hhllllllllgggm'],
+      ['lllllllllllllllggggm', 'llllllllllggm', 'llllllllllllggggm', 'lllllllllggggm'],
+      ['.llllllllllllgggggm.', '.lllllllgggm.', 'lllllllllllggggm.', 'llllllllggggm.'],
+      ['..lllllllgggggggm...', '...lllgggm...', '.lllllllggggggm..', '..llllggggm...'],
+      ['....ggggggggmm......', '.............', '...ggggggggm.....', '..............'],
+    ];
+    // hanging tongues, rows 14..20 (one string per tongue / gap)
+    const FRINGE = [
+      ['lggggm', '.', 'lgm', 'lgggggm', 'm', 'lgm', '.', 'lggggm', 'm', 'lg', 'm', 'lggggm', '.', 'lgggm', 'lgm', 'lgggggm', 'm', 'lggm', '.', 'lggm'],
+      ['lggggm', '.', 'mm.', 'lgggggm', '.', 'lgm', '.', 'lggggm', '.', 'mm', '.', 'lggggm', '.', 'lgggm', 'mm.', 'lgggggm', '.', 'lggm', '.', 'lgm.'],
+      ['lgggm.', '.', '...', 'llggggm', '.', 'mm.', '.', 'mggggd', '.', '..', '.', 'lggggd', '.', 'mggm.', '...', 'mlggggm', '.', 'mmd.', '.', 'mgm.'],
+      ['mgggm.', '.', '...', 'mlggggd', '.', '...', '.', '.gggm.', '.', '..', '.', 'mgggm.', '.', '.mmd.', '...', '.lggggm', '.', '....', '.', '.m..'],
+      ['.mmd..', '.', '...', '.ggggm.', '.', '...', '.', '.mmd..', '.', '..', '.', '.mggd.', '.', '.....', '...', '.gggggd', '.', '....', '.', '....'],
+      ['......', '.', '...', '.mgggd.', '.', '...', '.', '......', '.', '..', '.', '..md..', '.', '.....', '...', '.mgggd.', '.', '....', '.', '....'],
+      ['......', '.', '...', '..mmd..', '.', '...', '.', '......', '.', '..', '.', '......', '.', '.....', '...', '..mmd..', '.', '....', '.', '....'],
+    ];
+    const E = '.'.repeat(64);
+    const rows = [E, E, E, E, E];
+    for (const r of CLUMPS) rows.push(r.join(''));
+    rows.push(E);
+    for (const r of FRINGE) rows.push(r.join(''));
+    rows.push(E, E, E);
+    const g = rows.map((r, y) => {
+      if (r.length !== 64) throw new Error('grass row ' + y + ' has length ' + r.length);
+      return r.split('');
+    });
+    if (g.length !== 24) throw new Error('grass rows ' + g.length);
+    // under every clump: a 1px shadow line, then the tongues' roots; between two clumps a teal-dark pocket
     for (let x = 0; x < 64; x++) {
-      const T = top[x], M = 10 + +MID[x], F = 13 + +FRONT[x], K = 15 + +BACK[x], i = ti[x], w = tw[x];
-      // sunlit cap: thick on the flank facing the light, thin on the far side
-      const rising = top[mod(x - 1, 64)] > T, falling = top[mod(x + 1, 64)] > T;
-      let hl = falling ? 1 : rising ? 3 : 2;
-      if (w >= 8 && i === 2) hl = 5;
-      if (w >= 8 && (i === 1 || i === 3)) hl = 4;
-      for (let y = T; y <= F; y++) {
-        let v = y <= M ? 4 : 3;
-        if (y < T + hl) v = 5;
-        if (i === w - 1 && (y === T + 1 || y === T + 2)) v = 3;   // crease between tufts
-        if (y === F && K <= F) v = 2;                              // underside rim
-        g[y][x] = v;
-      }
-      for (let y = F + 1; y <= K; y++) g[y][x] = (y === K || y > F + 2) ? 1 : 2;
+      let bt = 12;
+      while (g[bt][x] === '.') bt--;
+      const root = g[14][x] === '.' || bt <= 10 ? 't' : g[14][x];
+      for (let y = bt + 1; y <= 13; y++) g[y][x] = y === bt + 1 ? 'd' : root;
     }
-    // a few blade tips poking above the tufts: [x, y, value]
-    const BLADES = [[10, 4, 4], [11, 3, 5], [41, 4, 4], [40, 3, 5], [60, 4, 4], [61, 3, 5], [61, 2, 5], [21, 4, 4], [22, 3, 5], [22, 2, 5]];
+    // 4 irregular blade tufts poking above the clumps: [x, y, tone]
+    const BLADES = [
+      [5, 4, 'l'], [6, 4, 'l'], [7, 4, 'l'], [8, 4, 'l'], [10, 4, 'l'], [5, 3, 'l'], [8, 3, 'l'], [11, 3, 'h'], [4, 2, 'h'], [8, 2, 'l'], [9, 1, 'h'],
+      [16, 6, 'l'], [17, 6, 'l'], [17, 5, 'l'], [18, 4, 'h'],
+      [39, 4, 'l'], [40, 4, 'l'], [41, 4, 'l'], [39, 3, 'l'], [41, 3, 'l'], [39, 2, 'h'], [42, 2, 'h'],
+      [56, 5, 'l'], [57, 5, 'l'], [55, 4, 'h'], [57, 4, 'l'], [58, 3, 'h'],
+    ];
     for (const [x, y, v] of BLADES) g[y][x] = v;
-    const at = (x, y) => (y < 0 || y > 23 ? -1 : g[y][mod(x, 64)]);
-    for (let y = 0; y < 24; y++) for (let x = 0; x < 64; x++) {
-      const v = g[y][x];
-      if (v >= 0) { dot(c, x, y, GCOL[v]); continue; }
-      if (y < 12) continue;
-      if (at(x, y - 1) >= 0 || at(x - 1, y) >= 0 || at(x + 1, y) >= 0) { dot(c, x, y, GCOL[0]); continue; }
-      const near = (dx, dy) => at(x + dx, y + dy) >= 0;
-      if (near(0, -2) || near(-1, -1) || near(-1, -2) || near(1, -1) || near(0, -3) || near(-1, -3)) dot(c, x, y, SHADOW);
+    const at = (x, y) => (y < 0 || y > 23 ? '.' : g[y][mod(x, 64)]);
+    const body = ch => ch !== '.' && ch !== 's' && ch !== 'S';
+    // dark outline around the hanging tongues
+    for (let y = 14; y < 24; y++) for (let x = 0; x < 64; x++) {
+      if (g[y][x] !== '.') continue;
+      const fill = ch => ch !== '.' && ch !== 'o';
+      if (fill(at(x, y - 1)) || fill(at(x - 1, y)) || fill(at(x + 1, y))) g[y][x] = 'o';
     }
-    return c;
+    // cast shadow on the earth: the fringe silhouette dropped down-right (2 steps)
+    const sil = g.map(r => r.map(body));
+    const S = (x, y) => y >= 0 && y < 24 && sil[y][mod(x, 64)];
+    for (let y = 14; y < 24; y++) for (let x = 0; x < 64; x++) {
+      if (g[y][x] !== '.') continue;
+      if (S(x, y - 1) || S(x - 1, y - 1)) g[y][x] = 's';
+      else if (S(x, y - 2) || S(x - 1, y - 2) || S(x - 2, y - 2)) g[y][x] = 'S';
+    }
+    return px(g.map(r => r.join('')), gp);
   }
   const grass = makeGrass();
 
   // Ledge caps: the mat rolls over the corner and droops (4px outside, 4px over the ledge).
-  const gp = { o: GR[0], d: GR[1], m: GR[2], g: GM, l: GR[3], h: GR[4], s: SHADOW };
   const grassEndL = px([
     '........',
     '........',
     '........',
     '........',
-    '.....h..',
-    '....hh..',
-    '...hhhhh',
+    '........',
+    '........',
+    '....hhhh',
     '..hhhhhl',
     '.hhhhlll',
-    'hhhhllll',
     'hhhlllll',
-    'hhllllgg',
-    '.hlllggg',
-    '.mlggggg',
-    'hhlggggm',
-    'hllgggmm',
-    'hlgggmmd',
-    'mlggmmdd',
-    'omgmmddo',
-    '.ommddos',
-    '..oddoss',
-    '...ooss.',
-    '.....s..',
+    'hhllllll',
+    'hllllllg',
+    'hlllllgg',
+    'hllllggg',
+    'lllggggm',
+    'llgggmmm',
+    'lggmmmmd',
+    'gggmmmdd',
+    'mgmmmddo',
+    'ommdddos',
+    '.oddooss',
+    '..oosssS',
+    '....SSS.',
     '........',
   ], gp);
   const grassEndR = px([
@@ -534,85 +645,85 @@ G.defineArt('terrain', G => {
     '........',
     '........',
     '........',
-    '..h.....',
-    '..hh....',
-    'hhhhl...',
-    'hhhlllg.',
-    'hllllggm',
-    'llllgggm',
+    '........',
+    '........',
+    'hhhl....',
+    'lllllg..',
+    'llllggg.',
     'lllggggm',
-    'llgggggd',
-    'lggggmd.',
-    'gggggdd.',
+    'llgggggm',
+    'lggggggm',
+    'ggggggmm',
+    'gggggmmd',
     'ggggmmmd',
     'gggmmmdd',
-    'mggmmddo',
-    'dmmmdddo',
-    'odmdddo.',
-    'soddoo..',
-    'ssoo....',
-    '.ss.....',
-    '........',
+    'mmmmmddo',
+    'mmmmdddo',
+    'dmmdddo.',
+    'oddddo..',
+    'soooo...',
+    'ssss....',
+    'SSSS....',
     '........',
   ], gp);
 
   // ------------------------------------------------------------------
   // WALL EDGES (8x64, seamless vertically) + UNDERSIDE (64x8)
+  // The walls are translucent light / shade ramps laid over the strata, so
+  // every seam of the earth runs right up to the outline as a notch. The lit
+  // ramp swells in the belly of each stratum and pinches where the seams
+  // arrive (rows 0-4, 23-26, 31-35, 49-54 whatever the tile column).
   // ------------------------------------------------------------------
-  // Chipped rim of edge rock: per-row thickness (0 = crack between chunks).
-  const RIM = '1223333322211' + '0' + '122233221' + '0' + '11223333333222211' + '0' + '1233322211' + '0' + '1222233221' + '0';
-  const LITE = 'rgba(255,224,160,0.3)', DARK1 = 'rgba(43,22,34,0.3)', DARK2 = 'rgba(43,22,34,0.55)';
+  const SEAM_ZONE = [2, 24.5, 33, 51.5];
   function makeWall(right) {
     const c = G.cv(8, 64);
-    if (RIM.length !== 64) throw new Error('RIM length ' + RIM.length);
     for (let y = 0; y < 64; y++) {
-      const t = +RIM[y], first = +RIM[mod(y - 1, 64)] === 0, last = +RIM[mod(y + 1, 64)] === 0;
+      let d = 99;
+      for (const z of SEAM_ZONE) d = Math.min(d, Math.abs(y - z), 64 - Math.abs(y - z));
+      const lv = d <= 2 ? 0 : d <= 4.5 ? 1 : 2;      // 0 = slab corners at a seam .. 2 = belly of a slab
       if (!right) {
-        // sunlit side: warm outline, bright rim, light spilling onto the strata
-        if (t === 0) { dot(c, 0, y, BR[0]); dot(c, 1, y, BR[1]); dot(c, 2, y, BR[1]); dot(c, 3, y, '#73372b'); continue; }
-        dot(c, 0, y, BR[1]);
-        for (let i = 1; i <= t; i++) {
-          let col = i === 1 ? BR[5] : i === 2 ? BR[4] : '#d8944c';
-          if (first) col = BR[5];
-          if (last) col = i === 1 ? BR[4] : '#a9602f';
-          dot(c, i, y, col);
-        }
+        // sunlit face: warm outline at x=0, then highlight / light / base ramp fading into the earth
+        R(c, 0, y, 1, 1, BR[1]);
+        const A = [[0.46, 0.2], [0.6, 0.36, 0.16], [0.7, 0.48, 0.28, 0.12]][lv];
+        A.forEach((a, i) => R(c, 1 + i, y, 1, 1, 'rgba(255,236,176,' + a + ')'));
+        if (d >= 8) R(c, 1, y, 1, 1, BR[5]);        // crisp glint on the belly of the big slabs
       } else {
-        // shadow side: ink outline, dark rim, shade creeping over the strata
-        dot(c, 7, y, P.ink);
-        if (t === 0) { dot(c, 6, y, BR[0]); dot(c, 5, y, BR[0]); dot(c, 4, y, BR[1]); dot(c, 3, y, DARK2); continue; }
-        for (let i = 1; i <= t; i++) {
-          let col = i === 1 ? BR[0] : i === 2 ? BR[1] : '#73372b';
-          if (first) col = i === 1 ? BR[1] : '#73372b';
-          if (last) col = BR[0];
-          dot(c, 7 - i, y, col);
-        }
-        dot(c, 6 - t, y, DARK2);
-        dot(c, 5 - t, y, DARK1);
+        // face turned away from the sun: ink outline at x=7 behind a dark purple shade
+        R(c, 7, y, 1, 1, P.ink);
+        const A = [[0.68, 0.5, 0.32, 0.14], [0.64, 0.44, 0.24], [0.6, 0.4, 0.2]][lv];
+        A.forEach((a, i) => R(c, 6 - i, y, 1, 1, 'rgba(42,16,52,' + a + ')'));
       }
     }
     return c;
   }
   const wallL = makeWall(false), wallR = makeWall(true);
 
-  // Underside: ink outline, chunky dark rock lip, shade fading up into the strata.
+  // Underside: rounded rock lumps of uneven width seen from below. Each lump's shadow
+  // deepens toward its right (away from the sun), ink creeps up the crevices between
+  // lumps, a couple of pale roots and moss drips hang over the dark band.
   function makeUnder() {
     const c = G.cv(64, 8);
-    const LIP = '1223332210' + '12233321' + '0' + '1222333332221' + '0' + '12332210' + '122333221' + '0' + '1223333322110';
-    if (LIP.length !== 64) throw new Error('LIP length ' + LIP.length);
-    for (let x = 0; x < 64; x++) {
-      const t = +LIP[x], first = +LIP[mod(x - 1, 64)] === 0, last = +LIP[mod(x + 1, 64)] === 0;
-      dot(c, x, 7, P.ink);
-      if (t === 0) { dot(c, x, 6, BR[0]); dot(c, x, 5, BR[0]); dot(c, x, 4, BR[1]); dot(c, x, 3, DARK2); continue; }
-      for (let j = 1; j <= t; j++) {
-        let col = j === 1 ? BR[0] : j === 2 ? BR[1] : '#73372b';
-        if (first) col = j === 1 ? BR[1] : '#73372b';
-        if (last) col = BR[0];
-        dot(c, x, 7 - j, col);
+    const U1 = 'rgba(43,22,34,0.28)', U2 = 'rgba(43,22,34,0.55)';
+    const LUMPS = [13, 9, 15, 11, 16];
+    let x = 0;
+    for (const w of LUMPS) {
+      for (let i = 0; i < w; i++, x++) {
+        // ink wedge between two lumps: 5px wide at the bottom, closing 3 rows up
+        const e = Math.min(i, w - i);                 // 0 on the crevice column, 1 / 2 beside it
+        const ink = e === 0 ? 4 : e === 1 ? 2 : e === 2 ? 1 : 0;
+        const t = i / (w - 1), th = Math.max(ink + 1, t < 0.34 ? 2 : t < 0.72 ? 3 : 4), top = 7 - th;
+        for (let y = top; y <= 6; y++)
+          R(c, x, y, 1, 1, y > 6 - ink ? P.ink : y === 6 || (y === 5 && th === 4) || x % 16 === 15 ? BR[0] : y === top && th >= 3 ? '#73372b' : BR[1]);
+        R(c, x, 7, 1, 1, P.ink);
+        R(c, x, top - 1, 1, 1, U2); R(c, x, top - 2, 1, 1, U1);
       }
-      dot(c, x, 6 - t, DARK2);
-      dot(c, x, 5 - t, DARK1);
     }
+    if (x !== 64) throw new Error('under lumps cover ' + x);
+    // pale roots dangling in front of the dark band
+    const rp = { r: BR[4], q: BR[3], p: '#a9602f' };
+    stamp(c, ['r.', 'q.', '.q', '.q', '.p'], 5, 1, rp);
+    stamp(c, ['.r', '.q', 'q.', 'q.', 'p.'], 42, 2, rp);
+    stamp(c, ['r', 'q', 'q', 'p'], 29, 2, rp);
     return c;
   }
   const under = makeUnder();
@@ -772,13 +883,16 @@ G.defineArt('terrain', G => {
 
   // ------------------------------------------------------------------
   // SPRING — [idle, compressed, extended], 16x24 bottom-aligned
+  // The coil is a zigzag of lit front turns (cylinder-shaded, stepped up to
+  // the right) with the dark back of the wire showing between them once it
+  // stretches. The base plate (rows 21-23) is the same canvas in all frames.
   // ------------------------------------------------------------------
   const sprPad = px([
     '..kkkkkkkkkkkk..',
-    '.kUwwUUUUUUUTTk.',
-    'kUUTTTTTTTTTTTSk',
-    'kTTTSSSSSSSSSSRk',
-    'kIJJIIIIIIIIHHGk',
+    '.kUwwwUUUUUTTTk.',
+    'kUwwUUUTTTTTTTSk',
+    'kTUTTTTTTSSSSSRk',
+    'kJJJIIIIIIIHHHGk',
     '.kkkkkkkkkkkkkk.',
   ]);
   const sprBase = px([
@@ -786,45 +900,56 @@ G.defineArt('terrain', G => {
     '.kxvvvvvvvvuutk.',
     'kkkkkkkkkkkkkkkk',
   ]);
-  const coilF1 = px(['..kxxvvvvvvutk..']);
-  const coilF2 = px(['..kvuuuuuuttsk..']);
-  const coilB = px(['....kttttssk....']);
-  function makeSpring(padY, pattern) {
+  // tight turn (3 rows per turn): the front of the wire steps up 1px halfway along
+  const TIGHT = [
+    '...kkkkkvvuutk..',
+    '..kxxxxvuuttsk..',
+    '..kvvvuukkkkk...',
+  ];
+  // stretched turn (6 rows per turn): steeper front, dark back strand in the gap
+  const LOOSE = [
+    '......kkkvvuuk..',
+    '...kkkxxvuuttk..',
+    '..kxxxvvukkkk...',
+    '..kvvukkk.......',
+    '...kkktttk......',
+    '.....ksssk......',
+  ];
+  function makeSpring(padY, coil) {
     const c = G.cv(16, 24);
+    c.ctx.drawImage(px(coil), 0, 21 - coil.length);
     c.ctx.drawImage(sprBase, 0, 21);
-    let i = 0;
-    for (let y = padY + 6; y < 21; y++, i++) c.ctx.drawImage(pattern[i % pattern.length], 0, y);
     c.ctx.drawImage(sprPad, 0, padY);
     return c;
   }
   const spring = [
-    makeSpring(8, [coilB, coilF1, coilF2]),
-    makeSpring(13, [coilF1, coilF2]),
-    makeSpring(0, [coilB, coilF1, coilF2, coilB, coilB]),
+    makeSpring(8, [...TIGHT, ...TIGHT, TIGHT[0]]),
+    makeSpring(13, [TIGHT[1], TIGHT[2]]),
+    makeSpring(0, ['.....ktttk......', '.....kssskkkk...', ...LOOSE.slice(0, 5), '.....kssskkkk...', ...LOOSE.slice(0, 5), '.....kssskkkk...', LOOSE[0]]),
   ];
 
   // ------------------------------------------------------------------
-  // SPIKES — 16x16, two steel fangs per tile
+  // SPIKES — 16x16: three needle-sharp steel cones on a dark stone plate
+  // (white-yellow lit face, blue-violet shade, full ink outline)
   // ------------------------------------------------------------------
-  const spikeRows = [
-    '........',
-    '........',
-    '........',
-    '...kk...',
-    '..kwtk..',
-    '..kxtk..',
-    '..kxtk..',
-    '.kxvutk.',
-    '.kxvutk.',
-    '.kxvutk.',
-    '.kxvutk.',
-    'kxxvuttk',
-    'kxvvuttk',
-    'kxvvutsk',
-    'kvvuutsk',
-    'kkkkkkkk',
-  ];
-  const spikes = px(spikeRows.map(r => r + r));
+  const spikes = px([
+    '.......k........',
+    '......kwk.......',
+    '..k...kwk...k...',
+    '.kwk..kwmk.kwk..',
+    '.kwk..kwmk.kwk..',
+    '.kwmk.kwmk.kwmk.',
+    '.kwmkkwvmk.kwmk.',
+    '.kwmkkwvmk.kwmk.',
+    'kwvmkkwvmkkwvmk.',
+    'kwvmkkwvmdkwvmk.',
+    'kxvmdkxvmdkxvmdk',
+    'kxvmdkxvmdkxvmdk',
+    'kxvmdkxvmdkxvmdk',
+    'kvuuuuvuuuuvuutk',
+    'ktttttttttttttsk',
+    'kkkkkkkkkkkkkkkk',
+  ], { k: P.ink, w: '#fff8d0', x: ST[4], v: '#b4bce0', m: '#7c7cc4', d: '#4c4690', u: '#666a96', t: '#3e3c68', s: ST[0] });
 
   // ------------------------------------------------------------------
   // CHECKPOINT — sun-stone lantern post, 16x32
@@ -893,65 +1018,55 @@ G.defineArt('terrain', G => {
   const checkpoint = { off: [makeCheckpoint(-1)], on: [0, 1, 2, 3].map(makeCheckpoint) };
 
   // ------------------------------------------------------------------
-  // GOAL — ancient sun gate, 4 frames 32x48 (glyphs charge up, light pours out)
+  // GOAL — ancient sun gate, 4 frames 32x48
+  // One bold carved glyph per pillar block (sun, moon, eye) that flares up
+  // from the bottom block to the top one, then all at once; the portal is a
+  // set of crisp vertical light bands whose stepped edges scroll upward.
   // ------------------------------------------------------------------
   const GLYPHS = [
-    ['.ss.', 's..s', 's..s', '.ss.'],
-    ['sss.', '..s.', 's.s.', 'sss.'],
-    ['.ss.', 'ssss', '.ss.', '.ss.'],
+    ['..s..', '.sss.', 'sssss', '.sss.', '..s..'],   // sun
+    ['.sss.', 'sss..', 'ss...', 'sss..', '.sss.'],   // crescent moon
+    ['.sss.', 's...s', 's.s.s', 's...s', '.sss.'],   // eye of the sun
   ];
   function makeGoal(f) {
     const c = G.cv(32, 48), k = P.ink;
-    // portal light
-    const tones = [P.white, GO[3], GO[2], OR[3]];
-    const HW = [2, 2, 3, 3, 3, 2, 2, 2, 1, 1, 2, 2];
-    for (let y = 19; y <= 47; y++) {
-      const hw = HW[(y + f * 3) % 12];
-      for (let x = 9; x <= 22; x++) {
-        const i = x < 16 ? 15 - x : x - 16;
-        R(c, x, y, 1, 1, tones[i < hw ? 0 : i < hw + 2 ? 1 : i < 6 ? 2 : 3]);
-      }
-    }
-    R(c, 9, 19, 14, 1, GO[1]);
-    // rising motes of light in the golden flanks
-    const motes = [[10, 44], [20, 40], [10, 31], [20, 26]];
-    for (const [mx, my] of motes) {
-      const y = 20 + (((my - 20 - f * 7) % 28) + 28) % 28;
-      R(c, mx, y, 1, 2, P.white);
-      if (y < 46) R(c, mx, y + 2, 1, 1, GO[3]);
-    }
-    // pillars (three bevelled blocks each, glyphs light up from the bottom)
-    for (const x0 of [1, 23]) {
-      const inner = x0 === 1 ? x0 + 6 : x0 + 1;        // face turned to the portal
-      R(c, x0, 19, 8, 25, k);
-      R(c, x0 + 1, 19, 6, 25, ST[2]);
-      R(c, x0 + 1, 19, 1, 25, ST[4]);
-      R(c, x0 + 2, 19, 1, 25, ST[3]);
-      R(c, x0 + 5, 19, 2, 25, ST[1]);
-      R(c, inner, 19, 1, 25, GO[1]);
-      [27, 35].forEach(sy => {
-        R(c, x0 + 1, sy, 6, 1, k);
-        R(c, x0 + 1, sy - 1, 6, 1, ST[1]);
-        R(c, x0 + 1, sy + 1, 5, 1, ST[4]);
+    // portal light (x 10..21): white core, pale and golden flanks, orange rim
+    const BAND = [P.white, P.white, GO[3], GO[3], GO[2], OR[3]];
+    for (let x = 10; x <= 21; x++) R(c, x, 19, 1, 29, BAND[x < 16 ? 15 - x : x - 16]);
+    // rising steps of light: [x, tone, phase, length] — 12px period, 3px up per frame
+    const STEPS = [[13, P.white, 0, 6], [18, P.white, 6, 6], [11, GO[3], 3, 5], [20, GO[3], 9, 5], [10, GO[2], 7, 4], [21, GO[2], 1, 4]];
+    for (const [x, col, ph, len] of STEPS)
+      for (let y = 19; y <= 47; y++) if ((y + f * 3 + ph) % 12 < len) R(c, x, y, 1, 1, col);
+    R(c, 10, 21, 12, 1, GO[1]);                        // the lintel's shadow on the light
+    // pillars: three bevelled blocks each (rows 21-27, 29-35, 37-43)
+    for (const x0 of [1, 22]) {
+      const left = x0 === 1;
+      R(c, x0, 19, 9, 25, k);
+      [21, 29, 37].forEach((by, gi) => {
+        R(c, x0 + 1, by, 7, 7, ST[2]);
+        R(c, x0 + 1, by + 6, 7, 1, ST[1]);
+        R(c, x0 + 1, by, 7, 1, ST[4]);
+        R(c, x0 + 1, by + 1, 1, 6, left ? ST[4] : GO[2]);   // sunlit edge / glow of the portal
+        R(c, x0 + 7, by + 1, 1, 6, left ? GO[2] : ST[1]);
+        R(c, x0 + (left ? 6 : 2), by + 1, 1, 5, left ? ST[3] : ST[3]);
+        // carved glyph: dark groove, light catching its lower-right wall
+        const hot = f === 3 || gi === 2 - f;
+        const groove = hot ? GO[3] : ST[0], wall = hot ? OR[2] : ST[4];
+        const gl = GLYPHS[gi];
+        for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++) {
+          if (gl[j][i] !== 's') continue;
+          if (i < 4 && j < 4 && gl[j + 1][i + 1] !== 's') R(c, x0 + 3 + i, by + 2 + j, 1, 1, wall);
+        }
+        for (let j = 0; j < 5; j++) for (let i = 0; i < 5; i++)
+          if (gl[j][i] === 's') R(c, x0 + 2 + i, by + 1 + j, 1, 1, groove);
       });
-      [22, 30, 38].forEach((gy, gi) => {
-        const lit = f >= 3 - gi;
-        stamp(c, GLYPHS[gi], x0 + 2, gy, { s: lit ? GO[2] : ST[0] });
-        if (lit) stamp(c, GLYPHS[gi], x0 + 2, gy + 1, { s: 'rgba(0,0,0,0)' });
-      });
+      // capital + plinth, one pixel wider than the shaft
+      R(c, x0 - 1, 19, 11, 2, k);
+      R(c, x0, 19, 9, 1, ST[3]); R(c, x0, 19, 3, 1, ST[4]); R(c, x0 + 7, 19, 2, 1, ST[2]);
+      R(c, x0 - 1, 44, 11, 4, k);
+      R(c, x0, 45, 9, 2, ST[2]); R(c, x0, 45, 9, 1, ST[3]); R(c, x0, 45, 3, 1, ST[4]); R(c, x0 + 6, 46, 3, 1, ST[1]);
     }
-    // plinths + capitals
-    for (const x0 of [0, 22]) {
-      R(c, x0, 44, 10, 4, k);
-      R(c, x0 + 1, 45, 8, 2, ST[2]);
-      R(c, x0 + 1, 45, 8, 1, ST[3]); R(c, x0 + 1, 45, 2, 1, ST[4]);
-      R(c, x0 + 7, 46, 2, 1, ST[1]);
-      R(c, x0, 19, 10, 3, k);
-      R(c, x0 + 1, 19, 8, 2, ST[2]);
-      R(c, x0 + 1, 19, 8, 1, ST[3]); R(c, x0 + 1, 19, 2, 1, ST[4]);
-      R(c, x0 + 7, 20, 2, 1, ST[1]);
-    }
-    // lintel
+    // lintel with a carved groove either side of the crown
     R(c, 0, 12, 32, 7, k);
     R(c, 1, 13, 30, 5, ST[2]);
     R(c, 1, 13, 30, 1, ST[4]);
@@ -959,13 +1074,36 @@ G.defineArt('terrain', G => {
     R(c, 1, 17, 30, 1, ST[1]);
     R(c, 1, 13, 1, 4, ST[4]);
     R(c, 30, 14, 1, 4, ST[1]);
-    for (let x = 3; x < 29; x += 4) stamp(c, ['s.s', '.s.'], x, 15, { s: f === 3 ? GO[2] : ST[0] });
+    for (const gx of [4, 19]) {
+      R(c, gx, 15, 9, 1, f === 3 ? GO[3] : ST[0]);
+      R(c, gx + 1, 16, 9, 1, f === 3 ? OR[2] : ST[4]);
+    }
     // sun crown
     drawSun(c, 8, 0, f);
-    // moss draped over the lintel ends + a vine down the right pillar
-    c.ctx.drawImage(px(['.eed....', 'eddde...', 'dddccd..', 'cdccbcc.', 'abcbab..', '.a.ba...', '....a...']), 0, 10);
-    c.ctx.drawImage(px(['....dee.', '..deddde', '.dccdddd', 'ccbccdcc', '.babcbba', '..a.ab.b', '......a.']), 24, 10);
-    stamp(c, ['c.', 'bc', '.c', 'dc', '.b', 'c.', 'cb', '.c', '.cd', '.b', 'c.', 'b.'], 30, 17, { c: GR[2], b: GR[1], d: GR[3] });
+    // a three-leaf sprout on the lintel, a leafy vine trailing down its right end
+    const lp = { a: GR[0], b: GR[1], c: GR[2], d: GR[3], e: GR[4] };
+    stamp(c, [
+      '...e....',
+      '...ed...',
+      'e..dd..e',
+      'de.dc.ed',
+      '.dddcdd.',
+      '..cbcc..',
+    ], 0, 6, lp);
+    stamp(c, [
+      '..ee.',
+      '.eddc',
+      'edcbb',
+      'c.b.b',
+      '..b.b',
+      '.dc.b',
+      '.c..c',
+      '...db',
+      '..dcb',
+      '..c.b',
+      '...dc',
+      '...c.',
+    ], 27, 10, lp);
     return c;
   }
   const goal = [0, 1, 2, 3].map(makeGoal);
@@ -1710,10 +1848,11 @@ G.defineArt('decor', G => {
 </script>
 <script>
 // ---- src/art/bg.js ----
-// SUNFOX — parallax backdrop for Emerald Coast: sky + 6 layers (far -> near).
-// Everything is plotted as indexed pixels (no blending): banded sky with ordered
-// dither, puff-sculpted cumulus, faceted islands, line-scroll sea strips with glitter,
-// mid headlands with cliffs + waterfalls over a lagoon, near palm/jungle treeline.
+// SUNFOX — parallax backdrop for Emerald Coast: sky + 7 layers (far -> near).
+// Everything is plotted as indexed pixels (no blending): banded sky with ordered dither,
+// a far field of small flat clouds, big sculpted cumulus, a far sea with the old volcano,
+// line-scrolled sea + lagoon strips, headlands with faceted cliffs and waterfalls (their
+// reflections ride on the lagoon layer behind them), and a hazy blue-teal jungle treeline.
 G.defineArt('bg', G => {
   const W = G.W, H = G.H;
 
@@ -1757,6 +1896,29 @@ G.defineArt('bg', G => {
   // 2x2 ordered-dither thresholds: 25% = sparse dots, 50% = checker, 75% = inverse dots.
   const M2 = [0.125, 0.625, 0.875, 0.375];
   const d2 = (x, y) => M2[(x & 1) | ((y & 1) << 1)];
+  // Melt same-colour specks smaller than minB px (4-connected, x wraps) into whatever surrounds
+  // them most — every cluster that survives is a deliberate one. 0 = empty, never touched.
+  function melt(buf, w, h, minB, passes) {
+    for (let pass = 0; pass < (passes || 2); pass++) {
+      const lab = new Uint8Array(w * h);
+      for (let s0 = 0; s0 < buf.length; s0++) {
+        if (!buf[s0] || lab[s0]) continue;
+        const c = buf[s0], comp = [s0], cnt = {};
+        lab[s0] = 1;
+        for (let k = 0; k < comp.length && comp.length < 4096; k++) {
+          const i = comp[k], x = i % w, y = (i / w) | 0;
+          for (const j of [y * w + ((x + w - 1) % w), y * w + ((x + 1) % w), y > 0 ? i - w : -1, y < h - 1 ? i + w : -1]) {
+            if (j < 0 || !buf[j]) continue;
+            if (buf[j] === c) { if (!lab[j]) { lab[j] = 1; comp.push(j); } } else cnt[buf[j]] = (cnt[buf[j]] || 0) + 1;
+          }
+        }
+        if (comp.length >= minB) continue;
+        let best = 0, bn = 0;
+        for (const k in cnt) if (cnt[k] > bn) { bn = cnt[k]; best = +k; }
+        if (best) for (const i of comp) buf[i] = best;
+      }
+    }
+  }
 
   // Vertical colour ramp: flat bands joined by 6-row ordered transitions (25/50/75%).
   const TR = [0.25, 0.25, 0.5, 0.5, 0.75, 0.75];
@@ -1815,7 +1977,7 @@ G.defineArt('bg', G => {
     const clip = o.clip == null ? null : typeof o.clip === 'function' ? o.clip : () => o.clip;
     const bw = x1 - x0 + 1, bh = y1 - y0 + 1;
     const v = new Float32Array(bw * bh).fill(NaN);
-    const fl = o.flat || 1;
+    const fl = o.flat || 1, lg = o.light || [LX, LY, LZ], ln = Math.hypot(lg[0], lg[1], lg[2]), lx = lg[0] / ln, ly = lg[1] / ln, lz = lg[2] / ln;
     for (const p of list) {
       const cx = p[0], cy = p[1], rx = p[2], ry = p[3] || rx;
       const ya = Math.floor(cy - ry), yb = Math.ceil(cy + ry), xa = Math.floor(cx - rx), xb = Math.ceil(cx + rx);
@@ -1824,8 +1986,8 @@ G.defineArt('bg', G => {
         for (let y = ya; y <= yb && y < yc; y++) {
           const dy = (y + 0.5 - cy) / ry, q = dx * dx + dy * dy;
           if (q > 1) continue;
-          const nz = Math.sqrt(1 - q) * fl;
-          v[(y - y0) * bw + (x - x0)] = (dx * LX + dy * LY + nz * LZ) / Math.sqrt(q + nz * nz);
+          const nz = Math.sqrt(1 - q) * (o.round && rx >= o.round[0] ? o.round[1] : fl);
+          v[(y - y0) * bw + (x - x0)] = (dx * lx + dy * ly + nz * lz) / Math.sqrt(q + nz * nz);
         }
       }
     }
@@ -1837,7 +1999,8 @@ G.defineArt('bg', G => {
       for (let x = x0; x <= x1; x++) {
         const i = (y - y0) * bw + (x - x0);
         if (v[i] !== v[i]) continue;
-        const t = ty * (1 - gx) + ((x - x0) / bw) * gx, val = v[i] + g0 + (g1 - g0) * t - (o.foot || 0) * Math.max(0, ty * 5 - 4), dd = (d2(x, y) - 0.5) * 2;
+        const t = ty * (1 - gx) + ((x - x0) / bw) * gx, dd = (d2(x, y) - 0.5) * 2;
+        let val = (o.local ? lz + (v[i] - lz) * o.local : v[i]) + g0 + (g1 - g0) * t - (o.foot || 0) * Math.max(0, ty * 5 - 4);
         let k = 0;
         while (k < thr.length && val + (dith ? dd * (dith[k] || 0) : 0) < thr[k]) k++;
         out[i] = k + 1;
@@ -1889,6 +2052,30 @@ G.defineArt('bg', G => {
         if (best) for (const i of comp) out[i] = best;
       }
     }
+    if (o.shelf) {
+      // flat underside: the rows standing on the base line fall into shade (darkest at the very bottom)
+      const nt = o.tones.length;
+      for (let x = 0; x < bw; x++) {
+        let yb = bh - 1;
+        while (yb >= 0 && !out[yb * bw + x]) yb--;
+        if (yb < 0 || yb + y0 < base - 3) continue;
+        for (let d = 0; d < o.shelf && yb - d >= 0; d++) {
+          const i = (yb - d) * bw + x, c = out[i];
+          if (!c) break;
+          out[i] = Math.min(nt, d < 1 ? Math.max(c + 2, nt - 1) : d < 3 ? Math.max(c + 1, nt - 1) : c >= 3 ? c + 1 : c);
+        }
+      }
+    }
+    if (o.band) {
+      // Sonic-3 style: a 2px checker only where two neighbouring tones meet
+      const src = out.slice();
+      for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+        const c = src[y * bw + x];
+        if (!c) continue;
+        const n = [x > 0 ? src[y * bw + x - 1] : 0, x < bw - 1 ? src[y * bw + x + 1] : 0, y > 0 ? src[(y - 1) * bw + x] : 0, y < bh - 1 ? src[(y + 1) * bw + x] : 0];
+        if (((x + x0 + y + y0) & 1) === 0) { if (n.includes(c + 1)) out[y * bw + x] = c + 1; } else if (c > 1 && n.includes(c - 1)) out[y * bw + x] = c - 1;
+      }
+    }
     for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
       const c = out[y * bw + x];
       if (c) L.set(x + x0, y + y0, o.tones[Math.min(o.tones.length, c) - 1]);
@@ -1912,7 +2099,7 @@ G.defineArt('bg', G => {
     let top = 1e9;
     for (const b of lobes) {
       const cx = ox + b[0], cy = oy - b[1], r = b[2];
-      if (typeof b[3] === 'number') { list.push([cx, cy, r, b[3]]); continue; }
+      if (typeof b[3] === 'number') { list.push([cx, cy, r, b[3]]); top = Math.min(top, cy - b[3]); continue; }
       for (const bp of b[3] || []) {
         const a = (bp[0] * Math.PI) / 180, d = r - bp[1] * 0.35;
         list.push([cx + Math.cos(a) * d, cy - Math.sin(a) * d, bp[1]]);
@@ -1923,100 +2110,83 @@ G.defineArt('bg', G => {
     const clip = x => { let d = 0; for (const g of sag || []) if (x >= ox + g[0] && x < ox + g[1]) d = Math.max(d, g[2]); return oy + d; };
     puffs(L, list, Object.assign({ top, base: oy, clip }, o));
   }
-  // dissolve the lower rows of a layer into haze colour c (ordered 25/50/75%)
-  function fade(L, ya, yb, c) {
-    for (let y = ya; y < L.h; y++) {
-      const f = Math.min(1, (Math.floor(((y - ya) / (yb - ya)) * 4) + 1) / 4);
-      for (let x = 0; x < L.w; x++) if (L.d[y * L.w + x] && f > d2(x, y)) L.d[y * L.w + x] = c;
-    }
-  }
+  // Near clouds: a dominant tower with shoulders and small satellite puffs, the light side
+  // white, the body turning lavender toward the lower right, a flat darker shelf underneath.
+  const HERO = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0', '#869fe6']), thr: [0.76, 0.36, -0.06, -0.5], grad: [0.4, -0.75], gx: 0.5, flat: 2.3, round: [13, 1.45], local: 0.6, shelf: 5, blob: 10 };
+  const SMALL = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0']), thr: [0.7, 0.3, -0.2], grad: [0.35, -0.6], gx: 0.4, flat: 1.6, local: 0.7, shelf: 2, blob: 5 };
+  // Far clouds: small, flat, pale and close to the sky's own colour.
+  const FAR = { tones: CS(['#f9fcf2', '#e2f1f9', '#c6e3f8']), thr: [0.62, 0.1], grad: [0.3, -0.5], gx: 0.3, flat: 1.7, local: 0.7, shelf: 2, blob: 4 };
 
-  const HERO = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0', '#869fe6']), thr: [0.84, 0.3, -0.12, -0.62], grad: [0.3, -0.6], gx: 0.3, flat: 1.9, foot: 0.5, blob: 12 };
-  const SMALL = { tones: CS(['#fffff6', '#e8f3fe', '#c6dbf8', '#a2bef0']), thr: [0.6, 0.0, -0.5], grad: [0.35, -0.5], gx: 0.2, flat: 1.7 };
+  // small flat-based cumulus grown from a seed: w px wide, h px tall, standing on `base`:
+  // squashed lobes that all rise from one long flat slab, under a single clear high point
+  function flatCloud(L, x, base, w, h, o, q) {
+    const n = Math.max(2, Math.round(w / (h * 1.1))), pk = 0.3 + q() * 0.4, slab = Math.max(1.5, h * 0.2), lobes = [[w / 2, 1, w * 0.45, slab]];
+    for (let i = 0; i < n; i++) {
+      const u = (i + 0.5 + (q() - 0.5) * 0.5) / n, prof = Math.pow(Math.max(0, 1 - Math.abs(u - pk) / (u < pk ? pk + 0.1 : 1.1 - pk)), 1.2);
+      const top = h * (0.34 + 0.66 * prof) * (0.85 + 0.15 * q()), ry = Math.max(1.5, top / 2), rx = Math.min(w * 0.3, ry * (1.4 + q() * 0.6));
+      lobes.push([w * (0.14 + u * 0.72), ry, rx, ry]);
+    }
+    cumulus(L, x, base, lobes, Object.assign({}, o, { shelf: h < 9 ? 1 : o.shelf }));
+  }
 
   function makeFloaters() {
     const L = layer(768, 112);
     // A — the big hero cumulus
-    cumulus(L, 52, 72, [
-      [86, 4, 62, 12], [146, 2, 26, 6],
-      [5, 3, 5], [15, 9, 9, [[130, 4]]], [24, 15, 9, [[140, 3]]], [140, 8, 12, [[60, 4], [20, 3]]],
-      [72, 55, 11, [[105, 4], [50, 4]]],
-      [58, 42, 22, [[165, 5], [130, 6], [95, 5]]],
-      [33, 25, 14, [[150, 5], [105, 5]]],
-      [88, 38, 15, [[80, 5], [35, 5]]],
-      [108, 27, 13, [[60, 4], [15, 4]]],
-      [124, 16, 11, [[50, 4]]],
-      [44, 14, 15], [70, 12, 14], [94, 8, 11], [25, 6, 9], [114, 5, 8], [160, 3, 6],
-    ], HERO, [[24, 62, 1], [34, 52, 2], [82, 128, 1], [94, 116, 2]]);
+    cumulus(L, 50, 74, [
+      [88, 3, 82, 7],
+      [106, 30, 20, [[70, 7], [25, 5]]], [28, 22, 15, [[155, 5], [110, 5]]],
+      [64, 40, 30, [[168, 6], [138, 8], [104, 6], [66, 9], [30, 6]]],
+      [130, 12, 11, [[50, 4]]], [18, 9, 10, [[145, 4]]],
+      [40, 16, 15, [[140, 4]]], [84, 17, 16, [[45, 5]]], [112, 12, 12],
+      [6, 4, 5], [150, 5, 7], [163, 3, 4], [62, 7, 9], [30, 4, 6], [138, 4, 5],
+    ], HERO, [[30, 70, 1], [96, 132, 1], [104, 122, 2]]);
     // B — medium
     cumulus(L, 372, 50, [
-      [48, 3, 40, 8],
-      [3, 3, 4], [92, 4, 5], [12, 8, 8], [80, 10, 9, [[40, 3]]],
-      [44, 28, 15, [[150, 4], [100, 5], [50, 4]]],
-      [64, 22, 11, [[70, 4], [20, 3]]],
-      [26, 18, 11, [[140, 4]]],
-      [38, 8, 11], [58, 6, 9], [22, 4, 6], [74, 3, 5],
-    ], HERO, [[26, 66, 1], [34, 54, 2]]);
+      [50, 3, 48, 6],
+      [70, 15, 13, [[60, 4], [15, 4]]], [22, 13, 11, [[150, 4]]],
+      [46, 26, 19, [[160, 4], [125, 6], [80, 5], [40, 5]]],
+      [8, 6, 7], [86, 7, 8, [[30, 3]]], [34, 8, 10], [58, 7, 9], [96, 3, 4], [76, 4, 5],
+    ], HERO, [[28, 64, 1]]);
     // C — long and low
     cumulus(L, 566, 38, [
-      [62, 2, 54, 6],
-      [6, 3, 5], [120, 2, 3], [110, 4, 5], [20, 9, 9, [[130, 3]]], [96, 8, 8, [[40, 3]]],
-      [38, 15, 11, [[110, 4], [60, 4]]], [58, 18, 12, [[95, 4], [45, 4]]], [78, 14, 10, [[60, 4]]],
-      [30, 4, 7], [48, 5, 9], [68, 4, 8], [86, 3, 6],
+      [62, 2, 60, 5],
+      [72, 11, 11, [[60, 4], [20, 3]]], [24, 9, 9, [[140, 3]]],
+      [46, 15, 15, [[155, 4], [110, 5], [60, 4]]],
+      [94, 7, 8, [[40, 3]]], [10, 4, 5], [36, 4, 6], [84, 4, 6], [110, 4, 5], [120, 2, 3],
     ], HERO, [[30, 90, 1]]);
     // D — small
     cumulus(L, 262, 28, [
-      [28, 2, 22, 5],
-      [3, 2, 3], [52, 4, 5], [12, 6, 7], [24, 13, 10, [[140, 3], [80, 4]]], [40, 10, 8, [[50, 3]]],
-      [22, 3, 6], [36, 3, 5],
+      [28, 2, 25, 4],
+      [24, 11, 10, [[140, 3], [75, 4]]], [39, 8, 7, [[45, 3]]], [12, 6, 6], [48, 4, 4], [30, 4, 6], [3, 2, 3],
     ], SMALL);
     // wisps
-    cumulus(L, 500, 84, [[20, 1, 16, 3], [8, 3, 4], [34, 2, 3], [16, 5, 5], [26, 3, 4]], SMALL);
-    cumulus(L, 706, 64, [[14, 1, 10, 3], [6, 3, 3], [22, 3, 3], [14, 4, 5]], SMALL);
+    const q = rng(9);
+    flatCloud(L, 486, 86, 40, 9, SMALL, q); flatCloud(L, 700, 66, 30, 8, SMALL, q); flatCloud(L, 232, 96, 22, 6, SMALL, q); flatCloud(L, 6, 30, 26, 7, SMALL, q);
     return L;
   }
 
-  // Far cloud bank: cumulus towers rising from behind the horizon, plus ranks of tiny
-  // flat-based clouds that shrink toward it (the classic depth cue).
+  // Far cloud field: ranks of small flat-based clouds that shrink toward the horizon (the
+  // classic depth cue), pale enough to sit well behind the big floaters.
   function makeBank() {
-    const L = layer(768, 96);
-    const BANK = { tones: CS(['#fffdf0', '#e6f0f6', '#cfe2f6', '#b6d1f0']), thr: [0.84, 0.3, -0.12], grad: [0.3, -0.6], gx: 0.3, flat: 1.9, blob: 12 };
-    const TINY = { tones: CS(['#fffdf0', '#e6f0f6', '#cfe2f6']), thr: [0.5, -0.15], grad: [0.3, -0.5], flat: 1.8, blob: 4 };
-    const tower = lobes => cumulus(L, 0, 96, lobes, Object.assign({ clip: null }, BANK));
-    const tiny = (x, up, k) => cumulus(L, x, 96 - up, [
-      [[13, 1, 11, 3], [5, 2, 3], [21, 2, 3], [11, 4, 5], [17, 3, 4]],
-      [[9, 1, 8, 2], [4, 2, 3], [14, 2, 2], [9, 3, 4]],
-      [[5, 1, 5, 2], [3, 1, 2], [6, 2, 3]],
-    ][k], TINY);
-    tower([
-      [112, 4, 70, 14],
-      [170, 10, 9], [40, 9, 8], [56, 16, 11, [[135, 4]]], [150, 18, 12, [[50, 4]]],
-      [100, 34, 18, [[150, 5], [105, 6], [60, 5]]], [76, 26, 13, [[140, 4], [95, 4]]], [128, 28, 14, [[70, 5], [25, 4]]],
-      [90, 14, 14], [114, 12, 13], [136, 8, 11], [68, 8, 10], [156, 5, 8], [50, 4, 7],
-    ]);
-    tower([[300, 3, 40, 9], [268, 7, 7], [336, 7, 7], [302, 20, 12, [[125, 4], [65, 4]]], [284, 13, 10, [[140, 3]]], [320, 13, 10, [[45, 3]]], [294, 8, 9], [312, 7, 8]]);
-    tower([
-      [516, 4, 86, 16],
-      [596, 10, 10], [452, 10, 9], [436, 5, 6], [610, 4, 6], [474, 20, 12, [[140, 4]]], [576, 20, 13, [[55, 4], [15, 4]]],
-      [524, 40, 20, [[160, 5], [120, 6], [80, 6], [40, 5]]], [498, 30, 15, [[145, 5], [100, 4]]], [552, 32, 15, [[70, 5], [30, 5]]],
-      [510, 16, 15], [538, 15, 14], [486, 9, 11], [562, 9, 11], [524, 6, 10], [466, 4, 7], [584, 4, 8],
-    ]);
-    tower([[706, 3, 40, 10], [670, 8, 8], [742, 8, 8], [704, 24, 14, [[135, 5], [75, 5]]], [686, 16, 11, [[150, 4]]], [724, 17, 11, [[45, 4]]], [698, 9, 10], [716, 8, 9]]);
-    for (const [x, up, k] of [[210, 22, 0], [366, 24, 0], [626, 22, 0], [196, 15, 1], [238, 14, 1], [392, 16, 1], [644, 14, 1], [752, 15, 1], [6, 14, 1],
-      [226, 10, 2], [352, 11, 2], [410, 10, 2], [660, 10, 2], [22, 10, 2], [380, 11, 2]]) tiny(x, up, k);
+    const L = layer(768, 96), q = rng(4);
+    for (const [x, w, h] of [[20, 96, 21], [214, 64, 15], [372, 112, 24], [566, 76, 17], [690, 58, 14]]) flatCloud(L, x, 70, w, h, FAR, q);
+    for (const [x, w, h] of [[136, 46, 10], [300, 38, 9], [500, 50, 11], [652, 34, 8], [742, 40, 9], [60, 30, 7]]) flatCloud(L, x, 80, w, h, FAR, q);
+    for (const [x, w, h] of [[10, 22, 5], [104, 28, 6], [190, 18, 4], [258, 26, 6], [352, 20, 5], [436, 28, 6], [548, 18, 4], [610, 26, 6], [704, 22, 5]]) flatCloud(L, x, 88, w, h, FAR, q);
     return L;
   }
 
   // ===================== sea =====================
-  const SEA = CS(['#2456c2', '#2864cc', '#2c74d6', '#3086de', '#3498e2', '#38aae2', '#3ebade', '#4ac8d8', '#5cd4d0', '#74e0cc', '#92ead0']);
+  const SEA = CS(['#2456c2', '#2864cc', '#2c74d6', '#3086de', '#3498e2', '#38aae2', '#3ebade', '#4ac8d8']);
   const GL = C('#f6ffff'), GL2 = C('#b4e6fc');
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
   // rows of water, given as a string of ramp digits (line-interleaved gradient = no shimmer when scrolling)
-  function water(L, y, seq) {
-    for (const ch of seq) { L.row(0, L.w - 1, y++, SEA[parseInt(ch, 36)]); if (y >= L.h) break; }
+  function water(L, y, seq, pal) {
+    for (const ch of seq) { L.row(0, L.w - 1, y++, (pal || SEA)[parseInt(ch, 36)]); if (y >= L.h) break; }
     return y;
   }
+  // one row of horizontal glints: a dash of lmin..lmax px somewhere in every `cell` px, `skip` = chance of none
   function dashRow(L, rnd, y, cell, lmin, lmax, skip, core, tip) {
-    const n = Math.round(L.w / cell), cw = L.w / n;
+    const n = Math.max(1, Math.round(L.w / cell)), cw = L.w / n;
     for (let i = 0; i < n; i++) {
       const len = lmin + Math.floor(rnd() * (lmax - lmin + 1)), x = Math.floor(i * cw + rnd() * Math.max(1, cw - len - 1));
       if (rnd() < skip) continue;
@@ -2026,6 +2196,7 @@ G.defineArt('bg', G => {
 
   // Faceted mountain: ridge polyline [x, y, 'p'|'v'?]; 'p' peaks grow a zig-zag spine,
   // 'v' valleys a gully. Left of a spine = lit face, right of it (up to the gully) = shade.
+  // o.snow: height above which the summit is capped with the pale pal.snow / pal.snowSh.
   function zig(x, y0, y1, pat) {
     const out = new Float32Array(Math.max(1, y1 - y0 + 1));
     let k = 0, left = pat[0][0];
@@ -2036,6 +2207,7 @@ G.defineArt('bg', G => {
     }
     return out;
   }
+  const JAG = [0, 2, 4, 1, 3, 6, 2, 0, 3, 5, 1, 4];
   function mountain(L, base, ptsUp, pal, o) {
     o = o || {};
     const pts = ptsUp.map(p => [p[0], base - p[1], p[2]]);
@@ -2051,9 +2223,9 @@ G.defineArt('bg', G => {
       if (p[2] === 'v') div.push({ k: 'G', y0: p[1], x: zig(p[0] + 0.5, p[1], base, o.gully || [[5, -0.6], [2, 0.3]]) });
     }
     for (let i = 0; i < div.length - 1; i++) {
-      const s = div[i], g = div[i + 1];
-      if (s.k !== 'S' || g.k !== 'G') continue;
-      for (let y = g.y0; y < base; y++) if (s.x[y - s.y0] >= g.x[y - g.y0]) { s.y1 = g.y1 = y; break; }
+      const sp = div[i], g = div[i + 1];
+      if (sp.k !== 'S' || g.k !== 'G') continue;
+      for (let y = g.y0; y < base; y++) if (sp.x[y - sp.y0] >= g.x[y - g.y0]) { sp.y1 = g.y1 = y; break; }
     }
     for (let x = xa; x <= xb; x++) for (let y = top[x - xa]; y < base; y++) {
       let best = -1e9, kind = 'G', d = 1e9;
@@ -2064,108 +2236,167 @@ G.defineArt('bg', G => {
         if (dv.k === 'S' && px > x + 0.5) d = Math.min(d, px - x);
       }
       // lit faces: brightest right beside their spine, mid tone further down the slope
-      let c = kind === 'S' ? pal.shade : d < 3 + (y - top[x - xa]) * 0.35 || !pal.mid ? pal.lit : pal.mid;
-      if (pal.haze && (base - y <= 2 || (base - y <= 4 && d2(x, y) < 0.5))) c = pal.haze;
+      const shade = kind === 'S', up = base - y;
+      let c = shade ? pal.shade : d < 3 + (y - top[x - xa]) * 0.35 || !pal.mid ? pal.lit : pal.mid;
+      if (o.snow && up > o.snow + JAG[((x * 5) % 12 + 12) % 12] * (shade ? 0.5 : 1) + (shade ? 4 : 0)) c = shade ? pal.snowSh : pal.snow;
+      if (pal.haze && (up <= 2 || (up <= 4 && d2(x, y) < 0.5))) c = pal.haze;
       L.set(x, y, c);
     }
   }
 
-  const HZ = 40; // horizon row inside the far-sea layer
+  const HZ = 56; // horizon row inside the far-sea layer
   function makeSeaFar() {
-    const L = layer(640, 150);
+    const L = layer(640, 166);
     const rnd = rng(11);
     // islands (drawn first; the sea covers their feet)
-    const far = { lit: C('#c6dcf4'), shade: C('#b2cdf0'), haze: C('#d8e9f6') };
-    const mid = { lit: C('#b4cff2'), mid: C('#a2c0ec'), shade: C('#88a8e2'), haze: C('#c6dbf4') };
-    mountain(L, HZ, [[262, 0], [276, 3], [290, 7, 'p'], [300, 5, 'v'], [312, 9, 'p'], [330, 4], [348, 0]], far);
-    mountain(L, HZ, [[536, 0], [548, 5], [556, 11, 'p'], [574, 10], [584, 8, 'v'], [592, 12, 'p'], [606, 5], [626, 0]], far);
-    mountain(L, HZ, [[60, 0], [74, 3], [92, 8], [104, 16], [112, 26], [118, 30], [124, 36, 'p'], [128, 31], [134, 27, 'v'], [142, 30, 'p'], [150, 22], [158, 18, 'v'], [166, 20, 'p'], [178, 12], [196, 7], [214, 3], [230, 0]], mid);
-    mountain(L, HZ, [[392, 0], [404, 6], [412, 14], [420, 22, 'p'], [426, 16, 'v'], [434, 19, 'p'], [444, 10], [458, 5], [478, 0]], mid);
-    mountain(L, HZ, [[504, 0], [508, 4, 'p'], [514, 0]], mid);
-    // a ring of mist round the big peak
-    puffs(L, [[104, HZ - 15, 13, 3], [124, HZ - 18, 15, 3], [146, HZ - 16, 12, 2.5], [164, HZ - 13, 9, 2]], { tones: CS(['#fbfcf2', '#dfeaf6']), thr: [0.2], blob: 3 });
+    const far = { lit: C('#c9def6'), shade: C('#b3cdf0'), haze: C('#dcebf6') };
+    const mid = { lit: C('#aecbf0'), mid: C('#9bbcea'), shade: C('#82a2df'), haze: C('#c6dcf4'), snow: C('#f8f9ee'), snowSh: C('#bfd4f5') };
+    // two tiny islets on the horizon, a long twin-humped island...
+    mountain(L, HZ, [[4, 0], [14, 3], [22, 6, 'p'], [30, 4, 'v'], [38, 5, 'p'], [50, 2], [60, 0]], far);
+    mountain(L, HZ, [[292, 0], [302, 2], [310, 5, 'p'], [322, 2], [330, 0]], far);
+    mountain(L, HZ, [[356, 0], [372, 4], [388, 10], [400, 17], [408, 22, 'p'], [416, 19], [424, 16, 'v'], [436, 20], [446, 25], [452, 27, 'p'], [460, 22], [470, 15, 'v'], [480, 16, 'p'], [494, 9], [512, 4], [534, 0]], far, { spine: [[5, 0.5], [3, -0.3]] });
+    // ...and the old volcano: long concave slopes, a notched crater, a sunlit snow cap
+    mountain(L, HZ, [[70, 0], [92, 3], [112, 7], [128, 12], [140, 18, 'p'], [146, 19], [152, 22, 'v'], [160, 30], [166, 38], [171, 46], [175, 52, 'p'], [179, 49], [182, 50, 'v'], [186, 53, 'p'], [191, 47], [197, 38], [205, 29], [214, 22, 'v'], [222, 21, 'p'], [234, 14], [250, 8], [270, 3], [288, 0]], mid, { snow: 37 });
+    // a ring of mist round its shoulders
+    puffs(L, [[138, HZ - 23, 14, 3], [160, HZ - 26, 17, 3.5], [186, HZ - 25, 15, 3], [208, HZ - 22, 12, 2.5], [224, HZ - 19, 8, 2]], { tones: CS(['#fbfcf2', '#dfeaf6']), thr: [0.2], blob: 3 });
     // water
     let y = HZ;
     L.row(0, L.w - 1, y, C('#5a92e0'));
     dashRow(L, rnd, y, 16, 5, 13, 0.25, C('#c4e6f8'));
     y = water(L, y + 1, '1100000001001011011121121222232232333');
     while (y < L.h) L.row(0, L.w - 1, y++, SEA[3]);
-    for (let r = 2; r <= 18; r++) dashRow(L, rnd, HZ + r, r < 8 ? 20 : 34, 1, r < 8 ? 3 : 5, r < 8 ? 0.35 : 0.5, r % 3 ? GL : GL2, GL2);
+    // horizon glitter: a bright band of short dashes right under the horizon, thinning out below
+    for (const [r, cell, lmin, lmax, skip] of [[1, 8, 2, 4, 0.3], [2, 9, 2, 4, 0.3], [3, 10, 2, 4, 0.4], [4, 13, 2, 4, 0.45], [5, 17, 2, 3, 0.5], [6, 24, 2, 3, 0.5], [7, 34, 2, 3, 0.5], [9, 52, 2, 3, 0.5], [11, 80, 2, 3, 0.5], [14, 128, 2, 2, 0.5]])
+      dashRow(L, rnd, HZ + r, cell, lmin, lmax, skip, r <= 3 || r === 6 ? GL : GL2, GL2);
     return L;
   }
 
   function makeSeaNear() {
-    const L = layer(384, 100);
+    const L = layer(384, 96);
     const rnd = rng(23);
-    let y = 0;
     dashRow(L, rnd, 0, 12, 4, 9, 0.2, SEA[3]);
     L.row(0, L.w - 1, 2, SEA[3]);
     dashRow(L, rnd, 1, 12, 5, 10, 0.1, SEA[3]);
-    y = water(L, 3, '3334334344344454454555655656667667777');
+    let y = water(L, 3, '3343444545556566676777');
     while (y < L.h) L.row(0, L.w - 1, y++, SEA[7]);
-    for (let r = 2; r <= 30; r += 2) dashRow(L, rnd, r + (r % 4 ? 1 : 0), 40, 2, 7, 0.45, r % 3 ? GL : GL2, GL2);
+    // sparser, longer glints than out at the horizon
+    for (const [r, cell, lmin, lmax, c] of [[3, 64, 3, 5, GL2], [6, 96, 3, 6, GL], [9, 80, 4, 7, GL2], [12, 128, 4, 8, GL], [15, 96, 5, 9, GL2], [19, 128, 6, 10, GL], [23, 128, 6, 12, GL2]])
+      dashRow(L, rnd, r, cell, lmin, lmax, 0.35, c, c === GL ? GL2 : null);
     return L;
   }
 
-  // ===================== mid headlands + lagoon =====================
-  const WL = 64; // waterline row inside the headland layer
-  const GRASS = { tones: CS(['#bfeba4', '#8cd79e', '#60bf98', '#44a792', '#358e8e']), thr: [0.9, 0.52, 0.12, -0.3], grad: [0.22, -0.5], gx: 0.15, dith: [0.08, 0.1, 0.1, 0.1] };
-  const WOOD = { tones: CS(['#98dc94', '#60c08c', '#3ea486', '#308882', '#28707c']), thr: [0.9, 0.5, 0.0, -0.5], grad: [0.15, -0.35], flat: 1.6, blob: 4 };
-  const ROCK = CS(['#f8f0dc', '#e2d6d0', '#bcb2c8', '#978fb6', '#7872a2']);
-  const FOAM = C('#f8ffff'), FOAM2 = C('#c6ecf8'), FOAM3 = C('#94d6f2');
-  const SAND = C('#f6eebc'), SAND2 = C('#dccf9e');
-  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
-
-  // Rock face. pts: silhouette [x, up] (up = height above the waterline row `base`).
-  // o.folds: fold lines [[x, up], ...] running top -> bottom; they split the face into
-  // planes toned by o.tones (lit / shade alternating). A ridge (lit plane meeting a darker
-  // one) catches a highlight, a crease gets a dark crack. o.strata: [[up, xa, xb]] bedding
-  // lines, o.cracks: [[x, upTop, upBottom]], o.cap: rows of shade under overhanging growth.
-  function cliff(L, base, pts, o) {
-    const rows = polyRows(pts.map(p => [p[0], base - p[1]])), topY = {};
-    for (const [y, x0, x1] of rows) for (let x = x0; x <= x1; x++) if (topY[x] == null) topY[x] = y;
-    const fx = (fl, y) => {
-      const up = base - y;
-      if (up >= fl[0][1]) return fl[0][0];
-      for (let i = 0; i < fl.length - 1; i++) {
-        const p = fl[i], q = fl[i + 1];
-        if (up <= p[1] && up >= q[1]) return p[0] + ((p[1] - up) / Math.max(1e-6, p[1] - q[1])) * (q[0] - p[0]);
-      }
-      return fl[fl.length - 1][0];
-    };
-    const plane = (x, y) => { let p = 0; for (const fl of o.folds) if (fx(fl, y) <= x) p++; return p; };
-    const darker = (x, y, n) => { const i = ROCK.indexOf(L.get(x, y)); if (i >= 0) L.set(x, y, ROCK[Math.min(4, i + n)]); };
-    for (const [y, x0, x1] of rows) for (let x = x0; x <= x1; x++) {
-      const p = plane(x, y), pn = x < x1 ? plane(x + 1, y) : p;
-      let t = o.tones[p];
-      const capped = y - topY[x] < (o.cap || 0);
-      if (pn !== p) t += o.tones[pn] > t ? -1 : 1;
-      else if (x === x0 && t <= 2 && !capped) t--;
-      if (capped) t++;
-      if (base - y <= 2) t++;
-      L.set(x, y, ROCK[clamp(t, 0, 4)]);
+  // The lagoon: bands that deepen toward the viewer. Water only, so it line-scrolls (raster).
+  function makeLagoon() {
+    const L = layer(512, 96), rnd = rng(41);
+    const LG = CS(['#84e6d0', '#62d6cf', '#46c4cc', '#32b0c5', '#259cbb', '#1f8ab0']);
+    const flats = [4, 5, 6, 8, 10, 99], TRN = [1, 0, 0, 1, 1, 0];
+    const broken = (y, on, off, c) => { for (let x = Math.floor(rnd() * 16); x < L.w;) { x += off[0] + Math.floor(rnd() * off[1]); const n = on[0] + Math.floor(rnd() * on[1]); L.row(x, Math.min(L.w - 1, x + n - 1), y, c); x += n; } };
+    let y = 0;
+    for (let i = 0; i < LG.length && y < L.h; i++) {
+      for (let k = 0; k < flats[i] && y < L.h; k++) L.row(0, L.w - 1, y++, LG[i]);
+      if (i === LG.length - 1) break;
+      // transition: full lines of the two tones interleaved; its first and last line broken into long dashes
+      TRN.forEach((b, k) => {
+        if (y >= L.h) return;
+        if (k === 0) { L.row(0, L.w - 1, y, LG[i]); broken(y, [14, 22], [5, 9], LG[i + 1]); }
+        else if (k === TRN.length - 1) { L.row(0, L.w - 1, y, LG[i + 1]); broken(y, [14, 22], [5, 9], LG[i]); }
+        else L.row(0, L.w - 1, y, LG[i + b]);
+        y++;
+      });
     }
-    for (const [up, xa, xb] of o.strata || []) for (let x = xa; x <= xb; x++) darker(x, base - up, 1);
-    for (const h of o.holes || []) {
-      // see-through arch [x, w, height]: rounded opening, its left + top inner wall in shade
-      const [hx, hw, hh] = h, r = hw / 2;
-      const inside = (x, up, k) => { const dx = x + 0.5 - (hx + r + k), top = hh - r - k; return up >= 0 && Math.abs(dx) <= r && (up <= top || dx * dx + (up - top) * (up - top) <= r * r); };
-      for (let up = 0; up <= hh + 1; up++) for (let x = hx - 3; x <= hx + hw + 3; x++) {
-        if (inside(x, up + 0.5, 0)) L.set(x, base - 1 - up, inside(x, up + 2.5, 2) ? 0 : ROCK[4]);
-      }
+    // the reef line where the open sea meets the lagoon
+    dashRow(L, rnd, 0, 14, 6, 12, 0.2, C('#d6f8f2'));
+    // glints: short and close together far out, longer and sparser toward the viewer
+    const toneAt = r => LG.indexOf(L.get(0, r));
+    for (let r = 2; r < 84; r += r < 12 ? 1 : r < 40 ? 2 : 3) {
+      const len = 2 + r * 0.17, i = Math.max(0, toneAt(r));
+      const white = rnd() < 0.4;
+      dashRow(L, rnd, r, 30 + r * 2.4, Math.round(len), Math.round(len * 1.8), 0.4, white ? GL : LG[Math.max(0, i - 1)] === LG[i] ? GL : LG[Math.max(0, i - 1)], white ? C('#c8f6ee') : null);
     }
-    for (const [x, ua, ub] of o.cracks || []) for (let up = ub; up <= ua; up++) darker(x, base - up, 2);
+    return L;
   }
-  // Waterfall: long white streaks between paler edges, a lip on top, mist at its foot.
-  const FPH = [0, 7, 3, 10, 5, 1, 8, 4];
-  function falls(L, x, y0, y1, w, mist) {
-    for (let i = 0; i < w; i++) for (let y = y0; y < y1; y++) {
-      const edge = i === 0 || i === w - 1, ph = (y - y0 + FPH[i % 8]) % 12;
-      L.set(x + i, y, edge ? (ph < 7 ? FOAM2 : FOAM3) : ph < 9 ? FOAM : FOAM2);
+
+  // ===================== mid headlands =====================
+  const WL = 64; // waterline row inside the island layer (the lagoon layer starts on the same screen row)
+  const GRASS = { tones: CS(['#bfeba4', '#8cd79e', '#60bf98', '#44a792', '#358e8e']), thr: [0.93, 0.6, 0.25, -0.1], grad: [0.08, -0.16], light: [-0.6, -0.6, 0.35], band: 1, blob: 10 };
+  const WOOD = { tones: CS(['#98dc94', '#60c08c', '#3ea486', '#308882', '#28707c']), thr: [0.9, 0.5, 0.0, -0.5], grad: [0.15, -0.35], flat: 1.6, blob: 4 };
+  const ROCK = CS(['#f8f0dc', '#e2d6d0', '#c2b7ca', '#9d94b8', '#7b76a4', '#5f6194']);
+  const FALL = CS(['#f8ffff', '#c6ecf8', '#94d6f2', '#6cb6e6']);
+  const SAND = C('#f6eebc'), SAND2 = C('#dccf9e');
+
+  // Faceted rock is built from slabs: a lit top plane, a lighter left bevel, the face, a darker
+  // right bevel and a crack line underneath. `recess` flips the bevels (an alcove: its left
+  // wall in shade, its right wall catching the light).
+  function slab(L, x0, x1, y0, y1, t, cap, recess, crack) {
+    const w = x1 - x0 + 1, bl = w >= 9 ? 2 : 1, br = w >= 7 ? 2 : 1, ch = !recess && w >= 8 && y1 - y0 >= 7 ? Math.min(4, 2 + ((x0 + y0) % 3)) : 0;
+    for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+      const i = x - x0, j = y - y0;
+      let c = t;
+      if (recess) c = i < bl ? t + 1 : i >= w - br ? t - 1 : t;
+      else {
+        if (j === 0 && (i === 0 || i === w - 1)) continue; // chipped corners
+        if (j < cap) c = i >= w - br ? t - 1 : t - 2;
+        else if (i < bl) c = t - 1;
+        else if (i >= w - br) c = t + 1;
+        if (ch && i + j < ch + 1) c = t - 2;                                  // lit facet, top left
+        else if (ch && w - 1 - i + (y1 - y) < ch) c = t + 2;                  // shaded facet, bottom right
+        else if (crack && y === y1) c = Math.max(c, t) + 1;
+      }
+      L.set(x, y, ROCK[clamp(c, 0, 5)]);
     }
-    L.row(x - 1, x + w, y0, FOAM); L.row(x, x + w - 1, y0 + 1, FOAM);
-    L.col(x + w, y0 + 1, y1 - 1, ROCK[4]);
-    if (mist) puffs(L, mist.map(m => [x + m[0], y1 - m[1], m[2]]), { tones: [FOAM, FOAM2], thr: [-0.3], grad: [0.3, -0.3], blob: 3 });
+  }
+  // A column of jittered slabs between x0..x1, rising `up` px above the waterline
+  // (o.from = height of its foot, o.recess = alcove).
+  function rockCol(L, q, x0, x1, up, t, o) {
+    o = o || {};
+    const bottom = WL - (o.from || 0);
+    let y = WL - up, first = true;
+    for (let x = x0; x <= x1; x++) L.col(x, y + 1, bottom - 1, ROCK[4]);
+    while (y < bottom) {
+      let h = 5 + Math.floor(q() * 11);
+      if (bottom - (y + h) < 5) h = bottom - y;
+      const jit = first || o.recess ? 0 : 1;
+      const a = x0 + jit * Math.round((q() - 0.5) * 3), b = x1 + jit * Math.round((q() - 0.5) * 3);
+      const last = y + h >= bottom, tt = t + (jit && q() < 0.3 ? 1 : 0), cap = first ? 2 : 1;
+      if (!o.recess && b - a >= 11 && q() < 0.45) {
+        const m = a + 4 + Math.floor(q() * (b - a - 8));
+        slab(L, a, m, y, y + h - 1, tt, cap, false, !last);
+        slab(L, m + 1, b, y + (first && q() < 0.5 ? 1 : 0), y + h - 1, tt + 1, cap, false, !last);
+      } else slab(L, a, b, y, y + h - 1, tt, cap, o.recess, !last);
+      y += h; first = false;
+    }
+  }
+  // Waterfall: streaked white water between paler edges, w0 px wide at the lip and w1 at its
+  // foot, with layered foam and a dithered halo of mist over the rock and the lagoon.
+  function falls(L, x, up, w0, w1) {
+    const y0 = WL - up, c2 = x * 2 + w0 - 1;
+    for (let y = y0; y < WL; y++) {
+      const f = (y - y0) / Math.max(1, WL - 1 - y0), w = Math.round(w0 + (w1 - w0) * Math.pow(f, 0.75)), xa = (c2 - w + 1) >> 1;
+      for (let i = 0; i < w; i++) {
+        const X = xa + i, ph = (y + ((X * 7) % 13) * 3) % 13;
+        let c = ph < 8 ? FALL[0] : FALL[1];
+        if (w > 2 && i === 0) c = ph < 6 ? FALL[1] : FALL[2];
+        else if (w > 2 && i === w - 1) c = ph < 5 ? FALL[2] : FALL[3];
+        else if (w > 4 && i === w - 2) c = ph < 8 ? FALL[1] : FALL[2];
+        L.set(X, y, c);
+      }
+    }
+    L.row(x - 1, x + w0, y0, FALL[0]);
+    L.row(x, x + w0 - 1, y0 - 1, FALL[1]);
+    // mist halo
+    const cx = c2 / 2, rx = w1 / 2 + 11;
+    for (let y = WL - 11; y <= WL + 5; y++) for (let X = Math.floor(cx - rx); X <= Math.ceil(cx + rx); X++) {
+      const dx = (X + 0.5 - cx) / rx, dy = (y + 0.5 - (WL - 1)) / (y < WL ? 10 : 6), e = dx * dx + dy * dy;
+      if (e < 1 && (1 - e) * 0.62 > d4(X, y)) L.set(X, y, y < WL ? FALL[1] : FALL[0]);
+    }
+    // foam piled at its foot, ripples running out over the water
+    const hw = w1 / 2;
+    puffs(L, [[cx - hw - 3, WL - 1, 3, 2.5], [cx + hw + 3, WL - 1, 3.5, 2.5], [cx - hw * 0.5 - 1, WL - 4, 2.6], [cx + hw * 0.5 + 2, WL - 3.5, 2.4], [cx, WL - 1.5, hw + 2.5, 3.6]],
+      { tones: [FALL[0], FALL[1], FALL[2]], thr: [0.3, -0.45], clip: WL + 1, blob: 3 });
+    L.row(Math.round(cx - hw - 4), Math.round(cx + hw + 4), WL, FALL[0]);
+    L.row(Math.round(cx - hw - 7), Math.round(cx - hw - 6), WL, FALL[0]); L.row(Math.round(cx + hw + 6), Math.round(cx + hw + 8), WL, FALL[0]);
+    L.row(Math.round(cx - hw - 2), Math.round(cx - 1), WL + 1, FALL[1]); L.row(Math.round(cx + 2), Math.round(cx + hw + 5), WL + 1, FALL[1]);
+    L.row(Math.round(cx - hw - 6), Math.round(cx - hw - 4), WL + 2, FALL[1]); L.row(Math.round(cx + 1), Math.round(cx + 4), WL + 3, FALL[1]);
   }
   // Tiny far palms (a = lit frond, b = frond, t = trunk, c = lit trunk)
   const PALM_S = [
@@ -2190,9 +2421,9 @@ G.defineArt('bg', G => {
     L.col(cx, y + 2, y + 3, ROCK[4]);
   }
 
-  function makeHills() {
-    const L = layer(1024, 152);
-    const rnd = rng(31);
+  function makeIsles() {
+    const L = layer(1024, WL + 24);
+    const rnd = rng(31), rq = rng(5);
     const PM = { a: WOOD.tones[0], b: WOOD.tones[2], c: C('#a09cb0'), t: C('#74709a') };
     let ox = 0;
     // rolling mound: upper cap of an ellipse [x, sink, rx, ry] (centre `sink` px under water)
@@ -2213,29 +2444,23 @@ G.defineArt('bg', G => {
     const palmS = (x, up, k, flip) => stamp(L, ox + x - (flip ? PALM_S[k][0].length - 1 - 6 : 6), WL - up - PALM_S[k].length + 1, PALM_S[k], PM, flip);
     const boulders = list => puffs(L, list.map(p => [ox + p[0], WL - p[1], p[2], p[3]]), { tones: [ROCK[1], ROCK[2], ROCK[3]], thr: [0.55, -0.1], clip: WL, blob: 3 });
     const vines = list => { for (const [x, up, n] of list) L.col(ox + x, WL - up, WL - up + n - 1, WOOD.tones[3]); };
-    const rockface = (pts, o) => cliff(L, WL, pts.map(p => [ox + p[0], p[1]]), Object.assign({}, o, {
-      folds: o.folds.map(fl => fl.map(p => [ox + p[0], p[1]])), strata: (o.strata || []).map(q => [q[0], ox + q[1], ox + q[2]]),
-      cracks: (o.cracks || []).map(q => [ox + q[0], q[1], q[2]]), holes: (o.holes || []).map(q => [ox + q[0], q[1], q[2]]) }));
-    const fall = (x, up, w, mist) => falls(L, ox + x, WL - up, WL, w, mist);
+    const col = (x0, x1, up, t, o) => rockCol(L, rq, ox + x0, ox + x1, up, t, o);
+    const fallsAt = [];
+    const fall = (x, up, w0, w1) => fallsAt.push([ox + x, up, w0, w1]);
 
     // ---- headland A: table mountain with the twin falls ----
     ox = 50;
     spit(20, 26, 4);
     hill([150, 30, 76, 68], [56, 12, 40, 28], [88, 16, 40, 40]);
     grove(60, 17, 3, 4, 1.5, 1); grove(78, 23, 3, 5, 1, 21);
-    rockface([[100, 0], [101, 9], [104, 11], [105, 24], [107, 26], [108, 38], [110, 41], [113, 44], [124, 45], [136, 44], [150, 46], [158, 44], [160, 41], [161, 30], [164, 28], [178, 28], [181, 26], [182, 14], [185, 11], [186, 0]], {
-      folds: [[[120, 46], [120, 30], [121, 28], [121, 12], [122, 10], [122, 0]], [[127, 46], [127, 0]], [[151, 46], [151, 32], [152, 30], [152, 16], [154, 14], [154, 0]],
-        [[161, 46], [161, 30], [160, 28], [160, 14], [162, 12], [162, 0]], [[174, 28], [174, 14], [176, 12], [176, 0]]],
-      tones: [1, 3, 1, 3, 2, 4], cap: 3,
-      strata: [[30, 106, 118], [29, 136, 149], [14, 103, 119], [13, 135, 152], [12, 163, 173], [21, 141, 150], [36, 109, 114]],
-      cracks: [[112, 41, 37], [143, 20, 15], [110, 8, 3], [146, 43, 38], [168, 24, 18], [115, 24, 17]],
-    });
-    fall(128, 45, 6, [[-4, 1, 3], [3, 2, 4], [9, 1, 3], [-1, 4, 2], [6, 5, 3], [2, 6, 2]]);
-    fall(166, 28, 3, [[-2, 1, 2], [2, 2, 3], [5, 1, 2]]);
-    vines([[106, 37, 4], [116, 43, 6], [139, 43, 5], [147, 44, 3], [156, 42, 6], [171, 27, 4]]);
-    grove(124, 52, 4, 5, 0.5, 3); grove(111, 46, 3, 5, 1, 4); grove(137, 47, 4, 5, 0.3, 5); grove(162, 29, 3, 3, 0, 6);
+    col(108, 121, 42, 1); col(120, 128, 45, 2); col(128, 135, 43, 4, { recess: 1 }); col(135, 150, 46, 2); col(149, 161, 44, 3);
+    col(160, 171, 28, 2); col(167, 170, 27, 4, { recess: 1 }); col(171, 181, 29, 3); col(180, 186, 13, 3);
+    col(104, 114, 25, 1); col(100, 110, 10, 1); col(138, 147, 8, 1); col(152, 159, 5, 2);
+    fall(129, 43, 5, 7); fall(168, 27, 2, 4);
+    vines([[111, 40, 5], [117, 42, 6], [139, 45, 5], [146, 46, 3], [156, 43, 6], [174, 28, 4]]);
+    grove(124, 52, 4, 5, 0.5, 3); grove(111, 46, 3, 5, 1, 4); grove(137, 49, 4, 5, 0.3, 5); grove(160, 30, 2, 3, 0, 6); grove(172, 31, 2, 3, 0, 7);
     palmS(118, 53, 1); palmS(150, 53, 0, true);
-    boulders([[98, 1, 3], [118, 0, 3], [140, 1, 4, 3], [158, 1, 3], [189, 0, 3]]);
+    boulders([[98, 1, 3], [189, 0, 3]]);
     hill([214, 14, 38, 38], [246, 12, 36, 26]);
     spit(280, 24, 4);
     grove(204, 22, 3, 5, 0.5, 8); grove(236, 15, 3, 4, -1, 22);
@@ -2259,141 +2484,218 @@ G.defineArt('bg', G => {
 
     // ---- sea stacks + the arch ----
     ox = 0;
-    rockface([[745, 0], [746, 8], [749, 12], [749, 26], [752, 30], [760, 31], [763, 26], [764, 12], [767, 9], [768, 0]], { folds: [[[757, 31], [757, 14], [759, 12], [759, 0]]], tones: [1, 3], strata: [[14, 750, 756], [22, 750, 756]] });
-    rockface([[771, 0], [772, 10], [774, 15], [780, 16], [783, 11], [784, 0]], { folds: [[[779, 16], [779, 0]]], tones: [1, 3], strata: [[8, 773, 778]] });
+    col(749, 756, 30, 1); col(756, 763, 27, 3); col(745, 752, 10, 1); col(761, 768, 11, 3);
+    col(772, 778, 16, 1); col(778, 784, 12, 3);
     grove(753, 31, 2, 3, 0, 12);
     boulders([[742, 0, 3], [769, 1, 3], [786, 0, 2]]);
-    rockface([[800, 0], [801, 8], [804, 12], [805, 19], [809, 23], [822, 26], [836, 25], [842, 21], [844, 12], [847, 9], [848, 0]], {
-      folds: [[[812, 27], [812, 16], [814, 14], [814, 0]], [[817, 27], [817, 0]], [[836, 27], [836, 12], [838, 10], [838, 0]]],
-      tones: [1, 3, 1, 3], strata: [[18, 806, 811], [19, 820, 834], [9, 802, 812]], holes: [[819, 14, 15]],
-    });
-    grove(810, 25, 4, 3, 0.3, 32); palmS(828, 26, 1);
+    col(804, 818, 23, 1); col(832, 844, 22, 3); col(812, 838, 27, 2, { from: 15 }); col(800, 808, 9, 1); col(842, 848, 10, 3);
+    L.row(819, 831, WL - 16, ROCK[5]); L.row(819, 820, WL - 15, ROCK[4]); L.set(819, WL - 14, ROCK[4]); L.row(830, 831, WL - 15, ROCK[4]); L.set(831, WL - 14, ROCK[3]);
+    grove(810, 26, 4, 3, 0.3, 32); palmS(828, 27, 1);
     boulders([[798, 0, 3], [850, 0, 3]]);
 
     // ---- headland D: the green bluff ----
     ox = 16;
     spit(858, 20, 3);
     hill([940, 28, 74, 76], [886, 12, 36, 28]);
-    rockface([[910, 0], [911, 9], [915, 12], [916, 24], [920, 27], [922, 34], [944, 39], [948, 36], [949, 20], [953, 17], [954, 0]], {
-      folds: [[[928, 40], [928, 26], [929, 24], [929, 0]], [[933, 40], [933, 0]], [[944, 40], [944, 22], [946, 20], [946, 0]]],
-      tones: [1, 3, 1, 3], cap: 3, strata: [[24, 917, 927], [12, 912, 928], [22, 939, 943], [11, 940, 945]], cracks: [[922, 30, 26], [940, 34, 29]],
-    });
-    fall(934, 37, 4, [[-3, 1, 3], [2, 2, 3], [6, 1, 2], [1, 4, 2]]);
-    vines([[918, 28, 4], [925, 35, 5], [941, 38, 4], [947, 36, 3]]);
+    col(916, 928, 34, 1); col(927, 933, 38, 2); col(933, 938, 37, 4, { recess: 1 }); col(938, 949, 39, 2); col(948, 954, 19, 3); col(910, 920, 12, 1); col(941, 947, 7, 1);
+    fall(934, 37, 3, 5);
+    vines([[919, 32, 4], [925, 33, 5], [941, 38, 4], [946, 38, 3]]);
     grove(916, 37, 3, 5, 1.5, 13); grove(938, 42, 5, 5, 0.5, 14);
     hill([988, 16, 40, 36]);
     grove(970, 30, 3, 5, -2, 15);
     palmS(960, 47, 0); palmS(856, 3, 1); palmS(866, 2, 0, true); palmS(1004, 14, 0, true); palmS(882, 14, 1);
-    boulders([[908, 0, 3], [930, 1, 3], [955, 0, 3]]);
+    boulders([[908, 0, 3], [955, 0, 3]]);
     ox = 0;
 
-    // ---- beaches: pale sand where grass meets the water ----
+    // ---- beaches: pale sand where grass meets the water; rock goes dark and wet ----
     const grassy = new Set(GRASS.tones.concat(WOOD.tones));
     for (let x = 0; x < L.w; x++) {
       const c = L.get(x, WL - 1);
       if (grassy.has(c)) { L.set(x, WL - 1, SAND); if (grassy.has(L.get(x, WL - 2)) && (x * 7) % 11 < 7) L.set(x, WL - 2, SAND2); }
+      for (let y = WL - 2; y < WL; y++) { const i = ROCK.indexOf(L.get(x, y)); if (i >= 0) L.set(x, y, ROCK[Math.min(5, i + 1)]); }
     }
-    // ---- lagoon ----
-    const land = new Uint8Array(L.w);
-    for (let x = 0; x < L.w; x++) { const c = L.get(x, WL - 1); land[x] = !c ? 0 : c === SAND || c === SAND2 ? 1 : c === FOAM || c === FOAM2 ? 3 : 2; }
-    let y = water(L, WL, '7778778788788898898999a99a9aaa');
-    while (y < L.h) L.row(0, L.w - 1, y++, SEA[10]);
-    // reef line where the open sea meets the lagoon, reflections under the land
-    const REFL = [0, C('#42b4b0'), C('#7f9cc4'), C('#d6f6f6')];
-    for (let r = 0; r < 5; r++) {
-      let on = 0, n = 0;
+    // ---- reflections: the land mirrored into the lagoon, breaking up into ripples ----
+    const RF = new Map(), RG = CS(['#66d2b6', '#4cbeaa']), RR = CS(['#b6d6de', '#90b4ce']);
+    GRASS.tones.concat(WOOD.tones).forEach((c, i) => RF.set(c, RG[i % 5 < 2 ? 0 : 1]));
+    ROCK.forEach((c, i) => RF.set(c, RR[i < 3 ? 0 : 1]));
+    RF.set(SAND, C('#ccf4de')); RF.set(SAND2, C('#ccf4de')); RF.set(C('#fff8d2'), C('#ccf4de'));
+    FALL.forEach(c => RF.set(c, C('#eafdfb')));
+    for (let r = 0; r < 15; r++) {
+      const wob = r % 4 === 1 ? 1 : r % 4 === 3 ? -1 : 0;
+      let on = false, n = 0;
       for (let x = 0; x < L.w; x++) {
-        if (n-- <= 0) { on = rnd() < 0.86 - r * 0.2; n = on ? 3 + Math.floor(rnd() * 8) : 1 + Math.floor(rnd() * (2 + r * 2)); }
-        if (land[x] && on) L.set(x, WL + r, REFL[land[x]]);
+        if (n-- <= 0) { on = !on; n = on ? 3 + Math.floor(rnd() * Math.max(2, 9 - r * 0.5)) : Math.floor(rnd() * (1.5 + r * 0.6)); }
+        const c = RF.get(L.get(x + wob, WL - 1 - Math.floor(r * 1.5)));
+        if (c && (r < 2 || on)) L.set(x, WL + r, c);
       }
     }
-    for (let x = 0; x < L.w; x++) if (!land[x] && (x * 5) % 23 < 15) L.set(x, WL, C('#bfeef0'));
-    for (let r = 4; r <= 44; r += 3) dashRow(L, rnd, WL + r + (r & 1), 60, 3, 9, 0.4, GL, C('#c8f6ee'));
+    for (const f of fallsAt) falls(L, f[0], f[1], f[2], f[3]);
     return L;
   }
 
   // ===================== near jungle =====================
-  // Palm: curved trunk rising h px from (x, y), crown of arching fronds with hanging leaflets.
-  function palm(L, x, y, h, lean, R, c) {
-    for (let i = 0; i <= h; i++) {
-      const t = i / h, px = Math.round(x + lean * t * t), wd = t < 0.35 ? 3 : 2;
-      for (let k = 0; k < wd; k++) L.set(px + k, y - i, k === 0 ? c.trunkLit : i % 4 === 0 ? c.trunkDark : c.trunk);
+  // Sits right behind the action, so it is a hazy blue-teal silhouette: big rounded crowns with a
+  // thin light rim, flat bodies, dark hollows between them, sinking into one quiet tone.
+  const J = CS(['#8bccb1', '#6bb29e', '#569c91', '#488c8c', '#3f737d']);
+  const JA = CS(['#9ed6c2', '#7cbcae', '#68a8a4']);
+  const B4 = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  const d4 = (x, y) => (B4[(x & 3) | ((y & 3) << 2)] + 0.5) / 16;
+
+  // Leaf masses. clumps: {x, y, rx, ry, g (group), set, sh?} in painter's order (later = nearer);
+  // sets[set] = tones [rim, rim2, body, shade, deep]. Graphic shading: a light rim on every exposed
+  // edge that faces the light (2px where it faces it squarely, tapering out), a flat body, a
+  // shade crescent on the lower right, and a cast shadow under whatever clump is nearer.
+  function foliage(L, clumps, sets) {
+    const W = L.w, pad = 96, bw = W + pad * 2, bh = L.h, all = [];
+    clumps.forEach((c, i) => { for (const s of [-W, 0, W]) if (c.x + s + c.rx >= -pad && c.x + s - c.rx < W + pad) all.push(Object.assign({}, c, { x: c.x + s, o: i })); });
+    all.sort((a, b) => a.o - b.o);
+    const own = new Int16Array(bw * bh).fill(-1);
+    const ins = (i, x, y) => { const c = all[i], dx = (x + 0.5 - c.x) / c.rx, dy = (y + 0.5 - c.y) / c.ry; return dx * dx + dy * dy <= 1; };
+    all.forEach((c, i) => {
+      for (let y = Math.max(0, Math.floor(c.y - c.ry)); y <= Math.min(bh - 1, Math.ceil(c.y + c.ry)); y++)
+        for (let x = Math.max(-pad, Math.floor(c.x - c.rx)); x <= Math.min(W + pad - 1, Math.ceil(c.x + c.rx)); x++) if (ins(i, x, y)) own[y * bw + x + pad] = i;
+    });
+    const at = (x, y) => (y < 0 || y >= bh || x < -pad || x >= W + pad ? -1 : own[y * bw + x + pad]);
+    const out = new Uint8Array(W * bh);
+    for (let y = 0; y < bh; y++) for (let x = 0; x < W; x++) {
+      const i = at(x, y);
+      if (i < 0) continue;
+      const c = all[i], sh = c.sh || clamp(Math.round(c.ry * 0.3), 2, 7);
+      const shade = !ins(i, x + sh * 0.5, y + sh);
+      let cast = false;
+      for (let k = 1; k <= 4 && !cast; k++) { const j = at(x - Math.round(k * 0.6), y - k); cast = j > i && k <= clamp(Math.round(all[j].ry * 0.2), 2, 4); }
+      // how squarely the edge here faces the light
+      let nx = (x + 0.5 - c.x) / (c.rx * c.rx), ny = (y + 0.5 - c.y) / (c.ry * c.ry);
+      const nl = Math.hypot(nx, ny) || 1, lit = (nx * -0.5 + ny * -0.866) / nl;
+      const a = at(x - 1, y - 1), b = at(x - 1, y - 2);
+      let t = 2;
+      if (!ins(i, x - 1, y - 1) && a <= i) {
+        const outer = a < 0 || all[a].g !== c.g;
+        t = lit > 0.55 ? (outer ? 0 : 1) : lit > 0.2 && outer ? 1 : shade ? 3 : 2;
+      } else if (!ins(i, x - 1, y - 1)) t = 2;
+      else if (!ins(i, x - 1, y - 2) && b <= i && lit > 0.62 && (b < 0 || all[b].g !== c.g)) t = 1;
+      else if (cast || shade) t = 3;
+      else if (c.lc && lit > 0.35 && !ins(i, x - c.lc * 0.5, y - c.lc) && !(at(Math.round(x - c.lc * 0.5), y - c.lc) > i)) t = 1;
+      out[y * W + x] = sets[c.set][t];
     }
-    const tx = Math.round(x + lean) + 1, ty = y - h;
-    // [start angle, length factor, total bend, tone] — drooping back fronds first, upright last
-    const F = [[205, 0.7, 50, 2], [-25, 0.7, 50, 2], [168, 1.05, 78, 1], [12, 1.05, 78, 2], [128, 1, 88, 0], [52, 1, 88, 1], [98, 0.6, 45, 0], [78, 0.55, 50, 1]];
-    for (const [a0, lf, bend, tone] of F) {
-      const len = R * lf, sign = a0 > 90 ? 1 : -1;
-      let fx = tx, fy = ty, lastX = null;
-      for (let d = 0; d <= len; d += 0.5) {
-        const sN = d / len, ang = ((a0 + sign * bend * Math.pow(sN, 1.4)) * Math.PI) / 180;
-        fx += Math.cos(ang) * 0.5; fy -= Math.sin(ang) * 0.5;
-        const px = Math.floor(fx), py = Math.floor(fy);
-        if (px !== lastX) {
-          lastX = px;
-          let ll = Math.round(3.4 * Math.pow(Math.sin(Math.PI * Math.min(1, 0.1 + sN * 0.9)), 0.7) * Math.sqrt(Math.abs(Math.cos(ang))));
-          if (px & 1) ll -= 1;
-          for (let k = 1; k <= ll; k++) L.set(px, py + k, c.leaf[Math.min(3, tone + (k > 1 ? 2 : 1))]);
-        }
-        L.set(px, py, c.leaf[tone]);
+    melt(out, W, bh, 5, 2);
+    for (let i = 0; i < out.length; i++) if (out[i]) L.d[i] = out[i];
+  }
+  // A tree crown [cx, top, rx, ry]: a main dome with a lit left and a shaded right shoulder, each
+  // with small leafy bumps tucked behind its upper rim (they only break up the silhouette), and
+  // a lit clump riding the terminator.
+  function crown(list, g, set, dark, cx, top, rx, ry, q, simple) {
+    const cy = top + ry;
+    const lobe = (x, y, a, b, s, sh) => {
+      const n = Math.max(3, Math.round(a / 5));
+      for (let i = 0; i < n; i++) {
+        const ang = Math.PI * (1.12 - 1.24 * ((i + 0.5 + (q() - 0.5) * 0.6) / n)), rb = 4 + q() * 5, bs = ang < 0.9 ? dark : s;
+        const bx = x + Math.cos(ang) * (a - rb * 0.15), by = y - Math.sin(ang) * (b - rb * 0.15);
+        if (q() < 0.5) { const a2 = ang + (q() - 0.5) * 1.2, rt = 2.4 + q() * 1.2; list.push({ x: bx + Math.cos(a2) * rb * 0.9, y: by - Math.sin(a2) * rb * 0.8, rx: rt * 1.2, ry: rt, g, set: bs }); }
+        list.push({ x: bx, y: by, rx: rb * 1.15, ry: rb, g, set: bs });
       }
+      list.push({ x, y, rx: a, ry: b, g, set: s, sh, lc: simple ? 0 : clamp(Math.round(b * 0.2), 2, 5) });
+      // a few leaf clusters on its face
+      if (simple) return;
+      for (let m = Math.round((a * b) / (s === dark ? 420 : 210)); m > 0; m--) {
+        const r = 4.5 + q() * 5, u = -0.62 + q() * 1.1, v = -0.3 + q() * 0.85;
+        if (u * u + v * v < 0.72) list.push({ x: x + u * a, y: y + v * b, rx: r * 1.3, ry: r * 0.8, g, set: s });
+      }
+    };
+    if (simple) return lobe(cx, cy, rx, ry, set);
+    lobe(cx + (q() - 0.5) * rx * 0.2, cy, rx * 0.74, ry, set, Math.round(ry * 0.55));
+    lobe(cx - rx * 0.52, cy + ry * (0.15 + q() * 0.25), rx * 0.48, ry * (0.6 + q() * 0.14), set);
+    lobe(cx + rx * 0.5, cy + ry * (0.2 + q() * 0.3), rx * 0.5, ry * (0.58 + q() * 0.14), dark);
+    list.push({ x: cx - rx * (0.05 + q() * 0.2), y: cy + ry * 0.4, rx: rx * 0.3, ry: rx * 0.19, g, set });
+  }
+
+  // Palm fronds per crown shape: [start angle, length factor, bend (deg, toward the ground;
+  // negative = blown back over the crown), depth 0 back .. 2 front].
+  const FROND = {
+    arch: [[200, 0.75, 45, 0], [-20, 0.75, 45, 0], [165, 1, 75, 1], [15, 1, 75, 1], [128, 1, 85, 2], [52, 1, 85, 2], [98, 0.6, 45, 2], [76, 0.55, 50, 1]],
+    droop: [[195, 0.8, 60, 0], [-15, 0.8, 60, 0], [158, 1, 100, 1], [22, 1, 100, 1], [122, 0.95, 118, 2], [58, 0.95, 118, 2], [92, 0.5, 60, 2]],
+    wind: [[168, 0.5, -30, 0], [142, 0.8, -70, 1], [112, 0.9, -80, 2], [84, 1, 70, 2], [52, 1.1, 55, 2], [24, 1.15, 40, 1], [-8, 0.9, 35, 0]],
+    fan: [[186, 0.7, 35, 0], [-6, 0.7, 35, 0], [156, 0.95, 45, 1], [24, 0.95, 45, 1], [126, 1, 40, 2], [54, 1, 40, 2], [92, 0.85, 12, 2]],
+  };
+  function frond(L, x0, y0, a0, len, bend, cs, cl, R) {
+    const sign = a0 > 90 && a0 < 270 ? 1 : -1, lmax = Math.max(2, R * 0.2);
+    let fx = x0 + 0.5, fy = y0 + 0.5, lx = 1e9, ly = 1e9;
+    for (let d = 0; d <= len; d += 0.25) {
+      const s = d / len, ang = ((a0 + sign * bend * Math.pow(s, 1.4)) * Math.PI) / 180;
+      fx += Math.cos(ang) * 0.25; fy -= Math.sin(ang) * 0.25;
+      const px = Math.floor(fx), py = Math.floor(fy);
+      if (px === lx && py === ly) continue;
+      const prof = Math.pow(Math.sin(Math.PI * Math.min(1, 0.12 + s * 0.88)), 0.7);
+      if (px !== lx) {
+        let ll = Math.round(lmax * prof * Math.sqrt(Math.abs(Math.cos(ang))));
+        if ((px & 1) && ll > 1) ll--;
+        for (let k = 1; k <= ll; k++) L.set(px, py + k, cl);
+      } else if (prof > 0.4) L.set(px + (py & 1 ? 1 : -1), py, cl);
+      L.set(px, py, cs);
+      lx = px; ly = py;
     }
-    for (let k = -1; k <= 1; k++) L.set(tx + k, ty + 1, c.trunkDark);
+  }
+  // Palm: a 2px trunk (light left, dark right) on a smooth curve, rising h px from (x, y).
+  function palm(L, x, y, h, lean, R, kind, c, flip) {
+    let tx = x;
+    for (let i = 0; i <= h; i++) {
+      tx = x + Math.round(lean * (i / h) * (i / h));
+      L.set(tx, y - i, c.tl); L.set(tx + 1, y - i, c.td);
+    }
+    const ty = y - h;
+    for (const [a, lf, bend, lay] of FROND[kind]) frond(L, tx + (flip ? 1 : 0), ty, flip ? 180 - a : a, R * lf, bend, c.f[lay][0], c.f[lay][1], R);
+    L.row(tx - 1, tx + 2, ty + 1, c.td); L.row(tx, tx + 1, ty + 2, c.td);
   }
 
   function makeJungle() {
-    const L = layer(768, 128);
-    const JF = { tones: CS(['#62c47c', '#3ca66e', '#268864', '#1d6c5c', '#185652']), thr: [0.93, 0.6, 0.1, -0.5], grad: [0.2, -0.5], flat: 2 };
-    const JB = { tones: CS(['#68c090', '#46a682', '#338c7a', '#297572']), thr: [0.9, 0.45, -0.2], grad: [0.2, -0.5], flat: 2 };
-    const JD = { tones: [JF.tones[2], JF.tones[3], JF.tones[4]], thr: [0.75, 0.0], grad: [0.1, -0.5], flat: 2 };
-    const JE = { tones: [JF.tones[3], JF.tones[4]], thr: [0.6], grad: [0.1, -0.4], flat: 2 };
-    const PC = { trunk: C('#6a5c66'), trunkLit: C('#9a8c80'), trunkDark: C('#4a4258'), leaf: [JF.tones[0], JF.tones[1], JF.tones[2], JF.tones[3]] };
-    const PB = { trunk: C('#6c7480'), trunkLit: C('#94a098'), trunkDark: C('#566070'), leaf: [JB.tones[0], JB.tones[1], JB.tones[2], JB.tones[3]] };
-    // Top line of the front canopy: two tall clumps, two bays where the lagoon shows through.
-    const KP = [[0, 56], [70, 46], [130, 42], [190, 52], [250, 68], [310, 72], [370, 56], [430, 44], [480, 40], [540, 50], [600, 62], [650, 70], [700, 66], [740, 60], [768, 56]];
-    const prof = x => {
-      x = ((x % 768) + 768) % 768;
-      let i = 0;
-      while (x > KP[i + 1][0]) i++;
-      const t = (x - KP[i][0]) / (KP[i + 1][0] - KP[i][0]);
-      return KP[i][1] + (KP[i + 1][1] - KP[i][1]) * (1 - Math.cos(t * Math.PI)) / 2 + 1.5 * Math.sin((x / 768) * Math.PI * 26 + 1);
-    };
-    const back = x => Math.min(prof(x) - 7, 61 + 2 * Math.sin((x / 768) * Math.PI * 14));
-    const crowns = (o, line, lift, seed, rmin, rmax) => {
-      const r2 = rng(seed);
-      for (let x = 0; x < 768;) {
-        const rx = rmin + Math.floor(r2() * (rmax - rmin + 1)), ry = Math.round(rx * 0.72), cx = x + rx * 0.7, top = line(cx) - lift + Math.floor(r2() * 4);
-        const list = [];
-        for (const a of [150, 115, 75, 35]) if (r2() < 0.7) { const rb = 3 + Math.floor(r2() * 2), q = (a * Math.PI) / 180; list.push([cx + Math.cos(q) * (rx - 1), top + ry - Math.sin(q) * (ry - 1), rb]); }
-        list.push([cx, top + ry, rx, ry]);
-        puffs(L, list, Object.assign({ top: top - 3, base: top + ry * 2 }, o));
-        x += rx * 1.25;
-      }
-    };
-    // a big broadleaf tree standing clear of the canopy
-    const tree = (x, h, o, c) => {
-      const y = Math.round(prof(x)) + 6;
-      for (let i = 0; i < h; i++) { L.set(x, y - i, c.trunkLit); L.set(x + 1, y - i, c.trunk); L.set(x + 2, y - i, i % 5 === 2 ? c.trunkDark : c.trunk); }
-      L.set(x - 1, y - h + 3, c.trunk); L.set(x - 2, y - h + 2, c.trunk); L.set(x + 3, y - h + 4, c.trunk); L.set(x + 4, y - h + 3, c.trunk);
-      const ty = y - h;
-      const lobes = [[-9, 1, 8, 6], [9, 2, 8, 6], [-3, -6, 9, 7], [5, -5, 8, 6], [0, 0, 11, 7]];
-      for (const [dx, dy, rx, ry] of lobes) {
-        const cx = x + 1 + dx, cy = ty + dy;
-        puffs(L, [[cx - rx * 0.6, cy - ry * 0.6, 3.5], [cx + rx * 0.5, cy - ry * 0.7, 3], [cx, cy, rx, ry]], Object.assign({ top: cy - ry - 3, base: cy + ry }, o));
-      }
-    };
-    // back row (hazier), its palms, then the front row
-    for (let x = 0; x < 768; x++) L.col(x, Math.round(back(x)) + 2, L.h - 1, JB.tones[3]);
-    crowns(JB, back, 2, 3, 8, 12);
-    for (const [x, h, lean, R] of [[60, 28, 4, 12], [170, 26, -4, 12], [330, 30, 4, 12], [396, 28, -5, 12], [590, 30, 4, 13], [720, 28, -4, 12]]) palm(L, x, Math.round(back(x)) + 2, h, lean, R, PB);
-    tree(540, 20, JB, PB);
-    for (let x = 0; x < 768; x++) L.col(x, Math.round(prof(x)) + 8, L.h - 1, JF.tones[4]);
-    crowns(JF, prof, 0, 8, 8, 13);
-    tree(150, 24, JF, PC); tree(472, 26, JF, PC); tree(744, 22, JF, PC);
-    for (const [x, h, lean, R] of [[20, 34, -4, 15], [96, 38, 6, 17], [122, 28, -5, 15], [210, 30, 5, 14], [286, 44, -6, 16], [428, 36, -5, 17], [500, 34, 5, 15], [560, 30, -5, 14], [640, 46, 6, 16], [664, 36, -5, 14]])
-      palm(L, x, Math.round(prof(x)) + 4, h, lean, R, PC);
-    // understory: lower ranks of crowns sinking into the dark
-    crowns(JD, prof, -15, 21, 9, 14); crowns(JE, prof, -31, 22, 10, 15); crowns(JE, prof, -49, 23, 11, 16);
+    const L = layer(768, 128), TAU = Math.PI * 2;
+    const SETS = { A: [JA[0], JA[1], JA[1], JA[2], JA[2]], H: [J[3], J[3], J[3], J[4], J[4]], B: J, S: [J[2], J[3], J[3], J[4], J[4]] };
+    const PN = { tl: C('#8eaca4'), td: C('#4f747e'), f: [[J[3], J[4]], [J[2], J[3]], [J[1], J[3]]] };
+    const PF = { tl: C('#96b4ac'), td: C('#5f8a92'), f: [[JA[2], C('#5a9698')], [JA[1], JA[2]], [JA[1], C('#5a9698')]] };
+    const back = x => 51 + 4 * Math.sin((x / 768) * TAU * 3 + 1) + 2 * Math.sin((x / 768) * TAU * 7);
+    const q = rng(77);
+    // far treeline (hazier, flatter)
+    for (let x = 0; x < 768; x++) L.col(x, Math.round(back(x)) + 5, L.h - 1, JA[2]);
+    const rowA = [];
+    for (let i = 0; i < 30; i++) {
+      const cx = (i + 0.5 + (q() - 0.5) * 0.5) * (768 / 30), rx = 11 + q() * 10;
+      crown(rowA, i, 'A', 'A', cx, back(cx) - 2 + q() * 5, rx, rx * 0.62, q, true);
+    }
+    foliage(L, rowA, SETS);
+    // palms: [x, base y, height, lean, frond radius, shape, flip, far?] — two tall heroes, small clusters
+    for (const [x, y, h, lean, R, kind, flip, far] of [
+      [116, 72, 60, 7, 21, 'arch', 0, 0], [508, 72, 54, -6, 20, 'wind', 1, 0],
+      [226, 74, 30, -4, 11, 'droop', 0, 1], [246, 74, 42, 3, 14, 'arch', 1, 0], [262, 74, 24, 4, 9, 'fan', 0, 1],
+      [322, 72, 28, -3, 10, 'wind', 1, 1], [344, 72, 40, 5, 13, 'droop', 0, 0],
+      [600, 76, 44, 5, 15, 'fan', 0, 0], [668, 76, 34, -5, 12, 'wind', 0, 0], [690, 76, 26, 3, 9, 'droop', 0, 1],
+      [748, 72, 36, 4, 12, 'arch', 0, 0], [764, 72, 26, -3, 9, 'fan', 1, 1],
+    ]) palm(L, x, y, h, lean, R, kind, far ? PF : PN, flip);
+    // dark hollows behind the main crowns
+    const hol = x => back(x) + 13 + 2 * Math.sin((x / 768) * TAU * 11);
+    for (let x = 0; x < 768; x++) L.col(x, Math.round(hol(x)) + 4, L.h - 1, J[4]);
+    const rowH = [];
+    for (let i = 0; i < 26; i++) { const cx = (i + 0.5 + (q() - 0.5) * 0.4) * (768 / 26), rx = 13 + q() * 8; rowH.push({ x: cx, y: hol(cx) + rx * 0.5, rx, ry: rx * 0.6, g: i, set: 'H' }); }
+    foliage(L, rowH, SETS);
+    // main crowns [cx, top, rx, ry], taller ones behind
+    const rowB = [];
+    [[34, 52, 40, 24], [98, 42, 26, 20], [150, 44, 44, 28], [214, 58, 24, 16], [268, 62, 40, 20], [334, 56, 28, 20],
+      [396, 42, 46, 30], [462, 36, 26, 22], [516, 48, 38, 24], [580, 60, 26, 16], [640, 64, 44, 20], [716, 54, 36, 24]]
+      .map((c, i) => [c, i]).sort((a, b) => a[0][1] - b[0][1]).forEach(([c, i]) => crown(rowB, 100 + i, 'B', 'S', c[0], c[1], c[2], c[3], q));
+    foliage(L, rowB, SETS);
+    // nearer, darker understory, then everything sinks into one quiet tone
+    const und = x => 80 + 3 * Math.sin((x / 768) * TAU * 5 + 2);
+    for (let x = 0; x < 768; x++) L.col(x, Math.round(und(x)) + 6, L.h - 1, J[4]);
+    const rowC = [];
+    for (let i = 0; i < 20; i++) {
+      const cx = (i + 0.5 + (q() - 0.5) * 0.5) * (768 / 20), rx = 20 + q() * 12;
+      crown(rowC, 200 + i, 'S', 'S', cx, und(cx) - 5 + q() * 6, rx, rx * 0.5, q);
+    }
+    foliage(L, rowC, SETS);
+    const FADE = [3, 6, 10, 13];
+    for (let x = 0; x < L.w; x++) {
+      const y0 = Math.round(89 + 2.5 * Math.sin((x / 768) * TAU * 9) + 1.5 * Math.sin((x / 768) * TAU * 23 + 2));
+      for (let y = y0; y < L.h; y++) { const k = y - y0, f = k < FADE.length ? FADE[k] / 16 : 1; if (L.d[y * L.w + x] && f > d4(x, y)) L.d[y * L.w + x] = J[4]; }
+    }
     return L;
   }
 
@@ -2404,8 +2706,9 @@ G.defineArt('bg', G => {
       { img: bake(makeBank()), y: 20, speed: 0.02, auto: 1 },
       { img: bake(makeFloaters()), y: 4, speed: 0.04, auto: 2.5 },
       { img: bake(makeSeaFar()), y: 108 - HZ, speed: 0.06 },
-      { img: bake(makeSeaNear()), y: 120, speed: 0.11 },
-      { img: bake(makeHills()), y: 130 - WL, speed: 0.22 },
+      { img: bake(makeSeaNear()), y: 120, speed: 0.11, raster: 5 },
+      { img: bake(makeLagoon()), y: 130, speed: 0.22, raster: 2.6 },
+      { img: bake(makeIsles()), y: 130 - WL, speed: 0.22 },
       { img: bake(makeJungle()), y: 90, speed: 0.45 },
     ],
   };
@@ -2639,42 +2942,42 @@ G.defineArt('player', G => {
       '....................kDDDk',
       '.....................kkk'],
   ];
-  // Arm swing: 0 = far back ... 4 = far forward.
+  // Near arm swing: 0 = far back ... 4 = far forward (the arm only gets an ink outline around the paw).
   const ARM = [
     [21,
-      '.............kyO',
-      '.........kkkOyk',
-      '........kdbdOk',
-      '........kdddk',
-      '.........kkk'],
+      '...........kkkyy',
+      '..........kbbdOOy',
+      '..........kdddko',
+      '...........kkk'],
     [21,
-      '.............kyO',
-      '............kOyk',
-      '...........kkOOk',
-      '..........kdbdk',
+      '.............yy',
+      '............oOOy',
+      '...........koOOo',
+      '..........kbbdo',
       '..........kdddk',
       '...........kkk'],
     [21,
-      '.............kyOr',
-      '.............kOyr',
-      '.............kOOk',
-      '.............kdbdk',
+      '.............yyO',
+      '.............oOyo',
+      '.............oOOo',
+      '.............kbbdk',
       '.............kdddk',
       '..............kkk'],
     [21,
-      '.............kyOk',
-      '..............kOyOk',
-      '...............kkdbdk',
-      '................kdddk',
-      '.................kkk'],
+      '.............yyy',
+      '..............oOyo',
+      '...............oOOk',
+      '...............kbbdk',
+      '...............kdddk',
+      '................kkk'],
     [20,
-      '...................kkk',
-      '.............kyOk.kdbdk',
-      '..............kOyOOdddk',
-      '...............kkkkkkk'],
+      '.....................kkk',
+      '.............yyyOOOOkbbdk',
+      '..............ooOOOOkdddk',
+      '................ooookkkk'],
   ];
   const ARM_SEQ = [0, 1, 2, 3, 4, 3, 2, 1];
-  const FAR = { Y: 'y', y: 'O', O: 'r', r: 'o', b: 'd', d: 'D' };   // far-side limbs: one step darker
+  const FAR = { Y: 'y', y: 'O', O: 'r', r: 'o', b: 'd' };   // far-side limbs: fur one step darker, flat boot
   const RUN_TORSO = [18,
     '............gggggggggggg',
     '............ThhTTTTttttg',
@@ -2686,39 +2989,44 @@ G.defineArt('player', G => {
     '...........krrOOOOsk',
     '............kkkkkkk',
   ];
+  // Tail: a 4-pose wave that lags half a beat behind the body bob (tip up when the body is down).
   const RUN_TAIL = [
-    [19,
+    [18,
+      '.kkkk',
+      'kwwwwkkk',
+      'kwwwccccOkkkk',
+      '.kwcccOOOyyOOk',
+      '..kkcOOOyyOOOO',
+      '....kkOOOOOOOO',
+      '......kkrrrrOO',
+      '..........kkkk'],
+    [17,
       '.kkk',
-      'kwwwkkk',
-      'kwwcccckkk',
-      '.kcccOOOOOkkk',
-      '..kkOOyyyOOOO',
-      '....kkOOOOOOO',
-      '......kkrrrOO',
-      '........kkkkk'],
-    [20,
-      '...kkkkk',
-      '.kkccOOOkkk',
-      'kwwcccOOOOOkk',
-      'kwwwcOyyyOOOO',
-      '.kkkkOOOOOOOO',
-      '.....kkrrrrOO',
-      '.......kkkkkk'],
-    [22,
-      '......kkkkkkk',
-      '...kkkOOyyyOO',
-      '.kkccOOOOOOOO',
-      'kwwccccOOOrrO',
-      'kwwwcckkkkkkk',
-      '.kkkkk'],
-    [21,
-      '.kk',
-      'kwwkk....kkkk',
-      'kwwcckkkkyyOO',
-      '.kcccOOOyOOOO',
-      '..kkcOOOOOOrO',
-      '....kkkrrrrkk',
-      '.......kkkk'],
+      'kwwwkk',
+      'kwwwcckk',
+      '.kwcccOOkkk',
+      '..kcccOOOOOkk',
+      '...kkOOOyyyOOk',
+      '.....kkOOOyOOO',
+      '.......kkrrOOO',
+      '..........kkrr'],
+    [19,
+      '..kkkkkk',
+      '.kwwwcccOkkkkk',
+      'kwwwccOOOyyyOO',
+      'kwwccOOOOOOOOO',
+      '.kkkkkrrOOOOOO',
+      '......kkkrrrrr',
+      '.........kkkkk'],
+    [19,
+      '.........kkkk',
+      '......kkkOyyOk',
+      '...kkkOOOyyOOO',
+      '.kkccOOOOOOOOO',
+      'kwwcccOOOOOrrr',
+      'kwwwccOOrrrkkk',
+      '.kwwckkkk',
+      '..kkk'],
   ];
   const RUN_RIBBON = [
     [17,
@@ -2748,15 +3056,516 @@ G.defineArt('player', G => {
     const b = BOB[i % 4], j = (i + 4) % 8;
     run.push(frame(
       [RUN_TAIL[i % 4], 0, b], [RUN_RIBBON[i % 4], 0, b],
-      [ARM[ARM_SEQ[j]], 3, b, FAR], [LEG[j], 1, 0, FAR],
+      ARM_SEQ[j] > 2 && [ARM[ARM_SEQ[j]], 2, b, FAR], [LEG[j], 1, 0, FAR],
       [RUN_TORSO, 0, b], [LEG[i]], [HEAD, 2, 1 + b], [ARM[ARM_SEQ[i]], 0, b]));
   }
 
-  const m = idle[0];
+  // ---------------------------------------------------------------- HEAD variants
+  // Expressions are patches of the master head (canvas rows of the unshifted head).
+  const MOUTH_OPEN = {                    // lower jaw dropped, tongue showing
+    16: '......kkwwccccccccccccKqqk',
+    17: '.......kkkk.......cssccpk',
+    18: '..................kkkkkk',
+  };
+  const EYES_UP = {                       // pupils high: looking where he jumps
+    11: '........kyyyOKwwwKKOwKKrk',
+    13: '........kOOOOKwwwwKOwwKwcckk',
+  };
+  const EYES_WIDE = {                     // small pupils, lots of white: looking down, alarmed
+    10: '........kyyyyOKwwwKOKwKrk',
+    11: '........kyyyOKwwwwKOwwKrk',
+    12: '........kyyOOKwwwKKOwKKOOk',
+    13: '........kOOOOKwwwKKOwKKwcckk',
+  };
+  const HEAD_JUMP = patch(HEAD, Object.assign({ 15: '.....kwwccrrOccKKKcccKcccck' }, EYES_UP, MOUTH_OPEN));
+  const HEAD_FALL = patch(HEAD, Object.assign({}, EYES_WIDE, MOUTH_OPEN, { 16: '......kkwwccccccccccccKook', 17: '.......kkkk.......cssccck' }));
+  // Ears swept flat along the skull (rising jump): replaces head rows 3..9.
+  const sweep = head => [3,
+    '.............kk',
+    '.....kkk....kDDk',
+    '....kDDdkkk.kDdrk',
+    '....kDdOOOOkkkdrrkk',
+    '.....kkOOqqqOOkkrrOkkkk',
+    '.......kkOOqqpOYyy' + head[8].slice(18),
+    head[9],
+  ].concat(head.slice(10));
+  const HEAD_SWEPT = sweep(HEAD_JUMP);
+  const FARLEG = { Y: 'y', y: 'O', O: 'r', r: 'o', b: 'd' };          // far leg: darker fur, boot one step darker
+
+  // ---------------------------------------------------------------- JUMP (0 = fast rise, 1 = near the apex)
+  const J0_TAIL = [19,
+    '.........kkk',
+    '........kOOOk',
+    '.......kOyOOOk',
+    '......kOyyOOOk',
+    '.....kOyyOOOOk',
+    '....kOyyOOOOrk',
+    '...kOyyOOOOrrk',
+    '...kOyOOOOrrk',
+    '..kcOOOOOrrk',
+    '..kccOOOrrk',
+    '..kwccccsk',
+    '...kwwcsk',
+    '....kkkk',
+  ];
+  const J0_RIBBON = [15,
+    '.........ggg',
+    '........gTTtg',
+    '.......gTTtg',
+    '......gtTtg',
+    '.....ghTtg',
+    '.....gTtg',
+    '....gTtg',
+    '....ggg',
+  ];
+  const J0_TORSO = [14,
+    '............gggggggggggg',
+    '............ThhTTTTttttg',
+    '...........gtTTttTTTtttg',
+    '.............kyyOOcwwck',
+    '.............kOyOOcwwwck',
+    '............kOrrrrsscwck',
+    '............kOOOOrccwcsk',
+    '...........kOOOOOrcccsk',
+    '...........krOOOOOrcsk',
+    '...........krrOOOOOkk',
+    '............kkkkkkk',
+  ];
+  const TUCK_LEG = [22,
+    '.................kOOOOkk',
+    '.................kOyOOOOk',
+    '................kkrOOOOOk',
+    '...............kddkrrOOk',
+    '...............kdbdkkkk',
+    '...............kddbbdk',
+    '................kDdbbdk',
+    '.................kDDDDk',
+    '..................kkkk',
+  ];
+  const J0_LEG_FAR = [23,
+    '...........kOOk',
+    '..........kOOOk',
+    '..........kOOOk',
+    '.........kOOOk',
+    '.........kdddk',
+    '........kdbddk',
+    '........kdbbdk',
+    '........kDDDk',
+    '.........kkk',
+  ];
+  const J0_ARM = [15,
+    '.......................kkk',
+    '......................kbbdk',
+    '..............yyyOOOOOkdddk',
+    '..............OOOOOOrrokkk',
+  ];
+  const jump0 = frame([J0_TAIL], [J0_RIBBON], [J0_LEG_FAR, 0, 0, FARLEG], [J0_TORSO], [TUCK_LEG], [HEAD_SWEPT, 2, -3], [J0_ARM]);
+
+  const J1_TAIL = [18,
+    '....kkkkk',
+    '..kkOyyyOkk',
+    '.kOyyyOOOOOkk',
+    'kcOyOOOOOOOOO',
+    'kccOOOOOOOrrr',
+    'kwccOOOrrrrkk',
+    'kwwccrrkkkk',
+    '.kwwcskk',
+    '..kkkk',
+  ];
+  const J1_RIBBON = [15,
+    '....ggg',
+    '...gTTTggggg',
+    '..gtTtTTTTTt',
+    '...ggggtttg',
+    '.......ggg',
+  ];
+  const J1_TORSO = [15,
+    '...........gggggggggggg',
+    '...........ThhTTTTttttg',
+    '..........gtTTttTTTtttg',
+    '............kyyOOcwwck',
+    '............kOyOOcwwwck',
+    '...........kOOOOrccwwck',
+    '...........kOOOOOrcccsk',
+    '...........krOOOOOrcsk',
+    '............krrOOOOkk',
+    '.............kkkkkk',
+  ];
+  const J1_LEG_FAR = [23,
+    '...........kOOk',
+    '..........kOOOk',
+    '.......kkkOOOk',
+    '......kdddOOk',
+    '......kdbbdkk',
+    '......kDDDk',
+    '.......kkk',
+  ];
+  const J1_ARM = [18,
+    '.............yyO',
+    '.............OOOo',
+    '..............oOOo',
+    '..............okbbdk',
+    '...............kdddk',
+    '................kkk',
+  ];
+  const jump1 = frame([J1_TAIL], [J1_RIBBON], [J1_LEG_FAR, 0, 0, FARLEG], [J1_TORSO], [TUCK_LEG, -1, 0], [HEAD_SWEPT, 1, -2], [J1_ARM]);
+
+  // ---------------------------------------------------------------- FALL (0 = just past the apex, 1 = fast fall)
+  const F0_TAIL = [12,
+    '..kk',
+    '.kwwk',
+    '.kwwck',
+    'kwwcck',
+    'kwcccOk',
+    'kccOOOk',
+    'kcOyOOOk',
+    'kOyyOOOOk',
+    'kOyyOOOOOkk',
+    '.kOyOOOOOOOkk',
+    '.kOOOOOOOOOOO',
+    '..krOOOOOOOrr',
+    '...kkrrrrrrkk',
+    '.....kkkkkk',
+  ];
+  const F0_RIBBON = [13,
+    '....gg',
+    '...gTTg',
+    '....gTtg',
+    '.....gTTgg',
+    '......gtTTgg',
+    '.......ggtTT',
+    '.........ggg',
+  ];
+  const F0_TORSO = [17,
+    '...........gggggggggggg',
+    '...........ThhTTTTttttg',
+    '..........gtTTttTTTtttg',
+    '............kyyOOcwwck',
+    '............kOyOOcwwwck',
+    '............kOrrrsscwcsk',
+    '............krOOOrcccsk',
+    '.............krrOOOOkk',
+    '..............kkkkkk',
+  ];
+  const F0_LEG_NEAR = [24,
+    '.................kOOOk',
+    '.................kOOOOk',
+    '..................kOOOOk',
+    '...................kdddk',
+    '...................kdbbdkk',
+    '....................kdbbddk',
+    '.....................kDDDDk',
+    '......................kkkk',
+  ];
+  const F0_LEG_FAR = [24,
+    '...........kOOOk',
+    '..........kOOOOk',
+    '.......kkkkOOOk',
+    '......kddddOOk',
+    '......kdbbdkkk',
+    '......kDDDk',
+    '.......kkk',
+  ];
+  const F_ARM_BACK = [17,                // near arm thrown up and back
+    '........kkk',
+    '.......kbbdk',
+    '.......kdddk',
+    '........kkOOyy',
+    '..........kOOOO',
+    '...........kkk',
+  ];
+  const F_ARM_FRONT = [16,               // far arm up in front, paw beside the chin
+    '.......................kkk',
+    '......................kbbdk',
+    '......................kdddk',
+    '......................kOOk',
+    '....................kkOOOk',
+    '....................kOOOkk',
+    '.....................kkk',
+  ];
+  const fall0 = frame([F0_TAIL], [F0_RIBBON], [F_ARM_FRONT, 0, 0, FAR], [F0_LEG_FAR, 0, 0, FARLEG], [F0_TORSO], [F0_LEG_NEAR], [HEAD_FALL, 1, 0], [F_ARM_BACK]);
+
+  const F1_TAIL = [4,
+    '..kk',
+    '.kwwk',
+    '.kwwwk',
+    'kwwwck',
+    'kwwcck',
+    'kwcccOk',
+    'kccOOOk',
+    'kcOyOOk',
+    'kOyyOOOk',
+    'kOyyOOOk',
+    'kOyyOOOk',
+    'kOyyOOOrk',
+    'kOyyOOOrk',
+    '.kOyOOOrk',
+    '.kOyOOOOrk',
+    '.kOOyOOOrk',
+    '..kOOOOOOrk',
+    '..kOOOOOOrrk',
+    '...kOOOOOOrkk',
+    '...krOOOOOOrrk',
+    '....krrOOOOOrr',
+    '.....kkrrrrrrr',
+    '.......kkkkkk',
+  ];
+  const F1_RIBBON = [12,
+    '..gg',
+    '.gTTg',
+    '..gTtg',
+    '...gTtg',
+    '....gTTg',
+    '.....gtTg',
+    '......gTTgg',
+    '.......gtTTg',
+    '........ggtT',
+    '..........gg',
+  ];
+  const F1_TORSO = [19,
+    '...........gggggggggggg',
+    '...........ThhTTTTttttg',
+    '..........gtTTttTTTtttg',
+    '............kyyOOcwwwck',
+    '...........kOOrrrrsscwsk',
+    '...........krOOOOrcccssk',
+    '............krrOOOrssk',
+    '.............kkkkkkkk',
+  ];
+  const F1_LEG_NEAR = [24,
+    '.................kOOOk',
+    '.................kOOOOkk',
+    '..................kkOOOOk',
+    '....................kdddk',
+    '....................kdbddk',
+    '.....................kdbbdk',
+    '......................kDDDk',
+    '.......................kkk',
+  ];
+  const F1_LEG_FAR = [24,
+    '...........kOOOk',
+    '.........kkOOOOk',
+    '........kOOOOkk',
+    '........kdddk',
+    '.......kddbdk',
+    '......kdbbdk',
+    '......kDDDk',
+    '.......kkk',
+  ];
+  const fall1 = frame([F1_TAIL], [F1_RIBBON], [F_ARM_FRONT, 0, 2, FAR], [F1_LEG_FAR, 0, 0, FARLEG], [F1_TORSO], [F1_LEG_NEAR], [HEAD_FALL, 1, 2], [F_ARM_BACK, 0, 2]);
+
+  // ---------------------------------------------------------------- DUCK (also the 3-frame landing squash)
+  // Head sunk onto the knees, ear pinned flat, lids lowered, tail curled up behind. Hitbox = rows 17..31.
+  const HEAD_DUCK = [7,
+    '......kkkkkkkkkkkkkkkkk',
+    '....kkdOOOOyYYYyyyOOOOrk',
+    '...kDDddOOOrYyOOOOOOOOrk',
+    '....kkkkkyyyyOKKKKKOKKKrk',
+  ].concat(HEAD.slice(11));
+  const D_BODY = [16,
+    '...kkk',
+    '..kwwwkk',
+    '.kwwwwcck',
+    '.kwwccOOk',
+    'kwwccOOOk',
+    'kwccOyOOk',
+    'kccOyyOk',
+    'kcOyyOk',
+    'kOOyOOOk',
+    'kOOOOOOOkkkgTThTTTTg...kOOk',
+    '.kOOOOOOOOOkrOOk.kOOrk.kOOk',
+    '.krOOOOOOOOkdddk.kdddk.kkkk',
+    '..krrOOOOOrkdbbdkkdbbdkkbbdk',
+    '...kkrrrrrkdddbbdkddbbdkdddk',
+    '.....kkkkkkDDDDDDkDDDDDk.kkk',
+    '...........kkkkkk.kkkkk',
+  ];
+  const duck = frame([D_BODY], [HEAD_DUCK, 1, 8]);
+
+  // ---------------------------------------------------------------- HURT (knocked back, also the death pop)
+  const HEAD_HURT = sweep(patch(HEAD, {
+    8: '..........kyYYYyyyOOOOrk',
+    9: '.........kyYYyOOOOOOOOrk',
+    10: '........kyyyyOKKOOOOOOKrk',
+    11: '........kyyyOOOOKKOOOKOrk',
+    12: '........kyyOOOOOOOKOKOOOOk',
+    13: '........kOOOOOOOKKOOOKOwcckk',
+    14: '......kkcOOOOOKKOOOcccKccckk',
+    15: '.....kwwccrrOcccccccKccccck',
+    16: '......kkwwccccccccccKoqqqk',
+    17: '.......kkkk.......cscqppk',
+    18: '..................kcsscck',
+  }).concat(['...................kkkkk']));
+  const H_BODY = [18,
+    '........gggggggggggg',
+    '.....gggThhTTTTttttg',
+    '...ggTTtgtTTttTTTtttg',
+    '..gTTgg..kyyOOcwwwck.kkk',
+    '..ggg....kOyyyOOOOOkkbbdk',
+    '.........kOOOOOOOrrokdddk',
+    '.........kOOrrrrrsscwkkkkkkk',
+    '........kOOOOOrccccskkkkkdbdk',
+    '........kOOOOOOrrOOOOOkdbbDk',
+    '........krOOOOOOOOOOOOkddbDk',
+    '.........krrOOOOOrrrrrkdDDk',
+    '..........kkkkkkkkkkkkkkkk',
+  ];
+  const hurt = frame([J0_TAIL, -2, 0], [H_BODY], [HEAD_HURT, -2, 1]);
+
+  // ---------------------------------------------------------------- SKID
+  // Drawn like every other frame (facing right, light from the upper left): Kit leans back, heels dug in,
+  // tail and scarf whipping forward.
+  const HEAD_SKID = patch(HEAD, Object.assign({}, EYES_WIDE, {
+    15: '.....kwwccrrOccKKKcccKKKKKk',
+    16: '......kkwwcccccccccccKwwwk',
+    17: '.......kkkk.......csscKKK',
+  }));
+  const S_BODY = [18,
+    '.......gggggggggggg',
+    '.......ThhTTTTttttggg',
+    '..kkk.gtTTttTTTtttTTtgg',
+    '.kbbdkkkkkyOOcwwckggtTTg',
+    '.kdddOOOOyyOOcwwwck.gggg.kkk',
+    '..kkkkkkkkOOOOrccwck...kkwwk',
+    '..........kOOOOrcccskkkOccwwk',
+    '..........krOOOOOrssOOOOccck',
+    '...........krOOOOOOOOOOkkkk',
+    '...........kkkrOOOOOOOOkk..kkk',
+    '..........kdddkkkkrOOOOOOkkdbdk',
+    '.........kdbbdk...kkkrOOOkdbbDk',
+    '.........kdddbbdk....kkkkddDDk',
+    '.........kDDDDDDk.......kkkkk',
+  ];
+  const skidR = frame([S_BODY], [HEAD_SKID, -3, 1]);
+
+  // ---------------------------------------------------------------- WIN (facing the camera, 2 beats)
+  const W_HEAD = [1,
+    '........kk............kk',
+    '.......kDDk..........kDDk',
+    '.......kDDdk........kdDDk',
+    '......kDdqpOk......kOpqdDk',
+    '......kOqppOOk....kOOppqOk',
+    '......kOqqpOOOkkkkOOOpqqOk',
+    '......kyOOqOOyyyyyyOOqOOrk',
+    '.....kyYYYYyyyyyyyyyOOOOOrk',
+    '.....kyYYyyyyyyyyyyOOOOOOrk',
+    '.....kyyyKKKyyyyOOOOKKKOOrk',
+    '.....kyyKyyyKOOOOOOKOOOKOrk',
+    '....kkOOOOOOOOccccOOOOOOOOkk',
+    '...kwwcOOOOOccKKKKccOOOOOcwwk',
+    '...kwwccOOOccccKKccccOOOccwsk',
+    '....kkwcccKccccccccccKcccskk',
+    '......kkcccKKKKKKKKKKcccskk',
+    '........kkccKqqppppqKccskk',
+    '..........kkkKqppppKkkk',
+    '.............kKKKKk',
+  ];
+  const W_TORSO = [19,
+    '.........gggg......gggg',
+    '........gThTTggggggTTttg',
+    '........gtTTTTTTTTTTtttg',
+    '.........kyOOcwwwwcOOrk',
+    '.........kOOcwwwwwwcOrk',
+    '.........kOOccwwwwccOrk',
+    '.........krOOccccccOrrk',
+    '..........kkkkkkkkkkkk',
+  ];
+  const W_LEGS_A = [26,
+    '..........kOOOkkkkOOrk',
+    '..........kdddk..kdddk',
+    '.........kdbbdk..kdbbdk',
+    '.........kDDDDk..kDDDDk',
+    '..........kkkk....kkkk',
+  ];
+  const W_LEGS_B = [26,
+    '..........kOOOkkkkOOrk',
+    '..........kOOOk..kOOrk',
+    '..........kdddk..kdddk',
+    '..........kdbdk..kdbdk',
+    '..........kDDDk..kDDDk',
+    '...........kkk....kkk',
+  ];
+  const W_ARM_L = [22,
+    '.....kOyOk',
+    '....kOOkk',
+    '....kOOk',
+    '.....kbbdk',
+    '.....kdddk',
+    '......kkk',
+  ];
+  const W_ARM_R_A = [17,
+    '......................kkk',
+    '.....................kbbdk',
+    '.....................kdddk',
+    '.....................kOOk',
+    '.....................kOyk',
+    '.....................kOOk',
+    '......................kk',
+  ];
+  const W_ARM_R_B = [11,
+    '..........................kkk',
+    '.........................kbbdk',
+    '.........................kdddk',
+    '.........................kOOk',
+    '........................kOOk',
+    '........................kOyk',
+    '.......................kOOk',
+    '.......................kOOk',
+    '......................kOOk',
+    '......................kOk',
+  ];
+  const W_TAIL = [14,
+    '..kk',
+    '.kwwk',
+    '.kwwwk',
+    'kwwwck',
+    'kwwcck',
+    'kwcccOk',
+    'kcccOOk',
+    'kccOyOOk',
+    '.kOyyOOOk',
+    '.kOyyOOOOk',
+    '.kOOyOOOOk',
+    '..kOOOOOOk',
+    '..krOOOOrk',
+    '...krrrrk',
+    '....kkkk',
+  ];
+  const W_RIBBON = [17,
+    '....gg',
+    '...gTTg',
+    '....gtTgg',
+    '.....ggtT',
+  ];
+  const win = [
+    frame([W_TAIL, 0, 1], [W_RIBBON, 0, 2], [W_TORSO, 0, 1], [W_ARM_L, 0, 1], [W_LEGS_A, 0, 1], [W_HEAD, 0, 1], [W_ARM_R_A, 0, 1]),
+    frame([W_TAIL, 1, -2], [W_RIBBON, 0, -1], [W_TORSO, 0, -1], [W_ARM_L, 0, -1], [W_LEGS_B, 0, -1], [W_HEAD, -1, -1], [W_ARM_R_B, 0, 0]),
+  ];
+
+  // ---------------------------------------------------------------- HUD icon (16x16)
+  const icon = G.px([
+    '...k......k.....',
+    '..kDk....kDk....',
+    '..kDDk..kDdk....',
+    '.kOqpOkkOqOk....',
+    '.kOqpOyyOqpOk...',
+    '.kyYYyyyOOOrk...',
+    'kyYyOKKKOKKrk...',
+    'kyyOKwwKKwKKOk..',
+    'kyyOKwwwKwwKckk.',
+    'kOOOKwwKKwKKckk.',
+    'kkcOOKKKcKKcck..',
+    'kwwcccccccKck...',
+    '.kkwwccccckk....',
+    '...kkkkcsck.....',
+    '......kkkk......',
+    '................',
+  ], C);
+
   return {
     idle, run,
-    jump: [m, m], fall: [m, m], skid: [m], hurt: [m], duck: [m],
-    win: [m, m], icon: G.copy(m, 16, 16, -8, -3),
+    jump: [jump0, jump1], fall: [fall0, fall1], skid: [skidR], hurt: [hurt], duck: [duck],
+    win, icon,
   };
 });
 
@@ -3025,10 +3834,13 @@ G.defineArt('enemies', G => {
 //   gem      6 x 16x16  sun-shard crystal (flat rhombic shard spinning about its vertical axis)
 //   bigCoin  6 x 24x24  star medallion (gold rim, emerald enamel, raised star)
 //   heart    2 x 16x16  · sparkle 4 x 16x16 · dust 4 x 16x16 · poof 5 x 24x24 · splash 5 x 32x24
-//   hud      {heart, heartEmpty, gem, coinOn, coinOff} 16x16
-//   font     char -> 8px tall glyph (outline baked in) · logo  "SUNFOX" title logo
+//   hud      {heart, heartEmpty, gem, coinOn, coinOff} 16x16 (coinOff = empty medal socket)
+//   font     char -> 8px tall glyph (outline baked in)
+//   logo     250x80 "SUNFOX" wordmark: bevelled banded letters, extruded shadow, sun crown, fox-tail swash
 // Everything is authored on small indexed buffers: hand-pixelled stamps plus integer-only
 // construction (no anti-aliasing anywhere). Light comes from the upper-left.
+// FX anchoring (how the engine draws them): sparkle / poof / gem / coin / heart are centred in
+// their frame, splash is bottom-aligned, dust has its ground line on row 8 (frame centre).
 G.defineArt('items', G => {
   'use strict';
   const P = G.PAL;
@@ -3268,9 +4080,9 @@ G.defineArt('items', G => {
       '................',
       '................',
       '.......l........',
-      '.......l........',
-      '.....llwll......',
-      '.......l........',
+      '.......w........',
+      '.....lwwwl......',
+      '.......w........',
       '.......l........',
       '................',
       '................',
@@ -3279,79 +4091,89 @@ G.defineArt('items', G => {
       '................',
       '................',
     ], [
-      '.......g........',
-      '.......y........',
       '.......y........',
       '.......l........',
-      '....y..l..y.....',
-      '.....l.w.l......',
-      '......www.......',
-      'gyylllwwwlllyyg.',
-      '......www.......',
-      '.....l.w.l......',
-      '....y..l..y.....',
+      '.......l........',
+      '.......w........',
+      '.......w........',
+      '......lwl.......',
+      '.....lwwwl......',
+      'yllwwwwwwwwwlly.',
+      '.....lwwwl......',
+      '......lwl.......',
+      '.......w........',
+      '.......w........',
+      '.......l........',
       '.......l........',
       '.......y........',
-      '.......y........',
-      '.......g........',
       '................',
     ], [
       '................',
-      '................',
-      '..g....y....g...',
-      '...y...l...y....',
-      '....l..l..l.....',
-      '.....l.w.l......',
-      '......www.......',
-      '..yllwwwwwlly...',
-      '......www.......',
-      '.....l.w.l......',
-      '....l..l..l.....',
-      '...y...l...y....',
-      '..g....y....g...',
-      '................',
-      '................',
-      '................',
-    ], [
-      '................',
-      '................',
       '.......y........',
-      '..y.........y...',
-      '................',
-      '................',
-      '................',
       '..y....l....y...',
-      '................',
-      '................',
-      '................',
-      '..y.........y...',
+      '...l...l...l....',
+      '....l..w..l.....',
+      '.....w.w.w......',
+      '......www.......',
+      '.yllwwwwwwwlly..',
+      '......www.......',
+      '.....w.w.w......',
+      '....l..w..l.....',
+      '...l...l...l....',
+      '..y....l....y...',
       '.......y........',
       '................',
+      '................',
+    ], [
+      '................',
+      '.......y........',
+      '................',
+      '...y.......y....',
+      '................',
+      '................',
+      '.......l........',
+      '.y....lwl....y..',
+      '.......l........',
+      '................',
+      '................',
+      '...y.......y....',
+      '................',
+      '.......y........',
       '................',
       '................',
     ],
   ].map(r => px(r));
 
   // ================================================================== PUFFS
-  // Soft cloud lobes with clustered upper-left lighting. lobes: [x0, y0, diameter].
+  // Cloud lobes shaded as overlapping balls: every pixel belongs to the lobe it sits deepest in
+  // and takes light / base / shadow from its offset to that lobe's centre (light from the upper-left).
+  // lobes: [x0, y0, diameter]; cols: [shadow, base, light].
   function puffs(b, lobes, cols, edge) {
     const m = B(b.w, b.h);
     lobes.forEach(l => disc(m, l[0], l[1], l[2], 1));
-    const inM = (x, y) => Gt(m, x, y) === 1;
-    lobes.forEach(l => disc(b, l[0], l[1], l[2], cols[0]));
-    lobes.forEach(l => disc(b, l[0], l[1], l[2] - 1, cols[1], inM));
-    lobes.forEach(l => { if (l[2] >= 6) disc(b, l[0] + 1, l[1] + 1, l[2] - 4, cols[2], inM); });
+    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+      if (Gt(m, x, y) !== 1) continue;
+      let best = -1e9, t = 0;
+      lobes.forEach(l => {
+        const r = l[2] / 2, dx = x + .5 - (l[0] + r), dy = y + .5 - (l[1] + r), mg = r - Math.hypot(dx, dy);
+        if (mg > best) { best = mg; t = (dx + dy) / r; }
+      });
+      S(b, x, y, t < 0.2 ? cols[2] : t > 0.9 ? cols[0] : cols[1]);
+    }
     if (edge) outline(b, edge);
   }
-  const DUSTC = [BR[4], BR[5], WHT];
+  // The engine draws the dust frame with its vertical centre on the feet line, so the puff
+  // is born on rows 5-9 (ground line = row 8), swells, then lifts off and thins out.
+  const DUSTC = [BR[3], BR[4], BR[5]];
   const dust = [
-    [[5, 11, 5], [8, 12, 4]],
-    [[2, 8, 6], [6, 9, 7], [10, 11, 5]],
-    [[0, 5, 6], [5, 6, 6], [10, 9, 5], [4, 11, 4]],
-    [[1, 3, 3], [6, 4, 4], [11, 7, 3], [4, 9, 2]],
+    [[5, 5, 5], [8, 6, 4]],
+    [[2, 3, 6], [6, 3, 7], [10, 5, 5]],
+    [[0, 1, 6], [5, 1, 6], [10, 3, 5], [4, 6, 4]],
+    [[1, 1, 2], [6, 0, 4], [12, 3, 2], [4, 5, 2], [10, 0, 2]],
   ].map(l => { const b = B(16, 16); puffs(b, l, DUSTC); return out(b); });
 
   // =================================================================== POOF
+  // Impact flash -> big smoke burst -> ring of puffs opening up -> wisps.
   const POOFC = [ST[3], ST[4], WHT];
   function ring(n, R, sizes, a0) {
     const l = [];
@@ -3363,8 +4185,16 @@ G.defineArt('items', G => {
   }
   const poof = [0, 1, 2, 3, 4].map(f => {
     const b = B(24, 24);
-    if (f === 0) puffs(b, [[8, 8, 8]], POOFC, ST[2]);
-    if (f === 1) puffs(b, ring(6, 5, [9, 8], 0.5).concat([[8, 8, 8]]), POOFC, ST[2]);
+    if (f === 0) {                               // eight-point impact flash: long axis rays, short diagonal ones
+      const V = [];
+      for (let i = 0; i < 16; i++) { const R = i % 2 ? 3.6 : i % 4 ? 7 : 11.5; V.push([Math.cos(i * Math.PI / 8) * R, Math.sin(i * Math.PI / 8) * R]); }
+      for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
+        const dx = x + .5 - 12, dy = y + .5 - 12, r = Math.hypot(dx, dy);
+        const i = Math.floor(((Math.atan2(dy, dx) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 8)) % 16, p = V[i], q = V[(i + 1) % 16];
+        if ((q[0] - p[0]) * (dy - p[1]) - (q[1] - p[1]) * (dx - p[0]) >= 0) S(b, x, y, r < 3 ? WHT : r < 6 ? GO[3] : GO[2]);
+      }
+    }
+    if (f === 1) puffs(b, ring(6, 5.5, [9, 8], 0.5).concat([[7, 7, 9]]), POOFC, ST[2]);
     if (f === 2) puffs(b, ring(6, 7.5, [7, 6], 0.6), POOFC, ST[2]);
     if (f === 3) puffs(b, ring(6, 9, [5, 4], 0.7), POOFC, ST[2]);
     if (f === 4) puffs(b, ring(6, 10, [2, 3], 0.8), POOFC);
@@ -3501,13 +4331,18 @@ G.defineArt('items', G => {
       '....############',
     ],
   ];
+  // Foam white on the lit left ~60% of every horizontal run, pale blue on the rest, a mid-blue
+  // rim on the right / bottom edges and a blue outline all around.
   const splash = SPL.map(rows => {
     const b = B(32, 24);
     const m = (x, y) => { if (y < 0 || y > 23 || x < 0 || x > 31) return false; const r = rows[y]; return r[x < 16 ? x : 31 - x] === '#'; };
     for (let y = 0; y < 24; y++) for (let x = 0; x < 32; x++) {
       if (!m(x, y)) continue;
-      const lit = !m(x - 1, y) || !m(x, y - 1), dark = !m(x + 1, y) || !m(x, y + 1);
-      S(b, x, y, lit && !dark ? WHT : dark && !lit ? BL[3] : lit && dark ? BL[4] : BL[4]);
+      let x0 = x, x1 = x;
+      while (m(x0 - 1, y)) x0--;
+      while (m(x1 + 1, y)) x1++;
+      const t = (x - x0 + 0.5) / (x1 - x0 + 1), rim = !m(x + 1, y) || !m(x, y + 1), top = !m(x, y - 1) || !m(x - 1, y);
+      S(b, x, y, rim && !top ? BL[3] : t > 0.6 + [0, 0.07, 0.1, 0.07, 0, -0.05][y % 6] && !top ? BL[4] : WHT);   // scalloped shade edge
     }
     outline(b, BL[2]);
     return out(b);
@@ -3568,8 +4403,8 @@ G.defineArt('items', G => {
   function coinFrame(fw, side, mode) {
     const b = B(24, 24);
     const sh = mode === 'away' ? -1 : mode === 'toward' ? 1 : 0;
-    const gi = i => GOLD[Math.max(0, Math.min(4, i + sh))];
-    const tb = 3 + sh;
+    const gi = i => GOLD[Math.max(0, Math.min(4, i + (sh > 0 ? (i >= 2 ? 1 : 0) : sh)))];
+    const tb = sh < 0 ? 2 : 3;
     if (!fw) {                                  // edge-on: just the milled rim wall
       const cols = [3, 4, 2, 1];
       for (let y = 2; y < 22; y++) for (let j = 0; j < 4; j++) {
@@ -3667,7 +4502,7 @@ G.defineArt('items', G => {
     S: '.####. ##..## .###.. ..###. ##..## .####.',
     T: '###### ..##.. ..##.. ..##.. ..##.. ..##..',
     U: '##..## ##..## ##..## ##..## ##..## .####.',
-    V: '##..## ##..## ##..## ##..## .####. ..##..',
+    V: '##..## ##..## ##..## .####. .####. ..##..',
     W: '##...## ##...## ##.#.## ####### ###.### ##...##',
     X: '##..## .####. ..##.. ..##.. .####. ##..##',
     Y: '##..## ##..## .####. ..##.. ..##.. ..##..',
@@ -3680,7 +4515,7 @@ G.defineArt('items', G => {
     '-': '.... .... #### #### .... ....',
     "'": '## ## #. .. .. ..',
     x: '.... .... #..# .##. .##. #..#',
-    '+': '...... ..##.. ###### ###### ..##.. ......',
+    '+': '..##.. ..##.. ###### ###### ..##.. ..##..',
     '/': '....## ...##. ..##.. ..##.. .##... ##....',
   };
   const FACE = [WHT, WHT, GO[3], GO[3], GO[2], GO[2]];
@@ -3694,16 +4529,208 @@ G.defineArt('items', G => {
   });
 
   // ==================================================================== HUD
+  // Medal slots: coinOn = the star medallion in miniature, coinOff = the empty socket it
+  // drops into (dark recess, shadowed upper-left wall, lit lower-right wall, ghost star).
+  const coinOn = spr([
+    '................',
+    '.....llllyy.....',
+    '....lyyyyyyG....',
+    '...lyyttttyGG...',
+    '..lyttTwwTTTGD..',
+    '..lytTTwwTTTGD..',
+    '.lytwwwwwwwwTGD.',
+    '.lytTwwwwwlTTGD.',
+    '.yytTTwwwlTTMGD.',
+    '.yGtTwwTTwlTMGD.',
+    '..yGTwTTTTlMGD..',
+    '..GGTTTTTMMMGD..',
+    '...GGGMMMMGDD...',
+    '....GGGGGDDD....',
+    '.....GDDDDD.....',
+    '................',
+  ]);
+  const coinOff = spr([
+    '................',
+    '.....SSSSSS.....',
+    '....SkkkkkkS....',
+    '...SkkssssssS...',
+    '..SksssSSssssS..',
+    '..SksssSSsssuS..',
+    '.SksSSSSSSSSsuS.',
+    '.SkssSSSSSSssuS.',
+    '.SksssSSSSsssuS.',
+    '.SkssSSssSSssuS.',
+    '..SssSssssSsuS..',
+    '..SsssssssssuS..',
+    '...SssssssuuS...',
+    '....SuuuuuuS....',
+    '.....SSSSSS.....',
+    '................',
+  ]);
   const hud = {
     heart: px(heartA),
-    heartEmpty: px(heartA.map(r => r.replace(/[234wP]/g, '1'))),
+    heartEmpty: px(heartA.map(r => r.replace(/[34wP]/g, '1'))),
     gem: gem[0],
-    coinOn: bigCoin[0],
-    coinOff: bigCoin[0],
+    coinOn,
+    coinOff,
   };
 
   // =================================================================== LOGO
-  const logo = G.cv(220, 72);
+  // "SUNFOX" wordmark built on boolean masks, integer pixels only (nothing is ever blended):
+  // chunky rounded letters (taller S / X bookends on a flat baseline) -> banded gradient face
+  // with a 2px bevel -> 2px ink outline -> 4px extruded block shadow. A rising sun crowns the
+  // dip in the middle of the word and Kit's tail sweeps underneath as a swash.
+  const logo = (function () {
+    const LW = 250, LH = 80;                        // the word (not the tail plume) is centred on the canvas
+    const MK = (w, h, f) => {
+      const m = { w, h, d: new Uint8Array(w * h) };
+      if (f) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (f(x, y)) m.d[y * w + x] = 1;
+      return m;
+    };
+    const on = (m, x, y) => x >= 0 && y >= 0 && x < m.w && y < m.h && m.d[y * m.w + x] === 1;
+    const SE = d => {                               // digital disc of diameter d (structuring element)
+      const o = [], r = d / 2, c = d >> 1;
+      for (let y = 0; y < d; y++) for (let x = 0; x < d; x++) if ((x + .5 - r) * (x + .5 - r) + (y + .5 - r) * (y + .5 - r) <= r * r) o.push([x - c, y - c]);
+      return o;
+    };
+    const CROSS = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]];
+    const dil = (m, se) => MK(m.w, m.h, (x, y) => se.some(o => on(m, x + o[0], y + o[1])));
+    const ero = (m, se) => MK(m.w, m.h, (x, y) => se.every(o => on(m, x + o[0], y + o[1])));
+    const each = f => { for (let y = 0; y < LH; y++) for (let x = 0; x < LW; x++) f(x, y); };
+
+    // ---- letter shapes (local coords, pixel centres), T = stem width, DG = diagonal width
+    const T = 10, DG = 11;
+    // true inside the r x r corner square at (cx, cy) but outside its quarter circle; (sx, sy) points into the shape
+    const cut = (cx, cy, r, sx, sy) => (x, y) => {
+      const u = (x + .5 - cx) * sx, v = (y + .5 - cy) * sy;
+      return u >= 0 && u < r && v >= 0 && v < r && (u - r) * (u - r) + (v - r) * (v - r) > r * r;
+    };
+    const rrect = (x0, y0, x1, y1, r) => {
+      const c = [cut(x0, y0, r, 1, 1), cut(x1, y0, r, -1, 1), cut(x1, y1, r, -1, -1), cut(x0, y1, r, 1, -1)];
+      return (x, y) => x >= x0 && x < x1 && y >= y0 && y < y1 && !c.some(f => f(x, y));
+    };
+    const not = fs => (x, y) => !fs.some(f => f(x, y));
+    const GLY = {
+      S: (W, H) => { const m0 = (H >> 1) - 4, m1 = m0 + 8; return not([rrect(T, 9, W + 20, m0, 4), rrect(-20, m1, W - T, H - 9, 4), cut(0, 0, 12, 1, 1), cut(0, m1, 12, 1, -1), cut(W, m0, 12, -1, 1), cut(W, H, 12, -1, -1)]); },
+      U: (W, H) => not([rrect(T, -20, W - T, H - 9, (W - 2 * T) / 2), cut(0, H, 13, 1, -1), cut(W, H, 13, -1, -1)]),
+      N: (W, H) => (x, y) => { const a = Math.floor(y * 2 / 3); return x < T || x >= W - T || (x >= a && x < a + 12); },   // wide, 2:3 diagonal keeps both notches open
+      F: (W, H) => (x, y) => x < T || y < 9 || (y >= 15 && y < 23 && x < W - 5),
+      O: (W, H) => { const a = rrect(0, 0, W, H, 13), c = rrect(T, 9, W - T, H - 9, (W - 2 * T) / 2); return (x, y) => a(x, y) && !c(x, y); },
+      X: (W, H) => (x, y) => { const a = y >> 1; return (x >= a && x < a + DG) || (x >= W - DG - a && x < W - a); },
+    };
+    const WORD = [['S', 29, 42], ['U', 29, 39], ['N', 35, 36], ['F', 25, 36], ['O', 30, 39], ['X', 31, 42]];
+    const GAP = [4, 4, 4, 3, 3], X0 = 26, YB = 61, PD = 4;
+    const FACE = MK(LW, LH), LID = new Int8Array(LW * LH).fill(-1);
+    let gx = X0;
+    WORD.forEach((g, i) => {
+      const W = g[1], H = g[2], f = GLY[g[0]](W, H);
+      let m = MK(W + 2 * PD, H + 2 * PD, (x, y) => x >= PD && y >= PD && x < W + PD && y < H + PD && f(x - PD, y - PD));
+      m = dil(ero(m, SE(7)), SE(7));                // round every convex corner (2,1 steps)
+      m = ero(dil(m, SE(5)), SE(5));                // soften the concave ones
+      for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) if (m.d[y * m.w + x]) {
+        const k = (YB - H + y - PD) * LW + gx + x - PD; FACE.d[k] = 1; LID[k] = i;
+      }
+      gx += W + (GAP[i] || 0);
+    });
+    const OUT = dil(FACE, SE(5));                   // face + 2px outline
+    const depth = (x, y) => { for (let k = 1; k <= 4; k++) if (on(OUT, x - k, y - k)) return k; return 0; };
+    const EXT = MK(LW, LH, (x, y) => !on(OUT, x, y) && depth(x, y) > 0);
+
+    // ---- sun: disc crowned with triangular rays, only the cap above the N / F dip is kept
+    const SX = LW / 2, SY = 42, SR = 27, SCLIP = 27;
+    const inDisc = (x, y) => (x + .5 - SX) * (x + .5 - SX) + (y + .5 - SY) * (y + .5 - SY) <= SR * SR;
+    const RAYS = [[90, 13], [75, 9], [105, 9], [60, 13], [120, 13], [45, 10], [135, 10]];   // [angle, length]
+    const inRay = (x, y) => {
+      const px = x + .5 - SX, py = y + .5 - SY;
+      return RAYS.some(r => {
+        const ux = Math.cos(r[0] * Math.PI / 180), uy = -Math.sin(r[0] * Math.PI / 180);
+        const along = px * ux + py * uy - (SR - 1), across = -px * uy + py * ux;
+        return along >= 0 && along <= r[1] - 1.2 && Math.abs(across) <= 3.7 * (1 - along / r[1]);
+      });
+    };
+    const SUN = MK(LW, LH, (x, y) => y < SCLIP && (inDisc(x, y) || inRay(x, y)));
+
+    // ---- tail: a tapering tube around a Catmull-Rom centre line [x, y, radius]. It slips out from
+    // under the X, runs below the word and curls up into a bushy cream-tipped plume left of the S.
+    const TP = [[224, 52, 2.5], [215, 60, 2.5], [206, 68.5, 3], [184, 72.5, 3.2], [146, 73.8, 3.6], [93, 74, 4], [46, 73.5, 4.8],
+      [25, 69.5, 6.5], [14.5, 58, 9], [11.5, 45, 8.5], [11.5, 34, 5.5], [14, 25.5, 1.2], [16, 21, 0.5]];
+    const TS = [], ARC = [0];
+    for (let i = 1; i < TP.length - 2; i++) for (let k = 0; k < 16; k++) {
+      const t = k / 16, p0 = TP[i - 1], p1 = TP[i], p2 = TP[i + 1], p3 = TP[i + 2];
+      TS.push([0, 1, 2].map(j => 0.5 * (2 * p1[j] + (p2[j] - p0[j]) * t + (2 * p0[j] - 5 * p1[j] + 4 * p2[j] - p3[j]) * t * t + (3 * p1[j] - p0[j] - 3 * p2[j] + p3[j]) * t * t * t)));
+    }
+    for (let i = 1; i < TS.length; i++) ARC.push(ARC[i - 1] + Math.hypot(TS[i][0] - TS[i - 1][0], TS[i][1] - TS[i - 1][1]));
+    const TL = new Float32Array(LW * LH), TA = new Float32Array(LW * LH), TQ = new Float32Array(LW * LH);   // light term across the tube, arc position, signed offset across
+    const TAIL = MK(LW, LH, (x, y) => {
+      const px = x + .5, py = y + .5;
+      let bd = 1e9, br = 0, ox = 0, oy = 0, ba = 0, tx = 0, ty = 0;
+      for (let i = 0; i < TS.length - 1; i++) {
+        const a = TS[i], c = TS[i + 1], ex = c[0] - a[0], ey = c[1] - a[1], l2 = ex * ex + ey * ey;
+        let u = ((px - a[0]) * ex + (py - a[1]) * ey) / l2; u = u < 0 ? 0 : u > 1 ? 1 : u;
+        const dx = px - a[0] - ex * u, dy = py - a[1] - ey * u, d = dx * dx + dy * dy;
+        if (d < bd) { bd = d; br = a[2] + (c[2] - a[2]) * u; ox = dx; oy = dy; ba = ARC[i] + Math.sqrt(l2) * u; tx = ex; ty = ey; }
+      }
+      if (Math.sqrt(bd) > br) return false;
+      // lit from above under the word (the underside falls into shade), swinging round to the left on the plume
+      const tt = Math.max(0, Math.min(1, (ba - 185) / 30));
+      TL[y * LW + x] = -((0.447 + 0.4 * tt) * ox + (0.894 - 0.37 * tt) * oy) / br; TA[y * LW + x] = ba; TQ[y * LW + x] = (tx * oy - ty * ox) / Math.hypot(tx, ty);
+      return true;
+    });
+
+    // ---- paint, back to front
+    const b = B(LW, LH);
+    const inkAround = m => { const g = dil(m, CROSS); each((x, y) => { if (on(g, x, y)) S(b, x, y, INK); }); };
+    // 1px bevel classes of a mask: 1 lit edge, 2 shaded edge, 0 elsewhere
+    const edge = (m, x, y) => (!on(m, x - 1, y) || !on(m, x, y - 1)) ? ((!on(m, x + 1, y) || !on(m, x, y + 1)) ? 0 : 1) : ((!on(m, x + 1, y) || !on(m, x, y + 1)) ? 2 : 0);
+    inkAround(SUN);
+    each((x, y) => {
+      if (!on(SUN, x, y)) return;
+      const e = edge(SUN, x, y);
+      if (inDisc(x, y)) S(b, x, y, e === 1 ? WHT : Math.hypot(x + .5 - SX, y + .5 - SY) > SR - 3 ? GO[3] : GO[2]);
+      else S(b, x, y, e === 1 ? GO[2] : e === 2 ? OR[2] : OR[3]);
+    });
+    inkAround(TAIL);
+    each((x, y) => {
+      if (!on(TAIL, x, y)) return;
+      const l = TL[y * LW + x];
+      const z = TQ[y * LW + x] / 5 + 0.25, zig = Math.abs(z - Math.floor(z) - 0.5) * 2;     // 5px wide teeth across the tail
+      if (TA[y * LW + x] > 217 + 4 * zig) S(b, x, y, l > 0 ? WHT : l < -0.3 ? BR[4] : BR[5]);
+      else S(b, x, y, l > 0.3 ? OR[3] : l < -0.2 ? OR[1] : OR[2]);
+    });
+    inkAround(EXT);
+    const NEAR = dil(OUT, SE(5));                   // the side walls are lighter along the 2px next to the outline
+    each((x, y) => {
+      if (on(EXT, x, y)) S(b, x, y, on(NEAR, x, y) ? BL[1] : BL[0]);
+      else if (on(OUT, x, y)) S(b, x, y, INK);
+    });
+    // faces: banded gradient + bevel (ring 1 / ring 2 lit or shaded by the outward normal)
+    const E1 = ero(FACE, CROSS), E2 = ero(E1, CROSS);
+    const RAMP = [WHT, GO[3], GO[2], OR[3], OR[2], OR[1], OR[0], RD[0]];
+    const BANDS = [[0.26, 1], [0.52, 2], [0.78, 3], [9, 4]];        // [upper bound of v, ramp index]
+    each((x, y) => {
+      if (!on(FACE, x, y)) return;
+      const H = WORD[LID[y * LW + x]][2], v = (y - (YB - H)) / H;
+      const bi = BANDS.find(q => v < q[0])[1];
+      let nx = 0, ny = 0;                           // outward normal: pull of the empty pixels in a 7x7 window (weight 1/d2),
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {     // steady along stair-stepped diagonals
+        if ((dx || dy) && !on(FACE, x + dx, y + dy)) { const d2 = dx * dx + dy * dy; nx += dx / d2; ny += dy / d2; }
+      }
+      const l = -(nx + ny) / (Math.hypot(nx, ny) || 1) * Math.SQRT1_2;
+      const ring = !on(E1, x, y) ? 1 : !on(E2, x, y) ? 2 : 0;
+      let c = bi;
+      if (ring === 1) c = l > 0.25 ? 0 : l < -0.25 ? bi + 2 : bi;
+      else if (ring === 2) c = l > 0.25 ? bi - 1 : l < -0.25 ? bi + 1 : bi;
+      S(b, x, y, RAMP[c]);
+    });
+    // plug enclosed see-through specks (letter counters, pinholes between the outlines)
+    const seen = new Uint8Array(LW * LH), stack = [];
+    const push = (x, y) => { if (x >= 0 && y >= 0 && x < LW && y < LH && !seen[y * LW + x] && !b.d[y * LW + x]) { seen[y * LW + x] = 1; stack.push(x, y); } };
+    const flood = (x, y) => { const got = []; push(x, y); while (stack.length) { const cy = stack.pop(), cx = stack.pop(); got.push(cy * LW + cx); push(cx + 1, cy); push(cx - 1, cy); push(cx, cy + 1); push(cx, cy - 1); } return got; };
+    for (let x = 0; x < LW; x++) { flood(x, 0); flood(x, LH - 1); }
+    for (let y = 0; y < LH; y++) { flood(0, y); flood(LW - 1, y); }
+    each((x, y) => { const g = flood(x, y); if (g.length && g.length <= 40) g.forEach(k => { b.d[k] = g.length <= 3 ? INK : BL[0]; }); });
+    return out(b);
+  })();
 
   return { gem, bigCoin, heart, sparkle, dust, poof, splash, hud, font, logo };
 });
@@ -4925,7 +5952,8 @@ G.defineArt('items', G => {
         case 'block': if (e.bump > 0) e.bump--; break;
         case 'spring':
           if (e.anim > 0) e.anim--;
-          if (!P.dead && P.vy > 0 && Math.abs(P.x - e.x) < 11 && P.y > e.y - 15 && P.y < e.y - 2) {
+          // launches when landed on from above, and also when simply walked onto
+          if (!P.dead && !P.win && P.vy >= 0 && e.anim < 8 && ((Math.abs(P.x - e.x) < 11 && P.y > e.y - 15 && P.y < e.y - 2) || (P.onGround && Math.abs(P.x - e.x) < 7 && Math.abs(P.y - e.y) < 3))) {
             P.y = e.y - 12; P.vy = -8.7; P.onGround = false; P.jumping = false; P.ride = null; e.anim = 16;
             AU.sfx('spring'); addFx(IT().dust, P.x, P.y - 4, 4);
           }
