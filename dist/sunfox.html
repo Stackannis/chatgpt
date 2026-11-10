@@ -383,7 +383,9 @@ G.defineArt('terrain', G => {
   // ------------------------------------------------------------------
   // ramp index:       0 seam     1 crack    2 dk shade 3 shade    4 base B   5 base A   6 light    7 hilite   8 glint
   const DIRT_RAMP = ['#5a2a2a', '#73372b', '#8a4532', '#a9602f', '#b26736', '#c47a3c', '#d8944c', '#eab368', '#ffe0a0'];
-  const DEEP_RAMP = ['#46202c', '#5a2a30', '#6c3432', '#8c4a36', '#965038', '#a65d39', '#b86e40', '#ca8349', '#ca8349'];
+  // exactly one step down dirt's own ramp (each tone = dirt's next darker tone, nudged purple),
+  // so the engine's ordered dither between the two reads as a soft tonal band
+  const DEEP_RAMP = ['#4c2230', '#5c2a2e', '#74372f', '#8b4634', '#a05a32', '#b26736', '#c47a3c', '#d48e4a', '#d48e4a'];
   const DI = { k: 0, D: 1, d: 2, s: 3, n: 4, m: 5, L: 6, H: 7, W: 8 };
   // 64-long seam profile from [length, step] runs: the seam moves 1px down (step > 0)
   // or up (step < 0) every |step| px, or stays flat (step 0).
@@ -1207,13 +1209,20 @@ G.defineArt('decor', G => {
     }
   }
 
+  // Ruin stone (blue-violet shadows, warm highlights) and warmer natural rock ramps.
+  const RS = [ST[0], ST[1], ST[2], '#b6b4ba', '#eee6cc'];
+  const RK = ['#33263a', '#5e4c5c', '#8e7d80', '#c0b2a0', '#efe3c2'];
+  const DEEP = '#0a2a2e', WD = '#2668c8';
+
   // Outline families: colour -> [dark outline, lit-side outline]
   const FAM = {};
   function fam(ramp, d, l) { ramp.forEach(c => { FAM[c] = [d, l]; }); }
   fam(GR, GR[0], GR[1]); fam(BR, BR[0], BR[1]); fam(ST, ST[0], ST[1]); fam(BL, BL[1], BL[2]);
   fam(OR, OR[0], OR[1]); fam(RD, RD[0], RD[1]); fam(GO, GO[0], OR[1]); fam(PK, RD[0], PK[0]);
   fam(TE, TE[0], TE[1]); fam(PU, PU[0], PU[1]); FAM[W] = [ST[1], ST[2]];
+  fam(RS, '#1e1a36', ST[1]); fam(RK, '#241a2e', RK[1]);
   // Expand the silhouette by 1px with a dark local colour (selout: lighter on the lit top/left side).
+  // opt.col forces one colour; opt.flat disables the lit variant.
   function outline(b, opt) {
     opt = opt || {};
     const src = b.d.slice(), g = (x, y) => (x >= 0 && y >= 0 && x < b.w && y < b.h ? src[y * b.w + x] : null);
@@ -1221,6 +1230,7 @@ G.defineArt('decor', G => {
       if (g(x, y)) continue;
       const dn = g(x, y + 1), rt = g(x + 1, y), up = g(x, y - 1), lf = g(x - 1, y);
       const n = dn || rt || up || lf; if (!n) continue;
+      if (opt.col) { b.d[y * b.w + x] = opt.col; continue; }
       const f = (opt.fam && opt.fam[n]) || FAM[n] || [P.ink, P.ink];
       const lit = !up && !lf && !opt.flat;
       b.d[y * b.w + x] = lit ? f[1] : f[0];
@@ -1285,7 +1295,42 @@ G.defineArt('decor', G => {
       lobes.forEach(l => lobe(b, l[0], l[1], l[2], o.r));
     });
   }
-  // Feathered frond along a quadratic bezier. Leaflets hang from the spine as slanted saw-teeth.
+  // Leaf cluster: flat-toned leaf discs laid like roof tiles (light ones on top), which gives
+  // clean scalloped tone bands: lit upper-left rim, mid tone, dark under-shadow. No dithering.
+  // Each cluster gets its own dark rim so neighbouring clusters stay separated.
+  function clump(b, cx, cy, rx, ry, bias, r) {
+    layer(b, t => {
+      const lobes = [], R = r || 3;
+      let row = 0;
+      for (let gy = -ry + R - 1; gy <= ry - R + 1.01; gy += 4, row++) for (let gx = -rx + R - 1 + (row & 1 ? 2.5 : 0); gx <= rx - R + 1.01; gx += 5) {
+        const ex = gx / (rx - R + 1), ey = gy / (ry - R + 1);
+        if (ex * ex + ey * ey > 1.08) continue;
+        const v = -(gx / rx * 0.55 + gy / ry * 0.85) + (bias || 0);
+        lobes.push([Math.round(cx + gx), Math.round(cy + gy), v > 0.6 ? 4 : v > 0.12 ? 3 : v > -0.3 ? 2 : 1, v, row]);
+      }
+      for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+        const dx = (x + 0.5 - cx) / (rx - 1), dy = (y + 0.5 - cy) / (ry - 1);
+        if (dx * dx + dy * dy <= 0.8) S(t, x, y, GR[1]);
+      }
+      lobes.sort((a, c) => a[3] - c[3]);
+      lobes.forEach(l => {
+        for (let y = Math.floor(l[1] - R); y <= Math.ceil(l[1] + R); y++) for (let x = Math.floor(l[0] - R - 1); x <= Math.ceil(l[0] + R + 1); x++) {
+          const dx = (x + 0.5 - l[0]) / (R + 0.3), dy = (y + 0.5 - l[1]) / (R - 0.1);
+          if (dx * dx + dy * dy <= 1) S(t, x, y, GR[l[2]]);
+        }
+      });
+      // leaf accents: a short lit edge on the upper-left of every leaf, a shadow notch below it
+      lobes.forEach(l => {
+        const x = l[0], y = l[1], c = l[2];
+        if (c < 4 && Gt(t, x - 1, y - 2) === GR[c]) { S(t, x - 2, y - 1, GR[c + 1]); S(t, x - 1, y - 2, GR[c + 1]); S(t, x, y - 2, GR[c + 1]); }
+        if (c > 1 && Gt(t, x + 1, y + 1) === GR[c] && Gt(t, x + 2, y + 1) === GR[c]) { S(t, x + 1, y + 1, GR[c - 1]); S(t, x + 2, y, GR[c - 1]); }
+      });
+    }, { col: GR[0] });
+  }
+
+  // Palm / fern frond: midrib along a quadratic bezier with separate saw-tooth leaflets.
+  // Each leaflet is a stroke of a light + dark pixel pair ending in a single pointed pixel;
+  // the gap between leaflets is left empty (the layer rim fills it with the darkest tone).
   function frond(b, p0, p1, p2, o) {
     const pts = []; let last = null;
     for (let i = 0; i <= 600; i++) {
@@ -1298,33 +1343,30 @@ G.defineArt('decor', G => {
         last = [xi, yi, tx, ty]; pts.push(last);
       }
     }
-    const n = pts.length, per = o.per || 5, c = o.cols;
-    const sideLo = o.side || 0;
-    const FAC = per >= 5 ? [1, 0.86, 0.64, 0.4, 0.14] : per === 4 ? [1, 0.78, 0.48, 0.14] : [1, 0.6, 0.15];
-    function leaflets(up) {
-      const CC = up ? [c.a, c.a, c.m, c.m, c.b] : per >= 5 ? [c.a, c.m, c.m, c.b, c.b] : per === 4 ? [c.a, c.m, c.b, c.b] : [c.a, c.m, c.b];
-      for (let i0 = (o.phase || 0) % per; i0 < n; i0 += per) {
-        const [, , tx, ty] = pts[i0], s = i0 / (n - 1);
-        let nx = -ty, ny = tx; // normal
-        if (sideLo ? sideLo * nx < 0 : ny < 0) { nx = -nx; ny = -ny; } // lower / chosen side
-        if (up) { nx = -nx; ny = -ny; }
-        const g = up ? (o.gravUp || 0) : (o.grav == null ? 0.55 : o.grav), ln = o.lean == null ? 0.45 : o.lean;
-        let dx = nx * (1 - g) + tx * ln, dy = ny * (1 - g) + g + ty * ln;
+    const n = pts.length, step = o.step || 3, c = o.cols, pair = step >= 3;
+    const g = o.grav == null ? 0.5 : o.grav, ln = o.lean == null ? 0.5 : o.lean;
+    for (let pass = 0; pass < 2; pass++) for (let side = -1; side <= 1; side += 2) {
+      for (let i = (o.phase || 0) + 1; i < n - 1; i += step) {
+        const x = pts[i][0], y = pts[i][1], tx = pts[i][2], ty = pts[i][3], s = i / (n - 1);
+        const nx = -ty * side, ny = tx * side;
+        const L0 = o.lenUp + (o.len - o.lenUp) * (ny + 1) / 2;
+        const env = Math.pow(Math.sin(Math.PI * Math.min(1, (o.e0 == null ? 0.12 : o.e0) + s * (1 - (o.e0 == null ? 0.12 : o.e0)))), 0.6);
+        const L = Math.round(L0 * env);
+        let dx = nx + tx * ln, dy = ny + ty * ln + g;
         const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
-        const env = Math.pow(Math.sin(Math.PI * Math.min(1, (o.e0 == null ? 0.03 : o.e0) + Math.pow(s, 0.8) * 0.93)), o.pow || 0.7);
-        for (let q = 0; q < per && i0 + q < n; q++) {
-          const len = Math.round((up ? o.lenUp || 0 : o.len) * env * FAC[q]);
-          for (let k = 1; k <= len; k++) S(b, pts[i0 + q][0] + dx * k, pts[i0 + q][1] + dy * k, CC[q]);
+        const ox = Math.abs(dy) >= Math.abs(dx) ? 1 : 0, oy = 1 - ox;
+        for (let k = 1; k <= L; k++) {
+          const X = Math.round(x + dx * k), Y = Math.round(y + dy * k);
+          if (pass === 0) { if (pair && k < L) S(b, X + ox, Y + oy, c.b); }
+          else S(b, X, Y, k === L && L > 2 ? c.t || c.a : c.a);
         }
       }
     }
-    leaflets(false);
-    if (o.lenUp) leaflets(true);
-    for (let i = 0; i < n; i++) S(b, pts[i][0], pts[i][1], i > n * 0.8 ? c.a : c.spine);
+    for (let i = 0; i < n; i++) S(b, pts[i][0], pts[i][1], i > n * 0.85 ? c.a : c.spine);
   }
-  const FR_FRONT = { spine: GR[4], a: GR[3], m: GR[2], b: GR[1] };
-  const FR_MID = { spine: GR[3], a: GR[3], m: GR[2], b: GR[1] };
-  const FR_BACK = { spine: GR[2], a: GR[2], m: GR[1], b: GR[0] };
+  const FR_LIT = { spine: GR[4], a: GR[3], b: GR[2], rim: GR[1] };
+  const FR_MID = { spine: GR[3], a: GR[2], b: GR[1], rim: GR[0] };
+  const FR_BACK = { spine: GR[2], a: GR[1], b: GR[0], rim: DEEP };
 
   // grass blade / stem: quadratic lean, 2px at the base tapering to 1px
   function blade(b, x0, y0, h, lean, cl, cd, w) {
@@ -1336,22 +1378,33 @@ G.defineArt('decor', G => {
 
   // ----------------------------------------------------------------- stone
   // Bump-map renderer: rows of height chars (' '/'.' empty, 'o' recess, '#' base, '+' raised, '*' higher).
+  // Raised planes are a full tone lighter than the base, recesses a tone darker; edges facing the
+  // upper-left catch a highlight, edges facing lower-right and anything under a ledge fall in shadow.
   const HV = { o: 0, '#': 1, '+': 2, '*': 3 };
   function mirrorRows(rows) { return rows.map(r => r + r.split('').reverse().join('')); }
   function stone(b, rows, ox, oy, opt) {
     opt = opt || {};
+    const R = opt.ramp || RS;
     const h = (x, y) => { const r = rows[y]; if (!r) return -1; const v = HV[r[x]]; return v == null ? -1 : v; };
     const wd = rows[0].length;
     for (let y = 0; y < rows.length; y++) for (let x = 0; x < wd; x++) {
       const v = h(x, y); if (v < 0) continue;
       const l = h(x - 1, y), u = h(x, y - 1), r = h(x + 1, y), d = h(x, y + 1);
-      let t = v === 0 ? 1 : 2;
-      const litE = (l < v && l >= -1) || (u < v), shE = (r < v) || (d < v), inSh = (l > v) || (u > v);
+      let t = v === 0 ? 1 : v === 1 ? 2 : 3;
+      const litE = l < v || u < v, shE = r < v || d < v, inSh = l > v || u > v;
       if (inSh) t -= 1; else if (litE && !shE) t += 1; else if (shE && !litE) t -= 1;
-      if (v >= 2 && litE && u < v && l < v) t = 4; // sparkling raised corner
-      if (opt.shadeFrom != null && x >= opt.shadeFrom && t > 1) t -= 1; // cylinder falloff on the right
-      if (opt.lightTo != null && x <= opt.lightTo && v > 0 && t < 3 && !inSh && !shE) t += 1;
-      S(b, ox + x, oy + y, ST[Math.max(0, Math.min(4, t))]);
+      if (v >= 2 && u < v && l < v) t = 4; // sparkling raised corner
+      if (opt.shadeFrom != null && x >= opt.shadeFrom) t -= 1; // falloff on the right
+      if (opt.lightTo != null && x <= opt.lightTo && v > 0 && t < 4 && !inSh && !shE) t += 1;
+      S(b, ox + x, oy + y, R[Math.max(0, Math.min(4, t))]);
+    }
+  }
+  // moss that follows the top silhouette between two columns, with drips (pattern = thickness per column)
+  function mossTop(b, x0, pattern) {
+    for (let i = 0; i < pattern.length; i++) {
+      const x = x0 + i, th = pattern[i]; let y = 0;
+      while (y < b.h && !Gt(b, x, y)) y++;
+      for (let k = 0; k < th; k++) S(b, x, y + k, k === 0 ? GR[3] : k === th - 1 && th > 2 ? GR[1] : GR[2]);
     }
   }
   // moss lying on a top surface: list of [x, y, thickness] columns
@@ -1369,105 +1422,111 @@ G.defineArt('decor', G => {
   function makePalm() {
     const b = B(64, 96);
     const crown = [35, 29];
-    const fr = (p1, p2, o) => layer(b, t => frond(t, crown, p1, p2, o));
-    // back fronds (shaded)
-    fr([45, 30], [50, 57], { len: 7, cols: FR_BACK, grav: 0.5, lenUp: 2 });
-    fr([25, 30], [20, 56], { len: 7, cols: FR_BACK, grav: 0.5, lenUp: 2, phase: 2 });
-    fr([40, 8], [52, 3], { len: 7, cols: FR_MID, lenUp: 3 });
-    fr([31, 8], [19, 3], { len: 7, cols: FR_MID, lenUp: 3, phase: 3 });
+    const fr = (p1, p2, cols, o) => layer(b, t => frond(t, crown, p1, p2, Object.assign({ len: 8, lenUp: 4, cols }, o)), { col: cols.rim });
+    // back fronds (darkest green)
+    fr([39, 11], [48, 2], FR_BACK, { len: 6, lenUp: 4, grav: 0.2 });
+    fr([31, 12], [22, 1], FR_BACK, { len: 6, lenUp: 4, grav: 0.2, phase: 1 });
+    fr([46, 27], [50, 55], FR_BACK, { len: 7, lenUp: 5, phase: 2 });
     // trunk
-    const cxAt = y => 26 + 9 * Math.pow((95 - y) / 66, 1.7);
-    for (let y = 95; y >= 29; y--) {
-      const t = (95 - y) / 66, seg = (95 - y) % 6;
-      let hw = 3.6 - 1.2 * t + (y > 90 ? (y - 90) * 0.5 : 0);
-      const cx = cxAt(y - seg + 2); // each ring is a straight cup, stepping along the curve
-      let xa = Math.round(cx - hw), xb = Math.round(cx + hw);
-      if (seg === 5) { xa -= 1; xb += 1; } // lip of each ring
-      for (let x = xa; x <= xb; x++) {
-        const f = (x - xa) / Math.max(1, xb - xa);
-        let c = f < 0.18 ? BR[4] : f < 0.5 ? BR[3] : f < 0.82 ? BR[2] : BR[1];
-        if (seg === 0) c = f < 0.5 ? BR[2] : BR[1]; // shadow under the lip
-        if (seg === 5 && f < 0.6) c = f < 0.3 ? BR[5] : BR[4];
-        S(b, x, y, c);
+    layer(b, t => {
+      const cxAt = y => 26 + 9 * Math.pow((95 - y) / 66, 1.7);
+      for (let y = 95; y >= 29; y--) {
+        const tt = (95 - y) / 66, seg = (95 - y) % 6;
+        const hw = 3.6 - 1.2 * tt + (y > 90 ? (y - 90) * 0.5 : 0);
+        const cx = cxAt(y - seg + 2); // each ring is a straight cup, stepping along the curve
+        let xa = Math.round(cx - hw), xb = Math.round(cx + hw);
+        if (seg === 5) { xa -= 1; xb += 1; } // lip of each ring
+        for (let x = xa; x <= xb; x++) {
+          const f = (x - xa) / Math.max(1, xb - xa);
+          let c = f < 0.18 ? BR[4] : f < 0.5 ? BR[3] : f < 0.82 ? BR[2] : BR[1];
+          if (seg === 0) c = f < 0.5 ? BR[2] : BR[1]; // shadow under the lip
+          if (seg === 5 && f < 0.6) c = f < 0.3 ? BR[5] : BR[4];
+          if (y < 38 && c !== BR[1]) c = BR[BR.indexOf(c) - 1]; // crown shade
+          S(t, x, y, c);
+        }
       }
-    }
-    // coconuts
-    const nut = ['.kk.', 'knmk', 'kmmk', '.kk.'], NP = { k: BR[0], n: BR[3], m: BR[1] };
-    stamp(b, nut, NP, 30, 30); stamp(b, nut, NP, 36, 31); stamp(b, nut, NP, 33, 33);
-    // front fronds
-    fr([19, 20], [4, 46], { len: 9, cols: FR_FRONT, lenUp: 3 });
-    fr([52, 20], [60, 48], { len: 9, cols: FR_FRONT, lenUp: 3, phase: 1 });
-    fr([23, 1], [3, 22], { len: 9, cols: FR_FRONT, lenUp: 3, phase: 2 });
-    fr([48, 1], [61, 23], { len: 9, cols: FR_FRONT, lenUp: 3 });
+    });
+    // right-hand fronds (mid tone), then the frond drooping across the trunk
+    fr([53, 21], [59, 49], FR_MID, { phase: 1 });
+    fr([49, 5], [62, 23], FR_MID, {});
+    fr([27, 29], [24, 55], FR_MID, { len: 7, lenUp: 5, phase: 2 });
+    // sunlit fronds, upper-left
+    fr([17, 22], [5, 48], FR_LIT, { phase: 1 });
+    fr([21, 4], [2, 24], FR_LIT, {});
+    // coconut cluster at the crown join
+    const nut = ['.kkk.', 'knhmk', 'kmmdk', 'kmddk', '.kkk.'], NP = { k: BR[0], n: BR[3], h: BR[4], m: BR[2], d: BR[1] };
+    stamp(b, nut, NP, 35, 30); stamp(b, nut, NP, 29, 31); stamp(b, nut, NP, 32, 34);
     // crown heart
-    stamp(b, ['.dd.', 'dedc', 'dccb', '.cb.'], LEAFP, 33, 27);
-    outline(b);
+    stamp(b, ['.aaa.', 'adeda', 'adcca', '.aaa.'], LEAFP, 32, 26);
     return out(b);
   }
 
   // =================================================================== TREE
   function makeTree() {
     const b = B(56, 72);
-    // limbs disappearing into the canopy
-    for (let i = 0; i <= 12; i++) {
-      rect(b, 25 - Math.round(i * 0.7), 52 - i, 3, 1, BR[1]); S(b, 25 - Math.round(i * 0.7), 52 - i, BR[2]);
-      rect(b, 30 + Math.round(i * 0.7), 52 - i, 3, 1, BR[1]);
-    }
-    // trunk with root flare
-    for (let y = 70; y >= 40; y--) {
-      const k = y > 62 ? (y - 62) : 0;
-      const xa = 24 - Math.round(k * k * 0.1) - (y < 50 ? 0 : 0), xb = 32 + Math.round(k * k * 0.085);
-      for (let x = xa; x <= xb; x++) {
-        const f = (x - xa) / (xb - xa);
-        let t = f < 0.14 ? 4 : f < 0.42 ? 3 : f < 0.8 ? 2 : 1;
-        if (y < 51) t = Math.max(1, t - 1); // canopy shade
-        S(b, x, y, BR[t]);
+    layer(b, t => {
+      // limbs disappearing into the canopy
+      for (let i = 0; i <= 12; i++) {
+        rect(t, 25 - Math.round(i * 0.7), 52 - i, 3, 1, BR[1]); S(t, 25 - Math.round(i * 0.7), 52 - i, BR[2]);
+        rect(t, 30 + Math.round(i * 0.7), 52 - i, 3, 1, BR[1]);
       }
-    }
-    // bark: staggered grooves + root creases
-    [[27, 52, 5], [30, 56, 6], [26, 60, 5], [29, 64, 4], [31, 48, 4]].forEach(g => rect(b, g[0], g[1], 1, g[2], BR[1]));
-    [[26, 54, 3], [28, 61, 3]].forEach(g => rect(b, g[0], g[1], 1, g[2], BR[4]));
-    line(b, 25, 66, 22, 70, BR[2]); line(b, 31, 66, 34, 70, BR[1]); line(b, 28, 67, 28, 70, BR[1]);
-    leafMass(b, [
-      [28, 14, 13, 10], [13.5, 23, 10.5, 10], [42, 23, 10.5, 10], [28, 26, 14, 10],
-      [11, 34, 8, 7.5], [44.5, 34, 8, 7.5], [21, 38, 10, 7.5], [36, 38, 10, 7.5],
-    ], [28, 24, 26, 22], 7);
-    outline(b);
+      // trunk with root flare
+      for (let y = 70; y >= 40; y--) {
+        const k = y > 62 ? (y - 62) : 0;
+        const xa = 24 - Math.round(k * k * 0.1), xb = 32 + Math.round(k * k * 0.085);
+        for (let x = xa; x <= xb; x++) {
+          const f = (x - xa) / (xb - xa);
+          let tn = f < 0.14 ? 4 : f < 0.42 ? 3 : f < 0.8 ? 2 : 1;
+          if (y < 51) tn = Math.max(1, tn - 1); // canopy shade
+          S(t, x, y, BR[tn]);
+        }
+      }
+      // bark: staggered grooves + root creases
+      [[27, 52, 5], [30, 56, 6], [26, 60, 5], [29, 64, 4], [31, 48, 4]].forEach(g => rect(t, g[0], g[1], 1, g[2], BR[1]));
+      [[26, 54, 3], [28, 61, 3]].forEach(g => rect(t, g[0], g[1], 1, g[2], BR[4]));
+      line(t, 25, 66, 22, 70, BR[2]); line(t, 31, 66, 34, 70, BR[1]); line(t, 28, 67, 28, 70, BR[1]);
+    });
+    // canopy: six separate clusters, back to front
+    clump(b, 29, 13, 13, 10, 0.1);
+    clump(b, 42, 25, 12, 10, -0.15);
+    clump(b, 14, 24, 12, 10, 0.05);
+    clump(b, 41, 38, 10, 7, -0.25);
+    clump(b, 15, 38, 10, 7, -0.1);
+    clump(b, 28, 32, 12, 9, 0);
     return out(b);
   }
 
   // ================================================================= BUSHES
+  const BERRY = ['.kk.', 'kprk', 'krdk', '.kk.'], BERRYP = { k: RD[0], p: PK[1], r: RD[2], d: RD[1] };
   function makeBush1() {
     const b = B(32, 16);
-    rect(b, 3, 10, 26, 6, GR[0]);
-    leafMass(b, [[16, 9, 7, 5], [8, 12, 5, 3.5], [24, 12, 5, 3.5], [12, 14, 5, 2.5], [21, 14, 5, 2.5]], [16, 9, 15, 8], 3, { bias: 0.1 });
-    outline(b);
+    clump(b, 16, 9, 12, 8, 0.05);
+    clump(b, 25, 12, 7, 6, -0.25);
+    clump(b, 7, 12, 7, 6, -0.05);
     return out(b);
   }
   function makeBush2() {
     const b = B(48, 24);
-    rect(b, 4, 14, 40, 10, GR[0]);
-    leafMass(b, [[21, 10.5, 8, 6], [32, 12, 8, 6], [10, 16.5, 6, 5], [39.5, 18, 5.5, 4.5], [17, 19.5, 8, 4], [29, 20.5, 8, 3.5]], [24, 13, 23, 12], 5, { bias: 0.1 });
-    // berries
-    const berry = ['.r.', 'rRr', '.r.'], BP = { r: RD[2], R: RD[3] };
-    stamp(b, berry, BP, 24, 10); stamp(b, berry, BP, 12, 15); stamp(b, berry, BP, 35, 15); stamp(b, berry, BP, 28, 19);
-    outline(b);
+    clump(b, 25, 11, 12, 9, 0.05);
+    clump(b, 38, 16, 9, 7, -0.2);
+    clump(b, 11, 16, 10, 7, 0);
+    clump(b, 25, 20, 10, 5, -0.1);
+    // berries: 2x2 with a highlight, in pairs
+    [[20, 9], [24, 11], [8, 15], [35, 13], [39, 16], [27, 18]].forEach(p => stamp(b, BERRY, BERRYP, p[0], p[1]));
     return out(b);
   }
 
   // =================================================================== FERN
   function makeFern() {
     const b = B(24, 16);
-    const o = { len: 3, lenUp: 2, cols: FR_FRONT, per: 3, grav: 0.3, gravUp: 0, lean: 0.5, pow: 0.5 };
-    const ob = Object.assign({}, o, { cols: FR_BACK });
-    frond(b, [12, 15], [9, 4], [5, 1], Object.assign({ side: -1 }, ob));
-    frond(b, [12, 15], [15, 4], [19, 2], Object.assign({ side: 1 }, ob));
-    frond(b, [12, 15], [7, 6], [1, 8], o);
-    frond(b, [12, 15], [17, 6], [22, 8], o);
-    frond(b, [12, 15], [8, 10], [3, 13], o);
-    frond(b, [12, 15], [16, 10], [21, 13], o);
-    frond(b, [12, 15], [12, 6], [12, 2], Object.assign({ side: 1 }, o));
-    outline(b);
+    const base = [12, 16];
+    const fr = (p1, p2, cols, o) => layer(b, t => frond(t, base, p1, p2, Object.assign({ len: 3, lenUp: 2, step: 2, grav: 0.2, lean: 0.8, e0: 0.35, cols }, o)), { col: cols.rim });
+    const BK = { spine: GR[2], a: GR[1], rim: GR[0] }, MD = { spine: GR[3], a: GR[2], rim: GR[0] }, LT = { spine: GR[4], a: GR[3], rim: GR[1] };
+    fr([12, 6], [13, 2], BK, {});
+    fr([18, 1], [21, 5], MD, { phase: 1 });
+    fr([6, 1], [3, 5], LT, {});
+    fr([20, 8], [23, 14], MD, {});
+    fr([4, 8], [1, 14], LT, { phase: 1 });
     return out(b);
   }
 
@@ -1529,26 +1588,39 @@ G.defineArt('decor', G => {
   }
 
   // ================================================================== ROCKS
+  // Faceted, warm grey: lit top plane, left face, front, cast-shadow side, dark contact line.
   function makeRock1() {
     const b = B(16, 12);
-    poly(b, [[1, 12], [1, 8], [3, 4], [7, 1], [11, 2], [14, 6], [15, 12]], ST[2]);
-    poly(b, [[3, 4], [7, 1], [11, 2], [9, 5], [5, 6]], ST[3]);
-    poly(b, [[9, 5], [11, 2], [14, 6], [15, 12], [10, 12]], ST[1]);
-    S(b, 6, 2, ST[4]); S(b, 7, 2, ST[4]); S(b, 5, 3, ST[4]);
-    line(b, 5, 7, 6, 9, ST[1]);
+    poly(b, [[1, 12], [1, 8], [3, 4], [7, 1], [11, 2], [14, 6], [15, 12]], RK[2]);
+    poly(b, [[1, 12], [1, 8], [3, 4], [5, 6], [4, 12]], RK[3]);
+    poly(b, [[3, 4], [7, 1], [11, 2], [9, 5], [5, 6]], RK[4]);
+    poly(b, [[9, 5], [11, 2], [14, 6], [15, 12], [10, 12]], RK[1]);
+    poly(b, [[12, 8], [15, 9], [15, 12], [11, 12]], RK[0]);
+    S(b, 9, 3, RK[3]); S(b, 10, 3, RK[3]); S(b, 8, 4, RK[3]); S(b, 9, 4, RK[3]); // top plane turning away
+    line(b, 6, 7, 7, 9, RK[1]); S(b, 7, 7, RK[3]); S(b, 8, 9, RK[3]);
+    for (let x = 1; x <= 14; x++) if (Gt(b, x, 11)) S(b, x, 11, x < 5 ? RK[1] : RK[0]);
     outline(b);
     return out(b);
   }
   function makeRock2() {
     const b = B(32, 24);
-    poly(b, [[1, 24], [1, 17], [4, 10], [9, 5], [16, 3], [23, 5], [28, 10], [31, 17], [31, 24]], ST[2]);
-    poly(b, [[9, 5], [16, 3], [23, 5], [20, 9], [11, 10]], ST[3]);
-    poly(b, [[20, 9], [23, 5], [28, 10], [31, 17], [31, 24], [22, 24], [23, 15]], ST[1]);
-    poly(b, [[1, 17], [4, 10], [9, 5], [11, 10], [8, 16]], ST[3]);
-    poly(b, [[26, 18], [31, 17], [31, 24], [25, 24]], ST[0]);
-    line(b, 11, 11, 13, 16, ST[1]); line(b, 13, 16, 12, 20, ST[1]);
-    line(b, 8, 17, 4, 20, ST[1]);
-    moss(b, 8, 4, [1, 2, 2, 3, 2, 2, 3, 4, 3, 2, 2, 3, 2, 2, 1, 1]);
+    poly(b, [[2, 24], [1, 18], [3, 12], [7, 6], [13, 2], [20, 2], [26, 6], [29, 12], [31, 18], [30, 24]], RK[2]);
+    poly(b, [[2, 24], [1, 18], [3, 12], [7, 6], [10, 9], [8, 15], [6, 24]], RK[3]);
+    poly(b, [[7, 6], [13, 2], [20, 2], [23, 6], [17, 9], [10, 9]], RK[4]);
+    poly(b, [[23, 6], [26, 6], [29, 12], [31, 18], [30, 24], [21, 24], [22, 15], [17, 9]], RK[1]);
+    poly(b, [[25, 16], [31, 18], [30, 24], [23, 24]], RK[0]);
+    // top plane rolling off to the right, chiselled cracks with a lit lip
+    poly(b, [[18, 4], [23, 6], [17, 9], [15, 8]], RK[3]);
+    line(b, 12, 10, 14, 15, RK[1]); line(b, 14, 15, 13, 19, RK[1]);
+    line(b, 13, 10, 15, 15, RK[3]); S(b, 14, 17, RK[3]);
+    line(b, 7, 16, 4, 19, RK[2]); line(b, 17, 12, 19, 16, RK[1]);
+    S(b, 4, 12, RK[4]); S(b, 5, 10, RK[4]); S(b, 4, 13, RK[4]); // sunlit edge
+    for (let x = 1; x <= 30; x++) {
+      if (Gt(b, x, 23)) S(b, x, 23, x < 6 ? RK[1] : RK[0]);
+      if (x > 8 && x < 21 && Gt(b, x, 22)) S(b, x, 22, RK[1]);
+    }
+    // moss: a cap following the top facets, dripping down the faces
+    mossTop(b, 7, [1, 2, 3, 4, 5, 7, 6, 6, 6, 5, 6, 8, 5, 3, 3, 2, 1]);
     outline(b);
     return out(b);
   }
@@ -1579,68 +1651,71 @@ G.defineArt('decor', G => {
   function makeTotem() {
     const b = B(24, 48);
     const half = [
-      '............',
-      '...#........',
-      '..###.......',
-      '..####......',
-      '..#o###.....',
-      '..#oo###....',
-      '..#ooo###...',
+      '...+........',
+      '..++........',
+      '..+++.......',
+      '.++o++......',
+      '.++oo++.....',
+      '.++ooo++....',
+      '.++oooo+++++',
+      '.+++oo++++++',
+      '.###########',
+      '.###########',
+      '.##++++#####',
+      '###+++++####',
+      '###oooo+####',
+      '+###ooo#####',
+      '++####o###++',
+      '.+########++',
+      '..+#######++',
+      '...+######++',
+      '....+####+++',
+      '....o+###+++',
+      '....oo+##+oo',
+      '....ooo+#+oo',
+      '....oooo+###',
       '.+++++++++++',
       '.+++++++++++',
-      '..##########',
-      '..##oo######',
-      '..##oooo####',
-      '..###oooo###',
-      '..#######+++',
-      '..######++++',
-      '..######++++',
-      '..#o####++++',
-      '..######++oo',
-      '..#o####++oo',
-      '..#######+++',
-      '..##oooooooo',
-      '..##########',
       '...#########',
-      '....########',
-      '....#o#o#o#o',
-      '....########',
-      '.+++++++++++',
-      '.+++++++++++',
-      '..#########o',
-      '..###o#####o',
-      '..####o#####',
-      '..#######ooo',
-      '..######o+++',
-      '..#####o++++',
-      '..oo###o++++',
-      '..#####o++++',
-      '..######o+++',
-      '..#######ooo',
-      '..####o#####',
-      '..###o#####o',
-      '..#########o',
-      '..##########',
-      '.+++++++++++',
-      '.+++++++++++',
-      '.###########',
-      '.###########',
-      '.###########',
-      '.###########',
+      '...########+',
+      '...##+#####+',
+      '...###+####+',
+      '...####+####',
+      '...######+++',
+      '...#####++++',
+      '...#####++++',
+      '...+++##+++o',
+      '...+++##+++o',
+      '...#####++++',
+      '...#####++++',
+      '...######+++',
+      '...####+####',
+      '...###+####+',
+      '...##+#####+',
+      '...########+',
+      '...#########',
+      '++++++++++++',
+      '++++++++++++',
+      '############',
+      '############',
+      '############',
     ];
     const rows = mirrorRows(half).map(r => r.split(''));
     // weathering: broken right ear, chipped corners
-    for (let y = 0; y <= 3; y++) for (let x = 12; x < 24; x++) rows[y][x] = '.';
-    rows[4][20] = '.'; rows[4][19] = '.'; rows[5][21] = '.';
-    rows[26][22] = '.'; rows[7][22] = '.'; rows[47][22] = '.'; rows[42][1] = '.';
-    stone(b, rows.map(r => r.join('')), 0, 0, { shadeFrom: 17, lightTo: 3 });
+    for (let y = 0; y <= 2; y++) for (let x = 12; x < 24; x++) rows[y][x] = '.';
+    rows[3][21] = rows[3][20] = '.'; rows[4][22] = '.';
+    rows[13][23] = '.'; rows[23][1] = '.'; rows[24][22] = '.';
+    rows[29][20] = rows[30][20] = rows[31][20] = '.'; rows[30][19] = 'o';
+    rows[43][23] = rows[43][22] = rows[44][23] = '.'; rows[47][0] = '.';
+    stone(b, rows.map(r => r.join('')), 0, 0, { shadeFrom: 16, lightTo: 2 });
+    // eyes: deep sockets
+    rect(b, 4, 12, 2, 1, RS[0]); rect(b, 18, 12, 2, 1, RS[0]);
     // cracks
-    line(b, 16, 9, 18, 12, ST[1]); line(b, 5, 37, 7, 40, ST[1]);
-    // moss
-    moss(b, 9, 6, [1, 2, 2, 3, 2, 1]);
-    moss(b, 1, 26, [2, 3, 2, 1, 2, 1]);
-    moss(b, 15, 42, [1, 2, 2, 3, 2, 2, 1]);
-    moss(b, 1, 44, [3, 2, 2, 1]);
+    line(b, 15, 8, 17, 10, RS[1]); line(b, 5, 36, 6, 41, RS[1]);
+    // moss on the top-facing ledges only
+    moss(b, 8, 6, [1, 2, 3, 2, 1, 1, 2]);
+    moss(b, 2, 23, [2, 3, 2, 1]); moss(b, 18, 23, [1, 2, 2, 1]);
+    moss(b, 0, 43, [2, 3, 2]); moss(b, 19, 43, [1, 2, 1]);
     outline(b);
     return out(b);
   }
@@ -1648,23 +1723,32 @@ G.defineArt('decor', G => {
   // ================================================================= PILLAR
   function makePillar() {
     const b = B(16, 48);
-    const top = [12, 10, 9, 10, 8, 7, 8, 11, 13, 14];
-    const tone = [3, 3, 2, 3, 2, 2, 1, 2, 1, 1];
-    for (let i = 0; i < 10; i++) for (let y = top[i]; y <= 40; y++) {
+    // fluted shaft (x 3..12), jagged fracture across the top
+    const top = [6, 5, 7, 10, 9, 11, 12, 10, 12, 14];
+    const tone = [3, 4, 2, 3, 3, 1, 2, 2, 0, 1];
+    for (let i = 0; i < 10; i++) for (let y = top[i]; y <= 39; y++) {
       let t = tone[i];
-      if (y === top[i]) t = Math.min(4, t + 1);
-      S(b, 3 + i, y, ST[t]);
+      if (y === top[i]) t = i < 7 ? 4 : 3; else if (y === top[i] + 1) t = Math.min(4, t + 1); // fresh break
+      S(b, 3 + i, y, RS[t]);
     }
-    // band
-    for (let x = 2; x <= 13; x++) { S(b, x, 17, ST[x < 6 ? 4 : x < 10 ? 3 : 2]); S(b, x, 18, ST[x < 6 ? 3 : x < 10 ? 2 : 1]); if (x > 2 && x < 13) S(b, x, 19, ST[1]); }
-    // base
-    const base = ['..############..', '.++++++++++++++.', '.##############.', '.##############.', '++++++++++++++++', '################', '################'];
-    stone(b, base, 0, 41, { shadeFrom: 11 });
-    line(b, 6, 24, 8, 29, ST[1]); line(b, 8, 29, 7, 33, ST[1]);
-    moss(b, 4, 7, [2, 3, 2]);
-    moss(b, 0, 45, [1, 2, 3, 2, 1]);
-    moss(b, 10, 41, [1, 2, 2, 1]);
+    // bitten-out notch on the shadow side, crack running down from the fracture
+    rect(b, 12, 24, 1, 5, null); rect(b, 11, 25, 1, 3, RS[0]); S(b, 12, 29, RS[2]);
+    rect(b, 3, 30, 1, 3, null); S(b, 4, 31, RS[2]);
+    line(b, 6, 11, 6, 15, RS[1]); line(b, 6, 15, 7, 19, RS[1]);
+    const base = ['..++++++++++++..', '..############..', '.++++++++++++++.', '.##############.', '.##############.', '++++++++++++++++', '################', '################', '################'];
+    stone(b, base, 0, 39, { shadeFrom: 11 });
+    moss(b, 6, 10, [1, 2, 1]); moss(b, 10, 12, [1, 2]);
+    // drum seams: the shaft is stacked from separate drums
+    [22, 31].forEach(y => { for (let x = 3; x <= 12; x++) if (Gt(b, x, y)) { S(b, x, y, RS[x < 9 ? 1 : 0]); if (x < 8 && Gt(b, x, y + 1)) S(b, x, y + 1, RS[4]); } });
+    moss(b, 9, 39, [1, 2, 3, 2, 1]);
     outline(b);
+    // fallen chunks lying in front of the base
+    const CP = { 0: RS[0], 1: RS[1], 2: RS[2], 3: RS[3], 4: RS[4] };
+    layer(b, t => {
+      stamp(t, ['.344.', '34432', '43321', '33211', '32110'], CP, 0, 43);
+      stamp(t, ['.43.', '4321', '3210'], CP, 11, 45);
+    });
+    moss(b, 1, 43, [1, 2, 1]);
     return out(b);
   }
 
@@ -1680,19 +1764,28 @@ G.defineArt('decor', G => {
       }
       rows.push(r.split(''));
     }
-    // carved square spiral
-    const sp = [[8, 8, 21, 8], [21, 8, 21, 21], [21, 21, 8, 21], [8, 21, 8, 12], [8, 12, 17, 12], [17, 12, 17, 17], [17, 17, 12, 17], [12, 17, 12, 15]];
-    sp.forEach(s => {
-      const dx = Math.sign(s[2] - s[0]), dy = Math.sign(s[3] - s[1]);
-      for (let x = s[0], y = s[1]; ; x += dx, y += dy) { rows[y][x] = 'o'; if (x === s[2] && y === s[3]) break; }
+    // hand-carved, worn sun-spiral: segments of uneven length, cut corners, weathered gaps
+    const seg = [
+      [9, 7, 13, 7], [14, 8, 19, 8], [21, 9, 22, 11], [22, 12, 22, 14], [21, 17, 21, 20],
+      [19, 22, 15, 22], [13, 21, 10, 21], [8, 19, 8, 17], [7, 16, 7, 13], [9, 11, 11, 11], [12, 12, 16, 12],
+      [17, 13, 17, 16], [15, 17, 13, 17], [12, 16, 12, 15], [14, 14, 15, 14],
+    ];
+    seg.forEach(s => {
+      const n = Math.max(Math.abs(s[2] - s[0]), Math.abs(s[3] - s[1]));
+      for (let i = 0; i <= n; i++) rows[Math.round(s[1] + (s[3] - s[1]) * i / n)][Math.round(s[0] + (s[2] - s[0]) * i / n)] = 'o';
     });
-    // chips
-    rows[0][29] = rows[0][28] = rows[1][29] = '.'; rows[29][0] = rows[28][0] = rows[29][1] = rows[29][2] = '.';
-    rows[0][0] = '.';
-    stone(b, rows.map(r => r.join('')), 1, 1, { shadeFrom: 27 });
-    line(b, 24, 4, 26, 8, ST[1]); line(b, 26, 8, 25, 11, ST[1]);
+    // corner studs (one worn away)
+    [[6, 23], [23, 23], [23, 6]].forEach(p => { rows[p[1]][p[0]] = rows[p[1]][p[0] + 1] = rows[p[1] + 1][p[0]] = rows[p[1] + 1][p[0] + 1] = '+'; });
+    // chipped edges and corners
+    const chip = (x, y) => { rows[y][x] = '.'; };
+    [[29, 0], [28, 0], [27, 0], [29, 1], [28, 1], [29, 2], [0, 29], [0, 28], [1, 29], [2, 29], [0, 27], [0, 0],
+      [29, 13], [29, 14], [29, 15], [28, 14], [12, 29], [13, 29], [14, 29], [13, 28], [29, 29], [0, 9], [0, 10]].forEach(p => chip(p[0], p[1]));
+    rows[28][12] = rows[28][14] = rows[13][28] = rows[15][28] = '#'; rows[14][27] = '#';
+    stone(b, rows.map(r => r.join('')), 1, 1, { shadeFrom: 26 });
+    line(b, 24, 4, 26, 8, RS[1]); line(b, 26, 8, 25, 12, RS[1]); S(b, 25, 6, RS[3]);
+    line(b, 16, 25, 18, 29, RS[1]);
     moss(b, 2, 1, [2, 3, 2, 2, 4, 3, 2, 1, 1, 2, 2, 3, 5, 3, 2, 1]);
-    moss(b, 22, 1, [1, 2, 2, 1]);
+    moss(b, 21, 1, [1, 2, 3, 2, 1]);
     // vine draped over the left
     const vx = [5, 5, 6, 6, 6, 5, 5, 4, 4, 5, 5, 6, 6, 6, 5, 5, 5, 6];
     for (let i = 0; i < vx.length; i++) S(b, vx[i], 5 + i, GR[1]);
@@ -1724,89 +1817,113 @@ G.defineArt('decor', G => {
   }
 
   // ============================================================== WATERFALL
+  // The column is shaded as a cylinder (dark flanks, light band on the left third) and carries
+  // long streaks that all fall 8px per frame over a 32px period, so 4 frames loop seamlessly.
+  const EDGE = 'rgba(184,240,255,0.6)';
+  const WCOL = x => (x <= 2 || x >= 29 ? BL[1] : x <= 4 || x >= 27 ? WD : x === 6 || x === 9 || x === 10 ? BL[3] : x === 7 || x === 8 ? BL[4] : BL[2]);
   const STR = [
-    // x, w, period, colour, [y0,len]...
-    [1, 2, 32, BL[4], [0, 14], [18, 10]], [1, 1, 32, W, [2, 8], [20, 5]],
-    [4, 3, 32, BL[3], [6, 18], [28, 8]], [5, 1, 32, W, [10, 8]],
-    [3, 1, 16, BL[1], [4, 7]],
-    [8, 2, 32, BL[1], [0, 9], [16, 6]],
-    [10, 3, 16, BL[3], [0, 10]], [11, 1, 16, BL[4], [2, 6]],
-    [14, 2, 32, BL[3], [14, 16]], [13, 1, 32, W, [20, 10], [4, 4]],
-    [17, 2, 16, BL[1], [8, 5]],
-    [19, 3, 32, BL[3], [0, 12], [18, 8]], [20, 1, 32, W, [2, 7], [20, 4]],
-    [23, 1, 16, BL[4], [10, 5]],
-    [24, 2, 32, BL[1], [6, 10], [24, 5]],
-    [26, 3, 16, BL[3], [5, 9]], [27, 1, 16, W, [7, 5]],
-    [29, 2, 32, BL[4], [8, 14], [28, 8]], [30, 1, 32, W, [10, 8], [30, 4]],
+    // x, width, colour, y0, length
+    [7, 1, W, 3, 17], [8, 1, W, 23, 9], [8, 1, BL[3], 6, 9], [9, 2, BL[2], 12, 11], [6, 1, BL[2], 26, 9],
+    [13, 2, BL[3], 2, 23], [13, 1, BL[4], 6, 12],
+    [17, 2, BL[3], 13, 27], [18, 1, BL[4], 20, 13], [18, 1, W, 25, 6],
+    [21, 2, BL[3], 5, 19], [21, 1, BL[4], 10, 8],
+    [24, 2, BL[3], 19, 22], [25, 1, BL[4], 22, 9],
+    [15, 1, BL[3], 27, 12],
+    [11, 2, WD, 10, 21], [19, 2, WD, 22, 20], [23, 1, WD, 1, 16], [12, 1, WD, 0, 8], [16, 1, WD, 4, 7],
+    [26, 2, BL[1], 8, 19], [4, 1, BL[1], 16, 15], [27, 1, BL[2], 28, 11],
+    [2, 1, BL[2], 0, 13], [1, 1, WD, 14, 10], [29, 1, WD, 18, 15], [30, 1, BL[2], 2, 9],
   ];
+  // ragged outer edges: how many pixels are bitten out of each side, per row of the 32px period
+  const RAGL = '00011222110000111221100011222110', RAGR = '11000112221100001122211000011221';
   function wfBuf(f, h, yOff) {
     const b = B(32, h);
-    rect(b, 1, 0, 30, h, BL[2]);
+    for (let x = 0; x < 32; x++) rect(b, x, 0, 1, h, WCOL(x));
     STR.forEach(s => {
-      const [x, w, per, col] = s, sp = per / 4;
-      for (let k = 4; k < s.length; k++) {
-        const [y0, len] = s[k];
-        for (let i = 0; i < len; i++) for (let j = 0; j < w; j++) {
-          if (w > 1 && (i === 0 && j !== 0 || i === len - 1 && j !== w - 1)) continue; // tapered ends
-          for (let y = ((y0 + i + sp * f + yOff) % per + per) % per; y < h; y += per) S(b, x + j, y, col);
-        }
+      const x = s[0], w = s[1], col = s[2], y0 = s[3], len = s[4];
+      for (let i = 0; i < len; i++) for (let j = 0; j < w; j++) {
+        if (w > 1 && ((i < 2 && j !== 0) || (i >= len - 2 && j !== w - 1))) continue; // tapered ends
+        for (let y = ((y0 + i + 8 * f + yOff) % 32 + 32) % 32; y < h; y += 32) S(b, x + j, y, col);
       }
     });
-    // ragged foam edges
     for (let y = 0; y < h; y++) {
-      const a = ((y - f * 4 - yOff) % 16 + 16) % 16;
-      if (a < 6) S(b, 0, y, a === 0 || a === 5 ? BL[4] : W);
-      const c = ((y - f * 4 - yOff + 7) % 16 + 16) % 16;
-      if (c < 5) S(b, 31, y, c === 0 || c === 4 ? BL[4] : W);
+      const q = ((y - 8 * f - yOff) % 32 + 32) % 32;
+      const l = +RAGL[q], r = +RAGR[q];
+      for (let x = 0; x < l; x++) S(b, x, y, null);
+      for (let x = 0; x < r; x++) S(b, 31 - x, y, null);
+      S(b, l, y, EDGE); S(b, 31 - r, y, EDGE);
+      if (l !== +RAGL[(q + 31) % 32]) S(b, l + 1, y, BL[3]); // foam fleck where the edge steps
+      if (r !== +RAGR[(q + 31) % 32]) S(b, 30 - r, y, BL[2]);
     }
     return b;
   }
   function makeWaterfall(f) { return out(wfBuf(f, 32, 0)); }
+  // Lip: a bright rounded roll where the water bulges over the edge; its highlight thins into
+  // the falling streaks, and foam bumps travel along the crest (4px per frame, 16px apart).
   function makeWaterfallTop(f) {
     const b = wfBuf(f, 16, 16);
-    const hgt = x => (x === 0 || x === 31 ? 3 : x === 1 || x === 30 ? 2 : x === 2 || x === 29 ? 1 : 0);
+    const arc = x => { const e = Math.min(x, 31 - x); return e === 0 ? 5 : e === 1 ? 3 : e === 2 ? 2 : e <= 4 ? 1 : 0; };
+    const BUMP = [1, 2, 2, 2, 1, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0, 0];
+    const TONG = { 7: 6, 8: 4, 13: 4, 14: 2, 17: 3, 21: 5, 22: 2, 25: 3, 3: 2, 28: 2, 11: 1, 19: 1 };
     for (let x = 0; x < 32; x++) {
-      const h0 = hgt(x);
-      for (let y = 0; y < h0; y++) S(b, x, y, null);
-      const g = ((x + f * 8) % 32 + 32) % 32;
-      const gl = (g % 11) < 7;
-      S(b, x, h0, gl ? W : BL[4]);
-      S(b, x, h0 + 1, gl && (g % 11) > 1 && (g % 11) < 5 ? W : BL[4]);
-      S(b, x, h0 + 2, BL[4]);
-      S(b, x, h0 + 3, BL[3]);
-      if ((x * 7 + 3) % 5 < 3) S(b, x, h0 + 4, BL[3]);
-      if ((x * 7 + 3) % 5 < 1) S(b, x, h0 + 5, BL[3]);
+      const bump = BUMP[((x - 4 * f) % 16 + 16) % 16];
+      const a = arc(x), T = 2 + a - (a > 2 ? 0 : bump);
+      for (let y = 0; y < T; y++) S(b, x, y, null);
+      const edge = a >= 3;
+      S(b, x, T, edge ? EDGE : W); S(b, x, T + 1, edge ? BL[4] : W);
+      const base = 2 + a + 2; // rows below the white roll
+      for (let y = T + 2; y < base; y++) S(b, x, y, W);
+      S(b, x, base, x >= 6 && x <= 10 ? W : BL[4]); S(b, x, base + 1, BL[4]);
+      S(b, x, base + 2, a >= 2 ? BL[2] : BL[3]);
+      const tg = TONG[x] || 0;
+      for (let k = 0; k < tg; k++) S(b, x, base + 2 + k, k < tg / 2 ? BL[4] : BL[3]);
+      if (!tg && a < 2 && (x % 5 === 0 || x % 5 === 1)) S(b, x, base + 3, WD); // shadow tucked under the roll
     }
     return out(b);
   }
+  // Base foam: four distinct poses (gather, rise, burst, collapse outward) + 2x2 droplets on arcs.
   function makeSplash(f) {
     const b = B(48, 16);
     const FO = [BL[3], BL[4], W, W];
-    const puffs = [
-      [6, 3, 0.5], [42, 3, 0], [11, 4, 0.25], [37, 4.5, 0.75], [17, 5.5, 0], [31, 5.5, 0.5], [24, 6.5, 0.25],
-      [14, 3.5, 0.6], [34, 3.5, 0.1], [21, 4, 0.8], [27, 4, 0.4],
-    ];
-    puffs.forEach(p => {
-      const r = p[1] + 1.1 * Math.sin(2 * Math.PI * (f / 4 + p[2]));
-      puff(b, p[0], 16 - r * 0.55, r, r, FO);
-    });
-    // droplets
-    [[3, 0], [45, 2], [9, 1], [39, 3], [20, 2], [29, 0]].forEach(d => {
-      const ph = (f + d[1]) % 4, dir = d[0] < 24 ? -1 : 1;
-      const y = [9, 5, 3, 6][ph] - (Math.abs(d[0] - 24) < 8 ? 2 : -1), x = d[0] + dir * ph;
-      S(b, x, y, W); if (ph === 1) S(b, x, y + 1, BL[4]);
+    const POSE = [
+      [[8, 3], [40, 3], [15, 4], [33, 4], [24, 5]],
+      [[5, 2.5], [43, 2.5], [10, 4], [38, 4], [31, 6], [17, 6], [24, 8]],
+      [[7, 4.5], [41, 4.5], [36, 6], [13, 6], [24, 6], [29, 8.5], [20, 9.5]],
+      [[19, 4], [29, 4], [24, 5], [42, 5], [6, 5], [34, 6.5], [14, 6.5]],
+    ][f];
+    POSE.sort((a, c) => c[0] - a[0]).forEach(p => puff(b, p[0], 16 - p[1] * 0.45, p[1] * 1.15, p[1], FO));
+    // bottom edge melts into the water surface colour
+    for (let x = 0; x < 48; x++) {
+      if (Gt(b, x, 15)) S(b, x, 15, BL[3]);
+      if (Gt(b, x, 14) && (x >> 1) % 3 !== 0) S(b, x, 14, BL[4]);
+    }
+    for (let x = 1; x < 47; x++) if (!Gt(b, x, 15) && (Gt(b, x - 1, 15) === BL[3] || Gt(b, x + 1, 15) === BL[3])) S(b, x, 15, EDGE);
+    // droplets thrown up and out on both sides, falling back
+    const AX = [1, 4, 7, 9], AY = [4, 9, 10, 6];
+    [[14, -1, 0, 0], [9, -1, 2, 2], [19, -1, 3, -1], [33, 1, 1, 0], [37, 1, 3, 2], [28, 1, 2, -1]].forEach(d => {
+      const t = (f + d[2]) % 4, x = d[0] + d[1] * AX[t] - (d[1] < 0 ? 0 : 1), y = 12 - AY[t] + d[3];
+      if (Gt(b, x, y) || Gt(b, x + 1, y + 1)) return; // hidden inside the foam
+      S(b, x, y, W); S(b, x + 1, y, W); S(b, x, y + 1, W); S(b, x + 1, y + 1, BL[4]);
+      if (t === 3) S(b, x + (d[1] < 0 ? 1 : 0), y - 1, BL[4]); // falling tail
     });
     return out(b);
   }
 
   // ================================================================== WATER
+  // One large and one small crest per 32px, travelling 8px per frame; sparkles blink on and off.
   function makeSurface(f) {
     const b = B(32, 8);
+    const PROF = [4, 3, 3, 2, 1, 1, 1, 2, 3, 3, 4, 4, 5, 5, 5, 5, 5, 4, 4, 3, 3, 3, 4, 4, 5, 5, 5, 5, 5, 5, 5, 4];
     for (let x = 0; x < 32; x++) {
-      const h = Math.round(2.5 + 1.4 * Math.sin(2 * Math.PI * (x / 16 - f / 4)));
-      S(b, x, h, W); S(b, x, h + 1, BL[4]); S(b, x, h + 2, BL[3]);
+      const q = ((x - 8 * f) % 32 + 32) % 32, h = PROF[q], crest = h <= 3;
+      S(b, x, h, crest ? W : BL[4]);
+      S(b, x, h + 1, h <= 1 ? W : crest ? BL[4] : BL[3]);
+      if (h + 2 < 8) S(b, x, h + 2, crest ? BL[3] : BL[2]);
       for (let y = h + 3; y < 8; y++) S(b, x, y, BL[2]);
+      if (q === 7 || q === 8) S(b, x, h - 1, W); // curling foam tip of the big crest
     }
+    [[[12, 6], [27, 7]], [[3, 7], [21, 6]], [[10, 7], [30, 6]], [[16, 6], [5, 7]]][f].forEach(p => {
+      if (Gt(b, p[0], p[1]) === BL[2] && Gt(b, p[0] + 1, p[1]) === BL[2]) { S(b, p[0], p[1], BL[4]); S(b, p[0] + 1, p[1], BL[3]); }
+    });
     return out(b);
   }
   function makeBody() {
@@ -2763,7 +2880,7 @@ G.defineArt('player', G => {
   // material they wrap instead of ink.
   const MAT = {};
   'orOyY'.split('').forEach(ch => (MAT[ch] = 'o'));
-  'wcsu'.split('').forEach(ch => (MAT[ch] = 'd'));
+  'wcsubd'.split('').forEach(ch => (MAT[ch] = 'd'));
   'gtTh'.split('').forEach(ch => (MAT[ch] = 'g'));
   function selout(buf) {
     const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H ? '.' : buf[y][x]);
@@ -2793,6 +2910,142 @@ G.defineArt('player', G => {
     return render(b);
   };
 
+  // ---------------------------------------------------------------- procedural part layers
+  // Limbs, tail, torso and scarf are built as small layers from joints (so every pose is a real,
+  // distinct pose with consistent volumes), form-shaded from the upper left, outlined, then stacked.
+  const RAMP = { O: ['y', 'O', 'r'], c: ['w', 'c', 's'], b: ['u', 'b', 'd'], r: ['O', 'r', 'o'], d: ['b', 'd', 'D'] };
+  const set = (L, x, y, ch) => { if (x >= 0 && y >= 0 && x < W && y < H) L[y][x] = ch; };
+  function disc(L, cx, cy, r, ch) {
+    for (let y = Math.floor(cy - r); y <= Math.ceil(cy + r); y++)
+      for (let x = Math.floor(cx - r); x <= Math.ceil(cx + r); x++)
+        if ((x - cx) * (x - cx) + (y - cy) * (y - cy) <= r * r + 0.05) set(L, x, y, ch);
+  }
+  const steps = (a, b) => Math.ceil(Math.max(Math.abs(b[0] - a[0]), Math.abs(b[1] - a[1]))) * 2 + 1;
+  function cap(L, a, b, ra, rb, ch) {            // tapered capsule
+    const n = steps(a, b);
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      disc(L, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, ra + (rb - ra) * t, typeof ch === 'function' ? ch(t) : ch);
+    }
+  }
+  function sq(L, a, b, ch) {                     // 2px-thick stroke (top-left anchored)
+    const n = steps(a, b);
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, x = Math.round(a[0] + (b[0] - a[0]) * t), y = Math.round(a[1] + (b[1] - a[1]) * t);
+      const c = typeof ch === 'function' ? ch(t) : ch;
+      set(L, x, y, c); set(L, x + 1, y, c); set(L, x, y + 1, c); set(L, x + 1, y + 1, c);
+    }
+  }
+  function shade(L, depth) {
+    const e = (x, y) => x < 0 || y < 0 || x >= W || y >= H || L[y][x] === '.';
+    const out = L.map(r => r.slice());
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const R = RAMP[L[y][x]];
+      if (!R) continue;
+      const dark = e(x + 1, y) || e(x, y + 1) || (depth > 1 && (e(x + 1, y + 1) || e(x, y + 2)));
+      const lit = e(x - 1, y) || e(x, y - 1) || (depth > 1 && (e(x - 1, y - 1) || e(x, y - 2)));
+      out[y][x] = lit && !(dark && !e(x, y - 1) && !e(x - 1, y)) ? R[0] : dark ? R[2] : R[1];
+    }
+    return out;
+  }
+  // Thin limbs: flat colour, one shadow edge underneath (and a light top edge on socks / mitts only).
+  const FLAT = { O: ['O', 'O', 'r'], b: ['u', 'b', 'd'], r: ['r', 'r', 'o'], d: ['d', 'd', 'D'] };
+  function shadeFlat(L) {
+    const e = (x, y) => x < 0 || y < 0 || x >= W || y >= H || L[y][x] === '.';
+    const out = L.map(r => r.slice());
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const R = FLAT[L[y][x]];
+      if (!R) continue;
+      out[y][x] = e(x, y - 1) ? R[0] : e(x, y + 1) || (e(x + 1, y) && !e(x - 1, y)) ? R[2] : R[1];
+    }
+    return out;
+  }
+  function outl(L, ch) {
+    const f = (x, y) => x >= 0 && y >= 0 && x < W && y < H && L[y][x] !== '.';
+    const out = L.map(r => r.slice());
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
+      if (L[y][x] === '.' && (f(x - 1, y) || f(x + 1, y) || f(x, y - 1) || f(x, y + 1))) out[y][x] = ch || 'k';
+    return { L: out };
+  }
+  const add = (p, d) => [p[0] + d[0], p[1] + d[1]];
+
+  // leg = [hip, knee, ankle, footVector]; the lower shin and the foot are the dark "sock".
+  function leg(p, far) {
+    const L = blank(), fur = far ? 'r' : 'O', sock = far ? 'd' : 'b';
+    cap(L, p[0], p[1], 1.5, 1.3, fur);
+    sq(L, p[1], p[2], t => (t < 0.3 ? fur : sock));
+    const toe = add(p[2], p[3]);
+    sq(L, p[2], toe, sock);
+    const S = shadeFlat(L);
+    const tx = Math.round(toe[0]), ty = Math.round(toe[1]), fx = p[3][0] >= 0 ? 1 : 0;
+    set(S, tx + fx, ty, far ? 'b' : 's');                      // lighter toe cap
+    if (!far) set(S, tx + 1 - fx, ty, 'u');
+    return outl(S);
+  }
+  // arm = [shoulder, elbow, hand]: orange sleeve of fur, round brown mitt.
+  function arm(p, far) {
+    const L = blank(), fur = far ? 'r' : 'O', paw = far ? 'd' : 'b';
+    sq(L, p[0], p[1], fur); sq(L, p[1], p[2], fur);
+    disc(L, p[2][0] + 0.5, p[2][1] + 0.5, 1.6, paw);
+    return outl(shadeFlat(L));
+  }
+  // tail = spine points + radii; the last third is the cream tip.
+  function tail(pts, rs, cream) {
+    const L = blank(), n = pts.length - 1;
+    cream = cream || 0.7;
+    for (let s = 0; s < n; s++) cap(L, pts[s], pts[s + 1], rs[s], rs[s + 1], t => ((s + t) / n > cream ? 'c' : 'O'));
+    return outl(shade(L, 2));
+  }
+  // scarf ribbon: 2-segment streamer (3 points), light upper edge, dark-teal outline.
+  function ribbon(pts) {
+    const L = blank();
+    for (let s = 0; s < pts.length - 1; s++) sq(L, pts[s], pts[s + 1], 'T');
+    const e = (x, y) => x < 0 || y < 0 || x >= W || y >= H || L[y][x] === '.';
+    const S = L.map(r => r.slice());
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++)
+      if (L[y][x] === 'T') S[y][x] = e(x, y + 1) || (e(x + 1, y) && !e(x, y - 1)) ? 't' : 'T';
+    const last = pts[pts.length - 1];
+    set(S, Math.round(last[0]), Math.round(last[1]), 'h');
+    return outl(S, 'g');
+  }
+  // torso capsule (neck -> hips) with the cream belly on its front side.
+  function torso(n, h, r) {
+    const L = blank();
+    r = r || 3.5;
+    const dx = h[0] - n[0], dy = h[1] - n[1], len = Math.hypot(dx, dy) || 1, f = [dy / len, -dx / len];
+    cap(L, n, h, r, r, 'O');
+    cap(L, [n[0] + f[0] * 1.7, n[1] + f[1] * 1.7], [h[0] + f[0] * 1.7, h[1] + f[1] * 1.7], r - 1.7, r - 1.7, 'c');
+    return outl(shade(L, 2));
+  }
+  // scarf neck band between two points (3px tall).
+  function band(a, b) {
+    const L = blank(), n = steps(a, b);
+    for (let i = 0; i <= n; i++) {
+      const t = i / n, x = Math.round(a[0] + (b[0] - a[0]) * t), y = Math.round(a[1] + (b[1] - a[1]) * t);
+      set(L, x, y - 1, t < 0.3 ? 'h' : 'T'); set(L, x, y, t > 0.6 ? 't' : 'T'); set(L, x, y + 1, 't');
+    }
+    return outl(L, 'g');
+  }
+  function build(parts) {
+    const b = blank();
+    for (const p of parts) {
+      if (!p) continue;
+      if (p.L) { for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (p.L[y][x] !== '.') b[y][x] = p.L[y][x]; }
+      else put(b, p[0], p[1], p[2], p[3]);
+    }
+    return render(b);
+  }
+  // Full procedural pose. o: head [part,dx,dy], tn/th torso neck+hip, bd band [a,b], tail [pts,rs],
+  // rib points, aN/aF arms, lN/lF legs.
+  function kit(o) {
+    return build([
+      o.tail && tail(o.tail[0], o.tail[1], o.tail[2]), o.rib && ribbon(o.rib),
+      o.aF && arm(o.aF, true), o.lF && leg(o.lF, true),
+      torso(o.tn, o.th, o.tr), o.bd && band(o.bd[0], o.bd[1]),
+      o.lN && leg(o.lN), o.head, o.aN && arm(o.aN), o.over,
+    ]);
+  }
+
   // ---------------------------------------------------------------- HEAD (the master part)
   const HEAD = [1,
     '............k',
@@ -2806,47 +3059,28 @@ G.defineArt('player', G => {
     '.........kyYYyOKKKOOKKrk',
     '........kyyyyOKwwKKOKwKrk',
     '........kyyyOKwwwwKOwwKrk',
-    '........kyyOOKwwwKKOwKKOOk',
-    '........kOOOOKwwwKKOwKKwcckk',
-    '......kkcOOOOOKwwwKcKKcccckk',
+    '........kyyOOKwwwKKOwKKOOkkk',
+    '........kOOOOKwwwKKOwKKwwcKKk',
+    '......kkcOOOOOKwwwKcKKccwcKk',
     '.....kwwccrrOccKKKccccKccck',
-    '......kkwwccccccccccccckkk',
-    '.......kkkk.......cssck',
-    '..................kkkk',
+    '......kkwwcccccccccccccKKKk',
+    '.......kkkk.......cssscck',
+    '..................kkkkkk',
   ];
   const HEAD_BLINK = patch(HEAD, {
     10: '........kyyyyOOOOOOOOOOrk',
     11: '........kyyyOOOOOOOOOOOrk',
-    12: '........kyyOOKOOOOKOKOOOOk',
-    13: '........kOOOOOKKKKOOOKKwcckk',
-    14: '......kkcOOOOOOcccccccccckk',
+    12: '........kyyOOKOOOOKOKOOOOkkk',
+    13: '........kOOOOOKKKKOOOKKwwcKKk',
+    14: '......kkcOOOOOOcccccccccwcKk',
   });
+  const SOCK = { d: 'b', b: 'u', D: 'd' };       // hand-pixelled socks/paws lifted to the 2-tone sock ramp
 
-  // ---------------------------------------------------------------- IDLE parts
-  const TAIL_A = [20,
-    '.kk',
-    'kwwk',
-    'kwwwkk',
-    'kwwcccOkkkk',
-    'kwcccOcOOOOO',
-    'kcccOyyyOOOOO',
-    'kcsOyyyOOOOOO',
-    '.ksOOOOOOOOOO',
-    '.krrOOOOOOrrk',
-    '..kkrrrrrrrk',
-    '....kkkkkkk',
-  ];
-  const RIBBON_A = [17,
-    '......ggg',
-    '....ggTTTt',
-    '...gtTTtgg',
-    '...gtgggg',
-    '....g',
-  ];
+  // ---------------------------------------------------------------- IDLE
   const TORSO = [17,
     '..........gggggggggggg',
     '..........ThhTTTTttttg',
-    '.........gtTTttTTTtttg',
+    '..........gtTTttTTTtttg',
     '...........kyyOOcwwck',
     '...........kOyOrcwwwck',
     '..........kbbdkrccwcskOk',
@@ -2857,229 +3091,85 @@ G.defineArt('player', G => {
   const LEGS = [25,
     '...........krOOk.kOOrk',
     '...........krOOk.kOOrk',
-    '...........kdddk.kdddk',
-    '...........kdbbdkkdbbdk',
-    '..........kdddbbdkddbbdk',
-    '..........kDDDDDDkDDDDDk',
+    '...........kubbk.kubbk',
+    '...........kubbdkkubbdk',
+    '..........kbbbuuskbbuusk',
+    '..........kddddddkdddddk',
     '...........kkkkkk.kkkkk',
   ];
   const LEGS_LOW = [26,
     '...........krOOk.kOOrk',
-    '...........kdddk.kdddk',
-    '...........kdbbdkkdbbdk',
-    '..........kdddbbdkddbbdk',
-    '..........kDDDDDDkDDDDDk',
+    '...........kubbk.kubbk',
+    '...........kubbdkkubbdk',
+    '..........kbbbuuskbbuusk',
+    '..........kddddddkdddddk',
     '...........kkkkkk.kkkkk',
   ];
-
+  const ITAIL_R = [1.6, 2.8, 2.9, 1.3];
+  const itail = (tx, ty) => tail([[11, 26], [7, 27.4], [3.6, 24], [tx, ty]], ITAIL_R);
   const idle = [
-    frame([TAIL_A], [RIBBON_A], [LEGS], [TORSO], [HEAD]),
-    frame([TAIL_A], [RIBBON_A], [LEGS], [TORSO], [HEAD, 0, 1]),
-    frame([TAIL_A], [RIBBON_A, 0, 1], [LEGS_LOW], [TORSO, 0, 1], [HEAD, 0, 1]),
-    frame([TAIL_A], [RIBBON_A], [LEGS], [TORSO], [HEAD_BLINK, 0, 1]),
+    build([itail(4, 19), ribbon([[10, 19], [8, 20], [8, 22]]), [LEGS], [TORSO, 0, 0, SOCK], [HEAD]]),
+    build([itail(4.5, 18.5), ribbon([[10, 19], [8, 20], [7, 22]]), [LEGS], [TORSO, 0, 0, SOCK], [HEAD, 0, 1]]),
+    build([itail(5, 18), ribbon([[10, 20], [8, 21], [7, 22]]), [LEGS_LOW], [TORSO, 0, 1, SOCK], [HEAD, 0, 1]]),
+    build([itail(4.5, 18.5), ribbon([[10, 19], [8, 20], [8, 22]]), [LEGS], [TORSO, 0, 0, SOCK], [HEAD_BLINK, 0, 1]]),
   ];
-  // ---------------------------------------------------------------- RUN parts
-  // Legs: ONE leg through the whole 8-pose cycle (authored at its own bob height).
-  // Frame i shows pose i as the near leg and pose i+4, darkened, as the far leg.
-  const LEG = [
-    [25, // 0 contact: heel strike ahead
-      '..............kOOOk',
-      '...............kOOOk',
-      '................kOOOkk..kk',
-      '.................kkdddkkbdk',
-      '...................kddbbddk',
-      '...................kDDDDkk',
-      '....................kkkk'],
-    [26, // 1 down: weight on the bent leg
-      '..............kOOOOk',
-      '..............krOOOOk',
-      '...............kkdddk',
-      '...............kdbbddk',
-      '...............kDDDDDDk',
-      '................kkkkkk'],
-    [25, // 2 passing: support leg under the body
-      '.............kOOOk',
-      '.............krOOk',
-      '.............kdddk',
-      '.............kdbdkk',
-      '.............kdbbddk',
-      '.............kDDDDDk',
-      '..............kkkkk'],
-    [24, // 3 up: push-off, leg stretched back
-      '.............kOOOk',
-      '............kOOOk',
-      '...........krOOk',
-      '..........kdddk',
-      '........kkdddk',
-      '.......kdbddk',
-      '.......kDDDk',
-      '........kkk'],
-    [24, // 4 trailing, foot kicked up behind
-      '......kkk',
-      '.....kdbdk...kOOOk',
-      '.....kDdddkkkOOOk',
-      '......kkddddrOOk',
-      '........kkkkkkk'],
-    [26, // 5 folded under the body
-      '.............kOOOk',
-      '.........kkk.kOOOk',
-      '........kdbdkkrOk',
-      '........kDdddddDk',
-      '.........kkkkkkk'],
-    [25, // 6 swinging forward, knee leading
-      '.............kOOOk',
-      '..............kOOOk',
-      '...............krOOk',
-      '...............kdddk',
-      '...............kdbddk',
-      '................kkkk'],
-    [24, // 7 reaching forward for the next step
-      '.............kOOOk',
-      '..............kOOOOk',
-      '...............krOOOk',
-      '................kkkdddkkk',
-      '...................kdddbdk',
-      '....................kDDDk',
-      '.....................kkk'],
+
+  // ---------------------------------------------------------------- RUN
+  // One leg through the 8-pose cycle: [hip, knee, ankle, foot]. Frame i = pose i (near) + pose i+4 (far).
+  // 0 contact (heel strike) · 1 down · 2 passing (support) · 3 up (push-off) · 4 just left the ground ·
+  // 5 kicked up behind · 6 tucked, knee coming through · 7 reaching for the next step.
+  const LEGP = [
+    [[15, 25], [18, 27], [20, 29], [3, -1]],
+    [[15, 26], [18, 28], [16, 29], [3, 0]],
+    [[15, 25], [15, 27], [14, 29], [3, 0]],
+    [[15, 24], [13, 26], [10, 27], [1, 2]],
+    [[15, 25], [12, 27], [9, 26], [-1, 2]],
+    [[15, 26], [12, 28], [8, 26], [-2, -1]],
+    [[15, 25], [19, 26], [16, 27], [2, 1]],
+    [[15, 24], [19, 25], [20, 27], [3, -1]],
   ];
-  // Near arm swing: 0 = far back ... 4 = far forward (the arm only gets an ink outline around the paw).
-  const ARM = [
-    [21,
-      '...........kkkyy',
-      '..........kbbdOOy',
-      '..........kdddko',
-      '...........kkk'],
-    [21,
-      '.............yy',
-      '............oOOy',
-      '...........koOOo',
-      '..........kbbdo',
-      '..........kdddk',
-      '...........kkk'],
-    [21,
-      '.............yyO',
-      '.............oOyo',
-      '.............oOOo',
-      '.............kbbdk',
-      '.............kdddk',
-      '..............kkk'],
-    [21,
-      '.............yyy',
-      '..............oOyo',
-      '...............oOOk',
-      '...............kbbdk',
-      '...............kdddk',
-      '................kkk'],
-    [20,
-      '.....................kkk',
-      '.............yyyOOOOkbbdk',
-      '..............ooOOOOkdddk',
-      '................ooookkkk'],
-  ];
+  const SWING = [[[-3, 1], [-6, -1]], [[-3, 2], [-5, 3]], [[0, 3], [1, 5]], [[3, 2], [6, 2]], [[4, 1], [8, -1]]];
   const ARM_SEQ = [0, 1, 2, 3, 4, 3, 2, 1];
-  const FAR = { Y: 'y', y: 'O', O: 'r', r: 'o', b: 'd' };   // far-side limbs: fur one step darker, flat boot
-  const RUN_TORSO = [18,
-    '............gggggggggggg',
-    '............ThhTTTTttttg',
-    '...........gtTTttTTTtttg',
-    '.............kyyOOcwwck',
-    '............kOyOOcwwwck',
-    '............kOOOrccwcsk',
-    '...........krOOOOccsk',
-    '...........krrOOOOsk',
-    '............kkkkkkk',
-  ];
-  // Tail: a 4-pose wave that lags half a beat behind the body bob (tip up when the body is down).
-  const RUN_TAIL = [
-    [18,
-      '.kkkk',
-      'kwwwwkkk',
-      'kwwwccccOkkkk',
-      '.kwcccOOOyyOOk',
-      '..kkcOOOyyOOOO',
-      '....kkOOOOOOOO',
-      '......kkrrrrOO',
-      '..........kkkk'],
-    [17,
-      '.kkk',
-      'kwwwkk',
-      'kwwwcckk',
-      '.kwcccOOkkk',
-      '..kcccOOOOOkk',
-      '...kkOOOyyyOOk',
-      '.....kkOOOyOOO',
-      '.......kkrrOOO',
-      '..........kkrr'],
-    [19,
-      '..kkkkkk',
-      '.kwwwcccOkkkkk',
-      'kwwwccOOOyyyOO',
-      'kwwccOOOOOOOOO',
-      '.kkkkkrrOOOOOO',
-      '......kkkrrrrr',
-      '.........kkkkk'],
-    [19,
-      '.........kkkk',
-      '......kkkOyyOk',
-      '...kkkOOOyyOOO',
-      '.kkccOOOOOOOOO',
-      'kwwcccOOOOOrrr',
-      'kwwwccOOrrrkkk',
-      '.kwwckkkk',
-      '..kkk'],
-  ];
-  const RUN_RIBBON = [
-    [17,
-      '..ggg....gg',
-      '.gTTTggggTTg',
-      '..ggtTTTTtt',
-      '....ggggggg'],
-    [17,
-      '.....ggggg',
-      '..gggTTTTTg',
-      '.gTTTttggt',
-      '..gggg...g'],
-    [18,
-      '........ggg',
-      '..ggggggTTT',
-      '.gtTTTTTtgg',
-      '..ggggggg'],
-    [17,
-      '..gg',
-      '.gTTggggggg',
-      '..gtTTTTTTt',
-      '...gggggggg'],
-  ];
   const BOB = [0, 1, 0, -1];
+  const TIP = [1, 0, -1, 0];                       // tail tip lags the bob by a quarter cycle
+  const WAVE = [[-1, 0], [0, -1], [1, 0], [0, 1]]; // scarf ripple
+  const shiftLeg = (p, dx) => [add(p[0], [dx, 0]), add(p[1], [dx, 0]), add(p[2], [dx, 0]), p[3]];
   const run = [];
   for (let i = 0; i < 8; i++) {
-    const b = BOB[i % 4], j = (i + 4) % 8;
-    run.push(frame(
-      [RUN_TAIL[i % 4], 0, b], [RUN_RIBBON[i % 4], 0, b],
-      ARM_SEQ[j] > 2 && [ARM[ARM_SEQ[j]], 2, b, FAR], [LEG[j], 1, 0, FAR],
-      [RUN_TORSO, 0, b], [LEG[i]], [HEAD, 2, 1 + b], [ARM[ARM_SEQ[i]], 0, b]));
+    const k = i % 4, b = BOB[k], j = (i + 4) % 8;
+    const sN = [15, 21 + b], sF = [18, 21 + b], aN = SWING[ARM_SEQ[i]], aF = SWING[ARM_SEQ[j]];
+    run.push(kit({
+      head: [HEAD, 2, 1 + b],
+      tn: [17, 21 + b], th: [15, 24 + b], bd: [[13, 19 + b], [22, 19 + b]],
+      tail: [[[12, 25 + b], [8, 26 + b], [5, 24 + b + TIP[k] * 0.5], [2.5, 21 + b + TIP[k]]], [1.6, 2.9, 2.9, 1.8]],
+      rib: [[11, 17 + b], [8, 16 + b + WAVE[k][0]], [4, 16 + b + WAVE[k][1]]],
+      aN: [sN, add(sN, aN[0]), add(sN, aN[1])],
+      aF: ARM_SEQ[j] > 2 && [sF, add(sF, aF[0]), add(sF, aF[1])],
+      lN: LEGP[i], lF: shiftLeg(LEGP[j], 1),
+    }));
   }
 
   // ---------------------------------------------------------------- HEAD variants
-  // Expressions are patches of the master head (canvas rows of the unshifted head).
   const MOUTH_OPEN = {                    // lower jaw dropped, tongue showing
-    16: '......kkwwccccccccccccKqqk',
-    17: '.......kkkk.......cssccpk',
-    18: '..................kkkkkk',
+    16: '......kkwwcccccccccccKqqqKk',
+    17: '.......kkkk.......cssKqppKk',
+    18: '..................kkkkkkkk',
   };
   const EYES_UP = {                       // pupils high: looking where he jumps
     11: '........kyyyOKwwwKKOwKKrk',
-    13: '........kOOOOKwwwwKOwwKwcckk',
+    13: '........kOOOOKwwwwKOwwKwwcKKk',
   };
-  const EYES_WIDE = {                     // small pupils, lots of white: looking down, alarmed
-    10: '........kyyyyOKwwwKOKwKrk',
+  const EYES_WHOA = {                     // enlarged eyes, pin pupils looking down
+    8: '..........kyYYYKKKOOKKrk',
+    9: '.........kyYYyKwwwKOKwKk',
+    10: '........kyyyyKwwwwKOwwKrk',
     11: '........kyyyOKwwwwKOwwKrk',
-    12: '........kyyOOKwwwKKOwKKOOk',
-    13: '........kOOOOKwwwKKOwKKwcckk',
+    12: '........kyyOOKwwKwKOwKKOOkkk',
+    13: '........kOOOOKwwKwKOwKKwwcKKk',
   };
-  const HEAD_JUMP = patch(HEAD, Object.assign({ 15: '.....kwwccrrOccKKKcccKcccck' }, EYES_UP, MOUTH_OPEN));
-  const HEAD_FALL = patch(HEAD, Object.assign({}, EYES_WIDE, MOUTH_OPEN, { 16: '......kkwwccccccccccccKook', 17: '.......kkkk.......cssccck' }));
-  // Ears swept flat along the skull (rising jump): replaces head rows 3..9.
+  const HEAD_JUMP = patch(HEAD, Object.assign({}, EYES_UP, MOUTH_OPEN));
+  const HEAD_FALL = patch(HEAD, Object.assign({}, EYES_WHOA, MOUTH_OPEN));
+  // Ears swept flat along the skull: replaces head rows 3..9.
   const sweep = head => [3,
     '.............kk',
     '.....kkk....kDDk',
@@ -3090,297 +3180,46 @@ G.defineArt('player', G => {
     head[9],
   ].concat(head.slice(10));
   const HEAD_SWEPT = sweep(HEAD_JUMP);
-  const FARLEG = { Y: 'y', y: 'O', O: 'r', r: 'o', b: 'd' };          // far leg: darker fur, boot one step darker
 
-  // ---------------------------------------------------------------- JUMP (0 = fast rise, 1 = near the apex)
-  const J0_TAIL = [19,
-    '.........kkk',
-    '........kOOOk',
-    '.......kOyOOOk',
-    '......kOyyOOOk',
-    '.....kOyyOOOOk',
-    '....kOyyOOOOrk',
-    '...kOyyOOOOrrk',
-    '...kOyOOOOrrk',
-    '..kcOOOOOrrk',
-    '..kccOOOrrk',
-    '..kwccccsk',
-    '...kwwcsk',
-    '....kkkk',
-  ];
-  const J0_RIBBON = [15,
-    '.........ggg',
-    '........gTTtg',
-    '.......gTTtg',
-    '......gtTtg',
-    '.....ghTtg',
-    '.....gTtg',
-    '....gTtg',
-    '....ggg',
-  ];
-  const J0_TORSO = [14,
-    '............gggggggggggg',
-    '............ThhTTTTttttg',
-    '...........gtTTttTTTtttg',
-    '.............kyyOOcwwck',
-    '.............kOyOOcwwwck',
-    '............kOrrrrsscwck',
-    '............kOOOOrccwcsk',
-    '...........kOOOOOrcccsk',
-    '...........krOOOOOrcsk',
-    '...........krrOOOOOkk',
-    '............kkkkkkk',
-  ];
-  const TUCK_LEG = [22,
-    '.................kOOOOkk',
-    '.................kOyOOOOk',
-    '................kkrOOOOOk',
-    '...............kddkrrOOk',
-    '...............kdbdkkkk',
-    '...............kddbbdk',
-    '................kDdbbdk',
-    '.................kDDDDk',
-    '..................kkkk',
-  ];
-  const J0_LEG_FAR = [23,
-    '...........kOOk',
-    '..........kOOOk',
-    '..........kOOOk',
-    '.........kOOOk',
-    '.........kdddk',
-    '........kdbddk',
-    '........kdbbdk',
-    '........kDDDk',
-    '.........kkk',
-  ];
-  const J0_ARM = [15,
-    '.......................kkk',
-    '......................kbbdk',
-    '..............yyyOOOOOkdddk',
-    '..............OOOOOOrrokkk',
-  ];
-  const jump0 = frame([J0_TAIL], [J0_RIBBON], [J0_LEG_FAR, 0, 0, FARLEG], [J0_TORSO], [TUCK_LEG], [HEAD_SWEPT, 2, -3], [J0_ARM]);
+  // ---------------------------------------------------------------- JUMP (0 = take-off stretch, 1 = knees-up apex)
+  const jump0 = kit({
+    head: [HEAD_SWEPT, 2, -3],
+    tn: [17, 17], th: [14, 23], tr: 3.3, bd: [[13, 15], [22, 15]],
+    tail: [[[11, 24], [7, 26], [4, 28], [2, 29]], [1.6, 2.7, 2.2, 1]],
+    rib: [[11, 15], [9, 17], [7, 19]],
+    aN: [[17, 18], [21, 19], [25, 17]], aF: [[15, 19], [12, 21], [10, 22]],
+    lN: [[15, 25], [16, 27], [15, 28], [0, 1]], lF: [[14, 25], [13, 27], [11, 28], [-1, 1]],
+  });
+  const jump1 = kit({
+    head: [HEAD_SWEPT, 1, -2],
+    tn: [16, 18], th: [14, 21], bd: [[12, 16], [21, 16]],
+    tail: [[[11, 23], [7, 25], [4, 27], [3, 29.5]], [1.6, 2.8, 2.4, 1]],
+    rib: [[10, 16], [8, 18], [6, 20]],
+    aN: [[16, 19], [19, 21], [22, 19]], aF: [[14, 19], [11, 20], [9, 19]],
+    lN: [[15, 23], [19, 24], [17, 27], [3, 0]], lF: [[17, 23], [22, 23], [22, 26], [3, -1]],
+  });
 
-  const J1_TAIL = [18,
-    '....kkkkk',
-    '..kkOyyyOkk',
-    '.kOyyyOOOOOkk',
-    'kcOyOOOOOOOOO',
-    'kccOOOOOOOrrr',
-    'kwccOOOrrrrkk',
-    'kwwccrrkkkk',
-    '.kwwcskk',
-    '..kkkk',
-  ];
-  const J1_RIBBON = [15,
-    '....ggg',
-    '...gTTTggggg',
-    '..gtTtTTTTTt',
-    '...ggggtttg',
-    '.......ggg',
-  ];
-  const J1_TORSO = [15,
-    '...........gggggggggggg',
-    '...........ThhTTTTttttg',
-    '..........gtTTttTTTtttg',
-    '............kyyOOcwwck',
-    '............kOyOOcwwwck',
-    '...........kOOOOrccwwck',
-    '...........kOOOOOrcccsk',
-    '...........krOOOOOrcsk',
-    '............krrOOOOkk',
-    '.............kkkkkk',
-  ];
-  const J1_LEG_FAR = [23,
-    '...........kOOk',
-    '..........kOOOk',
-    '.......kkkOOOk',
-    '......kdddOOk',
-    '......kdbbdkk',
-    '......kDDDk',
-    '.......kkk',
-  ];
-  const J1_ARM = [18,
-    '.............yyO',
-    '.............OOOo',
-    '..............oOOo',
-    '..............okbbdk',
-    '...............kdddk',
-    '................kkk',
-  ];
-  const jump1 = frame([J1_TAIL], [J1_RIBBON], [J1_LEG_FAR, 0, 0, FARLEG], [J1_TORSO], [TUCK_LEG, -1, 0], [HEAD_SWEPT, 1, -2], [J1_ARM]);
+  // ---------------------------------------------------------------- FALL (same pose, tail / scarf / limbs flutter)
+  const fallF = f => kit({
+    head: [HEAD_FALL, 1, 2],
+    tn: [16, 22], th: [15, 25], bd: [[12, 20], [21, 20]],
+    tail: [[[12, 26], [8, 24], [4, 18], f ? [4, 10] : [2, 11]], [1.6, 2.8, 2.8, 1.2]],
+    rib: f ? [[10, 19], [9, 12], [6, 7]] : [[10, 19], [7, 12], [9, 6]],
+    aN: [[13, 22], [9, 21], [7, 17 + f]], aF: [[19, 22], [24, 22], [28, 21 - f]],
+    lN: [[16, 27], [20, 27], [19, 29 - f], [3, 0]], lF: [[14, 27], [12, 28], [9, 29 - f], [-3, -1]],
+  });
+  const fall = [fallF(0), fallF(1)];
 
-  // ---------------------------------------------------------------- FALL (0 = just past the apex, 1 = fast fall)
-  const F0_TAIL = [12,
-    '..kk',
-    '.kwwk',
-    '.kwwck',
-    'kwwcck',
-    'kwcccOk',
-    'kccOOOk',
-    'kcOyOOOk',
-    'kOyyOOOOk',
-    'kOyyOOOOOkk',
-    '.kOyOOOOOOOkk',
-    '.kOOOOOOOOOOO',
-    '..krOOOOOOOrr',
-    '...kkrrrrrrkk',
-    '.....kkkkkk',
-  ];
-  const F0_RIBBON = [13,
-    '....gg',
-    '...gTTg',
-    '....gTtg',
-    '.....gTTgg',
-    '......gtTTgg',
-    '.......ggtTT',
-    '.........ggg',
-  ];
-  const F0_TORSO = [17,
-    '...........gggggggggggg',
-    '...........ThhTTTTttttg',
-    '..........gtTTttTTTtttg',
-    '............kyyOOcwwck',
-    '............kOyOOcwwwck',
-    '............kOrrrsscwcsk',
-    '............krOOOrcccsk',
-    '.............krrOOOOkk',
-    '..............kkkkkk',
-  ];
-  const F0_LEG_NEAR = [24,
-    '.................kOOOk',
-    '.................kOOOOk',
-    '..................kOOOOk',
-    '...................kdddk',
-    '...................kdbbdkk',
-    '....................kdbbddk',
-    '.....................kDDDDk',
-    '......................kkkk',
-  ];
-  const F0_LEG_FAR = [24,
-    '...........kOOOk',
-    '..........kOOOOk',
-    '.......kkkkOOOk',
-    '......kddddOOk',
-    '......kdbbdkkk',
-    '......kDDDk',
-    '.......kkk',
-  ];
-  const F_ARM_BACK = [17,                // near arm thrown up and back
-    '........kkk',
-    '.......kbbdk',
-    '.......kdddk',
-    '........kkOOyy',
-    '..........kOOOO',
-    '...........kkk',
-  ];
-  const F_ARM_FRONT = [16,               // far arm up in front, paw beside the chin
-    '.......................kkk',
-    '......................kbbdk',
-    '......................kdddk',
-    '......................kOOk',
-    '....................kkOOOk',
-    '....................kOOOkk',
-    '.....................kkk',
-  ];
-  const fall0 = frame([F0_TAIL], [F0_RIBBON], [F_ARM_FRONT, 0, 0, FAR], [F0_LEG_FAR, 0, 0, FARLEG], [F0_TORSO], [F0_LEG_NEAR], [HEAD_FALL, 1, 0], [F_ARM_BACK]);
-
-  const F1_TAIL = [4,
-    '..kk',
-    '.kwwk',
-    '.kwwwk',
-    'kwwwck',
-    'kwwcck',
-    'kwcccOk',
-    'kccOOOk',
-    'kcOyOOk',
-    'kOyyOOOk',
-    'kOyyOOOk',
-    'kOyyOOOk',
-    'kOyyOOOrk',
-    'kOyyOOOrk',
-    '.kOyOOOrk',
-    '.kOyOOOOrk',
-    '.kOOyOOOrk',
-    '..kOOOOOOrk',
-    '..kOOOOOOrrk',
-    '...kOOOOOOrkk',
-    '...krOOOOOOrrk',
-    '....krrOOOOOrr',
-    '.....kkrrrrrrr',
-    '.......kkkkkk',
-  ];
-  const F1_RIBBON = [12,
-    '..gg',
-    '.gTTg',
-    '..gTtg',
-    '...gTtg',
-    '....gTTg',
-    '.....gtTg',
-    '......gTTgg',
-    '.......gtTTg',
-    '........ggtT',
-    '..........gg',
-  ];
-  const F1_TORSO = [19,
-    '...........gggggggggggg',
-    '...........ThhTTTTttttg',
-    '..........gtTTttTTTtttg',
-    '............kyyOOcwwwck',
-    '...........kOOrrrrsscwsk',
-    '...........krOOOOrcccssk',
-    '............krrOOOrssk',
-    '.............kkkkkkkk',
-  ];
-  const F1_LEG_NEAR = [24,
-    '.................kOOOk',
-    '.................kOOOOkk',
-    '..................kkOOOOk',
-    '....................kdddk',
-    '....................kdbddk',
-    '.....................kdbbdk',
-    '......................kDDDk',
-    '.......................kkk',
-  ];
-  const F1_LEG_FAR = [24,
-    '...........kOOOk',
-    '.........kkOOOOk',
-    '........kOOOOkk',
-    '........kdddk',
-    '.......kddbdk',
-    '......kdbbdk',
-    '......kDDDk',
-    '.......kkk',
-  ];
-  const fall1 = frame([F1_TAIL], [F1_RIBBON], [F_ARM_FRONT, 0, 2, FAR], [F1_LEG_FAR, 0, 0, FARLEG], [F1_TORSO], [F1_LEG_NEAR], [HEAD_FALL, 1, 2], [F_ARM_BACK, 0, 2]);
-
-  // ---------------------------------------------------------------- DUCK (also the 3-frame landing squash)
-  // Head sunk onto the knees, ear pinned flat, lids lowered, tail curled up behind. Hitbox = rows 17..31.
-  const HEAD_DUCK = [7,
-    '......kkkkkkkkkkkkkkkkk',
-    '....kkdOOOOyYYYyyyOOOOrk',
-    '...kDDddOOOrYyOOOOOOOOrk',
-    '....kkkkkyyyyOKKKKKOKKKrk',
-  ].concat(HEAD.slice(11));
-  const D_BODY = [16,
-    '...kkk',
-    '..kwwwkk',
-    '.kwwwwcck',
-    '.kwwccOOk',
-    'kwwccOOOk',
-    'kwccOyOOk',
-    'kccOyyOk',
-    'kcOyyOk',
-    'kOOyOOOk',
-    'kOOOOOOOkkkgTThTTTTg...kOOk',
-    '.kOOOOOOOOOkrOOk.kOOrk.kOOk',
-    '.krOOOOOOOOkdddk.kdddk.kkkk',
-    '..krrOOOOOrkdbbdkkdbbdkkbbdk',
-    '...kkrrrrrkdddbbdkddbbdkdddk',
-    '.....kkkkkkDDDDDDkDDDDDk.kkk',
-    '...........kkkkkk.kkkkk',
-  ];
-  const duck = frame([D_BODY], [HEAD_DUCK, 1, 8]);
+  // ---------------------------------------------------------------- DUCK
+  const HEAD_DUCK = sweep(patch(HEAD, { 10: '........kyyyyOKKKKKOKKKrk' }));
+  const duck = kit({
+    head: [HEAD_DUCK, 1, 9],
+    tn: [13, 25.5], th: [10, 26.5], bd: [[10, 27], [18, 27]],
+    tail: [[[8, 28], [4, 27.6], [2.5, 24], [3, 20]], [1.6, 2.4, 1.9, 1]],
+    lN: [[11, 27], [15, 27], [13, 29], [3, 0]],
+    aN: [[17, 26], [20, 27], [22, 28]],
+    over: band([10, 27], [15, 27]),
+  });
 
   // ---------------------------------------------------------------- HURT (knocked back, also the death pop)
   const HEAD_HURT = sweep(patch(HEAD, {
@@ -3396,49 +3235,31 @@ G.defineArt('player', G => {
     17: '.......kkkk.......cscqppk',
     18: '..................kcsscck',
   }).concat(['...................kkkkk']));
-  const H_BODY = [18,
-    '........gggggggggggg',
-    '.....gggThhTTTTttttg',
-    '...ggTTtgtTTttTTTtttg',
-    '..gTTgg..kyyOOcwwwck.kkk',
-    '..ggg....kOyyyOOOOOkkbbdk',
-    '.........kOOOOOOOrrokdddk',
-    '.........kOOrrrrrsscwkkkkkkk',
-    '........kOOOOOrccccskkkkkdbdk',
-    '........kOOOOOOrrOOOOOkdbbDk',
-    '........krOOOOOOOOOOOOkddbDk',
-    '.........krrOOOOOrrrrrkdDDk',
-    '..........kkkkkkkkkkkkkkkk',
-  ];
-  const hurt = frame([J0_TAIL, -2, 0], [H_BODY], [HEAD_HURT, -2, 1]);
+  const hurt = kit({
+    head: [HEAD_HURT, -3, -3],
+    tn: [12, 19], th: [16, 23], bd: [[10, 17], [16, 17]],
+    tail: [[[14, 25], [11, 27.5], [7, 28.5], [3, 27]], [1.5, 2.3, 2.1, 1.3]],
+    rib: [[8, 17], [5, 18], [3, 16]],
+    aN: [[10, 20], [7, 22], [4, 21]],
+    lN: [[18, 24], [22, 23], [25, 20], [1, -2]], lF: [[17, 25], [22, 26], [26, 26], [2, -1]],
+  });
 
-  // ---------------------------------------------------------------- SKID
-  // Drawn like every other frame (facing right, light from the upper left): Kit leans back, heels dug in,
-  // tail and scarf whipping forward.
-  const HEAD_SKID = patch(HEAD, Object.assign({}, EYES_WIDE, {
-    15: '.....kwwccrrOccKKKcccKKKKKk',
-    16: '......kkwwcccccccccccKwwwk',
-    17: '.......kkkk.......csscKKK',
+  // ---------------------------------------------------------------- SKID (leaning back, heels dug in)
+  const HEAD_SKID = patch(HEAD, Object.assign({}, EYES_WHOA, {
+    15: '.....kwwccrrOccKKKccccKKKKk',
+    16: '......kkwwcccccccccccKwwKwk',
+    17: '.......kkkk.......cssKKKKKk',
   }));
-  const S_BODY = [18,
-    '.......gggggggggggg',
-    '.......ThhTTTTttttggg',
-    '..kkk.gtTTttTTTtttTTtgg',
-    '.kbbdkkkkkyOOcwwckggtTTg',
-    '.kdddOOOOyyOOcwwwck.gggg.kkk',
-    '..kkkkkkkkOOOOrccwck...kkwwk',
-    '..........kOOOOrcccskkkOccwwk',
-    '..........krOOOOOrssOOOOccck',
-    '...........krOOOOOOOOOOkkkk',
-    '...........kkkrOOOOOOOOkk..kkk',
-    '..........kdddkkkkrOOOOOOkkdbdk',
-    '.........kdbbdk...kkkrOOOkdbbDk',
-    '.........kdddbbdk....kkkkddDDk',
-    '.........kDDDDDDk.......kkkkk',
-  ];
-  const skidR = frame([S_BODY], [HEAD_SKID, -3, 1]);
+  const skidR = kit({
+    head: [HEAD_SKID, -4, 2],
+    tn: [12, 22], th: [17, 25], bd: [[8, 20], [17, 20]],
+    tail: [[[13, 26], [9, 25], [5, 24], [2, 21]], [1.6, 2.8, 2.6, 1.4]],
+    rib: [[17, 21], [20, 22], [22, 20]],
+    aN: [[10, 22], [7, 23], [4, 21]],
+    lN: [[19, 26], [23, 28], [26, 29], [2, -2]], lF: [[16, 26], [19, 28], [15, 29], [3, 0]],
+  });
 
-  // ---------------------------------------------------------------- WIN (facing the camera, 2 beats)
+  // ---------------------------------------------------------------- WIN (facing the camera, fist pump)
   const W_HEAD = [1,
     '........kk............kk',
     '.......kDDk..........kDDk',
@@ -3493,27 +3314,6 @@ G.defineArt('player', G => {
     '.....kdddk',
     '......kkk',
   ];
-  const W_ARM_R_A = [17,
-    '......................kkk',
-    '.....................kbbdk',
-    '.....................kdddk',
-    '.....................kOOk',
-    '.....................kOyk',
-    '.....................kOOk',
-    '......................kk',
-  ];
-  const W_ARM_R_B = [11,
-    '..........................kkk',
-    '.........................kbbdk',
-    '.........................kdddk',
-    '.........................kOOk',
-    '........................kOOk',
-    '........................kOyk',
-    '.......................kOOk',
-    '.......................kOOk',
-    '......................kOOk',
-    '......................kOk',
-  ];
   const W_TAIL = [14,
     '..kk',
     '.kwwk',
@@ -3537,10 +3337,12 @@ G.defineArt('player', G => {
     '....gtTgg',
     '.....ggtT',
   ];
-  const win = [
-    frame([W_TAIL, 0, 1], [W_RIBBON, 0, 2], [W_TORSO, 0, 1], [W_ARM_L, 0, 1], [W_LEGS_A, 0, 1], [W_HEAD, 0, 1], [W_ARM_R_A, 0, 1]),
-    frame([W_TAIL, 1, -2], [W_RIBBON, 0, -1], [W_TORSO, 0, -1], [W_ARM_L, 0, -1], [W_LEGS_B, 0, -1], [W_HEAD, -1, -1], [W_ARM_R_B, 0, 0]),
-  ];
+  const winF = f => build([
+    [W_TAIL, f, 1 - f], [W_RIBBON, 0, 2 - f],
+    [W_TORSO, 0, 1 - f, SOCK], [W_ARM_L, 0, 1 - f, SOCK], [f ? W_LEGS_B : W_LEGS_A, 0, f ? 0 : 1, SOCK], [W_HEAD, 0, 1 - f],
+    arm(f ? [[21, 21], [26, 20], [28, 12]] : [[21, 22], [25, 23], [28, 18]]),
+  ]);
+  const win = [winF(0), winF(1)];
 
   // ---------------------------------------------------------------- HUD icon (16x16)
   const icon = G.px([
@@ -3561,10 +3363,9 @@ G.defineArt('player', G => {
     '......kkkk......',
     '................',
   ], C);
-
   return {
     idle, run,
-    jump: [jump0, jump1], fall: [fall0, fall1], skid: [skidR], hurt: [hurt], duck: [duck],
+    jump: [jump0, jump1], fall, skid: [skidR], hurt: [hurt], duck: [duck],
     win, icon,
   };
 });
@@ -3574,13 +3375,14 @@ G.defineArt('player', G => {
 // ---- src/art/enemies.js ----
 // SUNFOX — enemies of Emerald Coast. All frames 24x24, facing LEFT, bottom-aligned.
 //   walker  "Tuskit"    — plum-purple boar piglet, stompable        {walk[4], squash[1]}
-//   spiker  "Thornback" — crimson shell bristling with ivory thorns {walk[4]}
-//   flyer   "Needlewing"— chubby cobalt hummingbird, ivory needle   {fly[4]}
+//   spiker  "Thornback" — crimson dome shell bristling with thorns  {walk[4]}
+//   flyer   "Needlewing"— chubby coral hummingbird, ivory needle    {fly[4]}
 // Hand-pixelled stamps (outlines baked in), layered at integer offsets per frame.
+// Every frame keeps >= 1px transparent margin on the left, right and top.
 G.defineArt('enemies', G => {
   'use strict';
   const P = G.PAL;
-  const PU = P.purple, RD = P.red, BL = P.blue, GO = P.gold, ST = P.stone, PK = P.pink;
+  const PU = P.purple, RD = P.red, GO = P.gold, ST = P.stone, PK = P.pink;
 
   const px = (rows, pal) => G.px(rows, pal);
   // Layer stamps [canvas, x, y] back-to-front on a 24x24 frame.
@@ -3592,27 +3394,44 @@ G.defineArt('enemies', G => {
 
   // ------------------------------------------------------------------ WALKER
   const WP = {
-    k: P.ink, D: PU[0], d: PU[0], p: PU[1], m: PU[2], l: PU[3], h: '#f4d8ff',
-    w: P.white, g: '#c4b8e4',
-    T: PK[2], S: PK[1], s: PK[0],
+    k: P.ink, D: PU[0], d: '#431c6e', p: PU[1], m: PU[2], l: PU[3], h: '#f4d8ff',
+    r: '#7458c0', w: P.white, g: '#c4b8e4',
+    T: PK[2], S: PK[1], s: PK[0], R: RD[1],
     o: GO[0], y: GO[1], Y: GO[2], i: GO[3],
   };
+  // far-side legs: same stamps, one ramp step darker
+  const WF = Object.assign({}, WP, { m: PU[1], p: '#431c6e', Y: GO[1], y: GO[0] });
+
   const wBody = px([
-    '............DDDDD.......',
-    '.......DDDDDmlllmkk.....',
-    '......Dlhhlmmpmmllmk....',
-    '.....Dlllkkmmmmmmmmpk...',
-    '....Dllkkwwpmmmmmmmpk...',
-    '.kkklkkwwwwpmmmmmmmppk..',
-    'kTTSlllkkwwpmmmmmmppdk..',
-    'kTkSmllkkwpmmmmmmpppdk..',
-    'kSSSmwmpppmmmmmmpppddk..',
-    'ksSspwmmmmmmmmpppppddk..',
-    '.kkkkkwkmmmmppppppddk...',
-    '.....kmmmppppppppdddk...',
-    '......kpppppppdddddk....',
-    '.......kkkkkdddddkk.....',
-    '............kkkkk.......',
+    '.......DDDDDDD.....',
+    '.....DDllllmmmDD...',
+    '....DlhhhllmmmmmD..',
+    '...Dlhhllllmmmmmmk.',
+    '..Dlllllmmmmmmmmmpk',
+    '..Dlllmmmmmmmmmmmpk',
+    'kkkllmmmmmmmmmmmppk',
+    'kTTSmmmmmmmmmmmmppk',
+    'kTkSwmmmmmmmmmmpppk',
+    'kSSswgmmmmmmmmppddk',
+    '.kkkkkmmmmmppppdddk',
+    '...kmppppppddddddk.',
+    '....kkdddrrrrrrkk..',
+    '......kkkkkkkkk....',
+  ], WP);
+  // eye: angled brow, 2-tone pupil, catchlight
+  const wEye = px([
+    '..kkkk',
+    'kkwwwp',
+    'kgwkwp',
+    'kgkpwp',
+    '.kkkk.',
+  ], WP);
+  const wEyeSquint = px([
+    '..llll',
+    '..kkkk',
+    'kkkkwp',
+    'kgkpwp',
+    '.kkkk.',
   ], WP);
   const wEarA = px([
     '.kk....',
@@ -3627,100 +3446,142 @@ G.defineArt('enemies', G => {
     '.klSmk.',
     '..kmmpk',
   ], WP);
-  const wLeg = px([
+  const LEG = [
+    'kmpk',
+    'kmpk',
+    'kmpk',
+    'kmpk',
+    'kYyk',
+    'kyok',
+    'kkkk',
+  ];
+  const LEGF = [
+    '.kmpk',
+    '.kmpk',
+    '.kmpk',
     'kmmpk',
-    'kmmpk',
-    'kiYyk',
-    'kYyok',
-    'kkkkk',
-  ], WP);
-  const wLegFar = px([
-    'kppdk',
-    'kppdk',
-    'kyyok',
-    'kyook',
-    'kkkkk',
-  ], WP);
-  const wTail = px([
+    'kYyk.',
+    'kyok.',
+    'kkkk.',
+  ];
+  const LEGB = [
+    'kmpk.',
+    'kmpk.',
+    'kmpk.',
+    'kmppk',
+    '.kYyk',
+    '.kyok',
+    '.kkkk',
+  ];
+  const LEGU = [
+    'kmpk',
+    'kmpk',
+    'kYyk',
+    'kyok',
+    'kkkk',
+  ];
+  const wl = { n: px(LEG, WP), f: px(LEGF, WP), b: px(LEGB, WP), u: px(LEGU, WP) };
+  const wf = { n: px(LEG, WF), f: px(LEGF, WF), b: px(LEGB, WF), u: px(LEGU, WF) };
+  const wTailA = px([
     '.kk.',
     'kmlk',
     'kpmk',
     '.kk.',
   ], WP);
+  const wTailB = px([
+    '..kk',
+    '.klk',
+    'kmpk',
+    'kkk.',
+  ], WP);
+  // by = body top. Contact frames drop the body 1px; ears and tail lag behind.
   const walk = [
-    frame([[wLegFar, 7, 19], [wLegFar, 13, 19], [wTail, 20, 7], [wBody, 0, 6], [wEarA, 7, 3], [wLeg, 4, 19], [wLeg, 16, 19]]),
-    frame([[wLegFar, 11, 19], [wTail, 20, 8], [wBody, 0, 5], [wEarB, 7, 3], [wLeg, 5, 19], [wLeg, 15, 18]]),
-    frame([[wLegFar, 4, 19], [wLegFar, 16, 19], [wTail, 20, 7], [wBody, 0, 6], [wEarA, 7, 3], [wLeg, 7, 19], [wLeg, 13, 19]]),
-    frame([[wLegFar, 9, 19], [wTail, 20, 8], [wBody, 0, 5], [wEarB, 7, 3], [wLeg, 5, 18], [wLeg, 15, 19]]),
+    frame([[wf.b, 8, 17], [wf.f, 13, 17], [wl.f, 3, 17], [wl.b, 15, 17],
+      [wTailB, 19, 9], [wBody, 1, 7], [wEye, 4, 10], [wEarA, 8, 4]]),
+    frame([[wf.u, 7, 17], [wf.n, 16, 17], [wl.n, 5, 17], [wl.u, 14, 17],
+      [wTailA, 19, 9], [wBody, 1, 6], [wEye, 4, 9], [wEarB, 8, 4]]),
+    frame([[wf.f, 5, 17], [wf.b, 16, 17], [wl.b, 6, 17], [wl.f, 12, 17],
+      [wTailB, 19, 9], [wBody, 1, 7], [wEyeSquint, 4, 10], [wEarA, 8, 4]]),
+    frame([[wf.n, 7, 17], [wf.u, 16, 17], [wl.u, 5, 17], [wl.n, 14, 17],
+      [wTailA, 19, 9], [wBody, 1, 6], [wEye, 4, 9], [wEarB, 8, 4]]),
   ];
   const wFlat = px([
-    '.........kkkk...........',
-    '......DDDklSmkDDDDDD....',
-    '....DDllhlmmpllllmmmkk..',
-    '.kkkllllkkmmmmmmmmmmppk.',
-    'kTTSlllkmmmmmmmmmmpppdk.',
-    'kTkSmwmmkkmmmmmmppppddk.',
-    'ksSspwmmmpppppppppddddk.',
-    '.kkkkkkkkkkkkkkkkkkkkk..',
+    '......kkkkk...........',
+    '....kkkSSmmkkkkkkk....',
+    '..kklkhhlkmmmmmmmmkk..',
+    'kkklllklkmmmmmmmmppkkk',
+    'kTTSlllkmmmmmmmmpppmlk',
+    'kTkSllklkmmmmmppppddkk',
+    'kSSslkmmmkppppppdddrk.',
+    '.kkkRRkkrrrrrrrrrrkk..',
+    '...kkkk.kkkkkkkkkk....',
   ], WP);
-  const wHoofFlat = px([
+  const wHoofL = px([
     'kkkkk',
-    'kiYyk',
+    'kyYmk',
     'kkkkk',
   ], WP);
-  const squash = frame([[wTail, 19, 13], [wFlat, 0, 15], [wHoofFlat, 7, 21], [wHoofFlat, 15, 21]]);
+  const wHoofR = px([
+    'kkkkk',
+    'kmYyk',
+    'kkkkk',
+  ], WP);
+  const squash = frame([[wFlat, 1, 13], [wHoofL, 6, 21], [wHoofR, 16, 21]]);
 
   // ------------------------------------------------------------------ SPIKER
   const SP = {
-    k: P.ink, a: RD[0], b: RD[1], c: RD[2], e: RD[3], f: '#ffc8a8',
+    k: P.ink, a: RD[0], b: RD[1], c: RD[2], e: RD[3], f: '#ffd0b0',
     w: P.white, s: ST[3], t: ST[2], o: ST[1],
-    d: PU[0], p: PU[1], m: PU[2], l: PU[3],
+    Y: P.orange[4], y: P.orange[3], z: P.orange[2],
+    d: PU[0], D: '#431c6e', p: PU[1], m: PU[2], l: PU[3], h: '#f4d8ff',
   };
+  const SF = Object.assign({}, SP, { m: PU[1], p: '#431c6e', w: ST[3] });
+  // dome shell + radial thorns, authored on the full 24-wide grid (rows y0..y20)
   const sShell = px([
-    '..............o.........',
-    '.............owk........',
-    '......o......owk......o.',
-    '.....owk....owwsk....owk',
-    '.....owwk...owwsk...owsk',
-    '......owwk.owwwssk.owsk.',
-    '......owwskowwwstkowwsk.',
-    '.......owwskwwwstkwwsk..',
-    '.......awsseccbaacwstk..',
-    '......aeccbefeecccbaabk.',
-    '.....aeeeeeffeecccccbbbk',
-    '.....aeeeeffeeccccccbbak',
-    '.....aceeffeecccccccbbak',
-    '.....aceeeeeccccccbbbbak',
-    '.....kcceeeccccccbbbbbak',
-    '.....kwbccccccccbbbbbatk',
-    '......kwwwwwwwwwwsssttk.',
-    '.......kkkkkkkkkkkkkkk..',
+    '........................',
+    '.............k..........',
+    '............kwk.........',
+    '....kk......kwk......kk.',
+    '....kwk....kwwsk....ksk.',
+    '....kwwk...kwwsk...kwtk.',
+    '.....kwwk.kwwwstk.kwtk..',
+    '.....kswwkkwwwstkkwstk..',
+    '......kswwkwwsstkwstk...',
+    '......ksswksssttkwstk...',
+    '.......kceebbbbbcbak....',
+    '......keeffeeeccccbbk...',
+    '.....keefffeecccccbbak..',
+    '.....keeffeeccccccbbak..',
+    '.....keeeeecccccccbbak..',
+    '.....kceeeccccccccbbak..',
+    '.....kbccccccccbbbbaak..',
+    '.....kYYYkYYykYyykyyzk..',
+    '.....kYYykYyykyyzkyzzk..',
+    '......kkk.kkk.kkk.kkk...',
   ], SP);
-  const sHead = px([
-    '...ddddd.',
-    '..dlllmmk',
-    '.dllmmkkk',
-    'dllmkkwwk',
-    'dlkkwwwwk',
-    'kllmkkwwk',
-    'kkkmkkwpk',
-    '.kwmmmppk',
-    '..kkkkkk.',
-  ], SP);
-  const sLeg = px([
-    '.kmpk.',
-    '.kmpk.',
-    'kmmmpk',
-    'kwmwpk',
-    'kkkkkk',
-  ], SP);
-  const sLegFar = px([
-    '.kpdk.',
-    '.kpdk.',
-    'kpppdk',
-    'kspsdk',
-    'kkkkkk',
-  ], SP);
+  const HEAD = [
+    '..kkkkk.',
+    '.klhllmk',
+    'klpppmpk',
+    'kkkkkmpk',
+    'klwkwppk',
+    'klwwwppk',
+    'kkkkmppk',
+    '.kwmppk.',
+    '..kkkk..',
+  ];
+  const sHead = px(HEAD, SP);
+  const HEADB = HEAD.slice();
+  HEADB[3] = 'klpppmpk'; HEADB[4] = 'kkkkkppk'; HEADB[5] = 'klwkwppk';
+  const sHeadLow = px(HEADB, SP); // lid sagging even lower
+  const SLEG = [
+    '.kmpk',
+    '.kmpk',
+    'kmmpk',
+    'klmpk',
+    'kkkkk',
+  ];
+  const sLeg = px(SLEG, SP), sLegFar = px(SLEG, SF);
   const sTail = px([
     'kk.',
     'kmk',
@@ -3728,43 +3589,44 @@ G.defineArt('enemies', G => {
     '.kk',
   ], SP);
   const swalk = [
-    frame([[sTail, 21, 16], [sLegFar, 11, 18], [sLeg, 17, 18], [sLeg, 7, 18], [sShell, 0, 1], [sHead, 0, 11]]),
-    frame([[sTail, 21, 16], [sLeg, 16, 17], [sLeg, 8, 18], [sShell, 0, 0], [sHead, 0, 11]]),
-    frame([[sTail, 21, 16], [sLegFar, 18, 18], [sLeg, 14, 18], [sLeg, 10, 18], [sShell, 0, 1], [sHead, 1, 11]]),
-    frame([[sTail, 21, 16], [sLeg, 16, 18], [sLeg, 8, 17], [sShell, 0, 0], [sHead, 1, 10]]),
+    frame([[sTail, 20, 17], [sLegFar, 14, 19], [sLegFar, 11, 19], [sLeg, 7, 19], [sLeg, 18, 19], [sShell, 0, 1], [sHead, 1, 14]]),
+    frame([[sTail, 20, 16], [sLegFar, 12, 17], [sLegFar, 15, 19], [sLeg, 9, 19], [sLeg, 16, 17], [sShell, 0, 0], [sHead, 1, 13]]),
+    frame([[sTail, 20, 17], [sLegFar, 9, 19], [sLegFar, 17, 19], [sLeg, 11, 19], [sLeg, 14, 19], [sShell, 0, 1], [sHeadLow, 1, 14]]),
+    frame([[sTail, 20, 16], [sLegFar, 12, 19], [sLegFar, 15, 17], [sLeg, 9, 17], [sLeg, 16, 19], [sShell, 0, 0], [sHead, 1, 13]]),
   ];
 
   // ------------------------------------------------------------------- FLYER
+  // Coral-magenta so it never melts into the blue sky / sea; wine outline.
   const FP = {
-    k: P.ink, n: BL[0], B: BL[1], b: BL[2], c: '#58a8f4', C: BL[4],
-    w: P.white, s: ST[3], t: ST[2],
-    r: RD[1], R: RD[2], q: RD[3],
+    k: '#3a0a2a', n: '#7a1650', B: '#b82460', b: '#e8446c', c: '#ff7a78', C: '#ffc0a0',
+    w: '#fff4cc', s: '#ffd060', t: '#e89038',
+    i: P.white, g: ST[3],
+    W: P.white, K: P.ink,
     y: GO[1], Y: GO[2],
   };
   const fBody = px([
-    '........kkkkk...........',
-    '......kkbbbbbkk.........',
-    '.....kbCCbkkbbbk........',
-    '.....kbbkkwwbbbbk.......',
-    '....kkkkwwwwbbbbbk......',
-    '..kkwwbbkkwwbbbbbBk.....',
-    'kkwwssbbkkwbbbbbbBBk....',
-    '.kkkkkkRRqbbbbbbBBBk....',
-    '......krRwwbbbbbBBBnk...',
-    '.......kwwwwwbbBBBBnk...',
-    '.......kwwwwwsBBBBnnk...',
-    '........kwwwssBBBnnk....',
-    '.........kkssstnnnk.....',
-    '...........kkkkkkk......',
+    '........kkkkk........',
+    '......kkcccbbkk......',
+    '.....kcCCcbbbbbk.....',
+    '.....kcCckkbbbbbk....',
+    '....kkckkKWkbbbbBk...',
+    '..kkiicWKKWkbbbbBBk..',
+    'kkiiggckkkbbbbbbBBk..',
+    '.kkkkkkYYcbbbbbBBBnk.',
+    '......kyYwwbbbBBBBnk.',
+    '.......kwwwwbbBBBnnk.',
+    '.......kwwwwsBBBnnnk.',
+    '........kwwssBBnnnk..',
+    '.........kkssttnnk...',
+    '...........kkkkkk....',
   ], FP);
   const fTail = px([
-    'kkk....',
-    'kBBkkk.',
-    '.kBBBBk',
-    '.kBnkk.',
-    '..kBBk.',
-    '...kBnk',
-    '....kk.',
+    'kkk...',
+    'kBBkk.',
+    '.kBBBk',
+    '.kBnk.',
+    '..kBnk',
+    '...kk.',
   ], FP);
   const fWU = px([
     '.....kkk.',
@@ -3796,6 +3658,13 @@ G.defineArt('enemies', G => {
     '.kkBBnnkk.',
     '...kkkk...',
   ], FP);
+  const fWM2 = px([
+    '.kkkk.....',
+    'kccccckkk.',
+    'kcbbbbBBnk',
+    '.kkBBBnnk.',
+    '...kkkkk..',
+  ], FP);
   const fWD = px([
     'kkkk....',
     'kcbBk...',
@@ -3803,21 +3672,17 @@ G.defineArt('enemies', G => {
     '.kcbBBk.',
     '.kcbbBnk',
     '..kcbBnk',
-    '..kcbBkk',
+    '..kcbBnk',
     '...kcBnk',
-    '...kkBnk',
-    '.....kk.',
-  ], FP);
-  const fWDf = px([
-    'kBBk.',
-    '.kBnk',
-    '..kk.',
+    '...kcBkk',
+    '....kBk.',
+    '....kkk.',
   ], FP);
   const fly = [
-    frame([[fWUf, 11, 0], [fTail, 17, 13], [fBody, 0, 5], [fWU, 13, 1]]),
-    frame([[fTail, 17, 14], [fBody, 0, 4], [fWM, 13, 7]]),
-    frame([[fWDf, 10, 15], [fTail, 17, 13], [fBody, 0, 3], [fWD, 12, 8]]),
-    frame([[fTail, 17, 12], [fBody, 0, 4], [fWM, 13, 6]]),
+    frame([[fWUf, 12, 2], [fTail, 17, 15], [fBody, 1, 6], [fWU, 13, 2]]),
+    frame([[fTail, 17, 14], [fBody, 1, 5], [fWM, 13, 9]]),
+    frame([[fTail, 17, 13], [fBody, 1, 4], [fWD, 14, 9]]),
+    frame([[fTail, 17, 14], [fBody, 1, 5], [fWM2, 13, 10]]),
   ];
 
   return {
@@ -3923,114 +3788,53 @@ G.defineArt('items', G => {
   }
 
   // ==================================================================== GEM
-  // Sun shard: a four-pointed crystal star (two shallow pyramids back to back),
-  // spinning about its vertical axis. 0, 30, 60, 90, 120, 150 degrees; the ridge
-  // crossing drifts right, the star thins to a blade, then the lit back swings in.
-  const gem = [
-    [
-      '................',
-      '.......wg.......',
-      '......lwgO......',
-      '......lwgO......',
-      '.....llwggO.....',
-      '....lylwggyy....',
-      '..llllywgyyyyg..',
-      '.lllwwwwwlyyyyg.',
-      '.gggggywlgOOOOo.',
-      '..OOgggyoooooo..',
-      '....Oggyoorr....',
-      '.....ggyorr.....',
-      '......gyor......',
-      '......gyor......',
-      '.......gr.......',
-      '................',
-    ], [
-      '................',
-      '.......lO.......',
-      '......llOo......',
-      '......llOo......',
-      '.....llllOo.....',
-      '.....ylllOo.....',
-      '...yyyyllOggg...',
-      '..llllllwggggg..',
-      '..OOOOOOlooooo..',
-      '...oooogyorrr...',
-      '.....oggyor.....',
-      '.....gggyor.....',
-      '......gyor......',
-      '......gyor......',
-      '.......gr.......',
-      '................',
-    ], [
-      '................',
-      '.......yO.......',
-      '.......yO.......',
-      '......lyyO......',
-      '......lyyO......',
-      '......gyyO......',
-      '.....gggyyO.....',
-      '....gyyyylOO....',
-      '....oooooyrr....',
-      '.....oooggr.....',
-      '......oggr......',
-      '......yggr......',
-      '......yggr......',
-      '.......gr.......',
-      '.......gr.......',
-      '................',
-    ], [
-      '................',
-      '.......lO.......',
-      '.......lO.......',
-      '.......lO.......',
-      '.......wO.......',
-      '......lwOO......',
-      '......lwOo......',
-      '......wwlo......',
-      '......yyoo......',
-      '......yyor......',
-      '......gyor......',
-      '.......yr.......',
-      '.......yr.......',
-      '.......gr.......',
-      '.......gr.......',
-      '................',
-    ], [
-      '................',
-      '.......wl.......',
-      '.......wl.......',
-      '......wlly......',
-      '......wlly......',
-      '......wlll......',
-      '.....lwllll.....',
-      '....llwwwwwl....',
-      '....OOlggggg....',
-      '.....OyyOOO.....',
-      '......yyyO......',
-      '......yygo......',
-      '......yygo......',
-      '.......yo.......',
-      '.......yo.......',
-      '................',
-    ], [
-      '................',
-      '.......ly.......',
-      '......llyy......',
-      '......llyy......',
-      '.....llyyyy.....',
-      '.....llyyyl.....',
-      '...llllyyllll...',
-      '..wwwwwwwwllll..',
-      '..ggggglgggggg..',
-      '...OOOyggOOOO...',
-      '.....yygggO.....',
-      '.....yygggg.....',
-      '......yygg......',
-      '......yygg......',
-      '.......yg.......',
-      '................',
-    ],
-  ].map(r => spr(r));
+  // Sun shard: a four-pointed crystal star, two shallow pyramids back to back. It is a real little
+  // solid (4 tips, 4 notch corners, front + back apex) turned about its vertical axis in 30 degree
+  // steps and flat-shaded per facet with a fixed upper-left light, so the ridge and the light / dark
+  // facet split travel across the shard as it spins and the far side swings in from the left.
+  const GEMR = [OR[0], OR[1], OR[2], OR[3], GO[2], GO[3], WHT];
+  const gem = [0, 1, 2, 3, 4, 5].map(f => {
+    const a = f * Math.PI / 6, ca = Math.cos(a), sa = Math.sin(a), TIP = 7.8, IN = 3, DP = 3.4;
+    const rot = p => [p[0] * ca + p[2] * sa, p[1], -p[0] * sa + p[2] * ca];
+    const tips = [[0, -TIP, 0], [TIP, 0, 0], [0, TIP, 0], [-TIP, 0, 0]];
+    const inn = [[IN, -IN, 0], [IN, IN, 0], [-IN, IN, 0], [-IN, -IN, 0]];
+    const tris = [];
+    [[0, 0, DP], [0, 0, -DP]].forEach(ap => {
+      for (let i = 0; i < 4; i++) { tris.push([ap, tips[i], inn[i]]); tris.push([ap, inn[i], tips[(i + 1) % 4]]); }
+    });
+    const L = [-0.52, -0.62, 0.59];
+    const b = B(16, 16);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const px = x + .5 - 8, py = y + .5 - 8;
+      let bz = -1e9, bc = null;
+      tris.forEach(t => {
+        const A = rot(t[0]), Bv = rot(t[1]), Cv = rot(t[2]);
+        const d = (Bv[1] - Cv[1]) * (A[0] - Cv[0]) + (Cv[0] - Bv[0]) * (A[1] - Cv[1]);
+        if (Math.abs(d) < 1e-6) return;
+        const u = ((Bv[1] - Cv[1]) * (px - Cv[0]) + (Cv[0] - Bv[0]) * (py - Cv[1])) / d;
+        const v = ((Cv[1] - A[1]) * (px - Cv[0]) + (A[0] - Cv[0]) * (py - Cv[1])) / d, w = 1 - u - v;
+        if (u < -1e-4 || v < -1e-4 || w < -1e-4) return;
+        const z = u * A[2] + v * Bv[2] + w * Cv[2];
+        if (z <= bz) return;
+        let n = [(Bv[1] - A[1]) * (Cv[2] - A[2]) - (Bv[2] - A[2]) * (Cv[1] - A[1]), (Bv[2] - A[2]) * (Cv[0] - A[0]) - (Bv[0] - A[0]) * (Cv[2] - A[2]), (Bv[0] - A[0]) * (Cv[1] - A[1]) - (Bv[1] - A[1]) * (Cv[0] - A[0])];
+        const nl = Math.hypot(n[0], n[1], n[2]) * (n[2] < 0 ? -1 : 1);
+        const li = (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / nl;
+        bz = z; bc = GEMR[Math.max(0, Math.min(6, Math.floor((li + 0.42) * 5.2)))];
+      });
+      if (bc) S(b, x, y, bc);
+    }
+    // sliver facets leave lone pixels: fold each into the neighbouring cluster it touches most
+    for (let pass = 0; pass < 2; pass++) for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const c = Gt(b, x, y);
+      if (!c) continue;
+      const nb = [Gt(b, x - 1, y), Gt(b, x + 1, y), Gt(b, x, y - 1), Gt(b, x, y + 1)].filter(v => v);
+      if (nb.indexOf(c) >= 0 || !nb.length) continue;
+      const best = nb.slice().sort((p, q) => nb.filter(v => v === q).length - nb.filter(v => v === p).length)[0];
+      S(b, x, y, best);
+    }
+    outline(b, INK);
+    return out(b);
+  });
 
   // ================================================================== HEART
   const heartA = [
@@ -4072,108 +3876,79 @@ G.defineArt('items', G => {
   const heart = [px(heartA), px(heartB)];
 
   // ================================================================ SPARKLE
+  // Top-left quadrants, mirrored both ways around a solid 2x2 white core, then rimmed in orange
+  // so the twinkle still reads over white clouds: small + -> big + -> eight-point star -> tiny +.
   const sparkle = [
     [
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '.......l........',
-      '.......w........',
-      '.....lwwwl......',
-      '.......w........',
-      '.......l........',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '.......l',
+      '.......w',
+      '.....lww',
     ], [
-      '.......y........',
-      '.......l........',
-      '.......l........',
-      '.......w........',
-      '.......w........',
-      '......lwl.......',
-      '.....lwwwl......',
-      'yllwwwwwwwwwlly.',
-      '.....lwwwl......',
-      '......lwl.......',
-      '.......w........',
-      '.......w........',
-      '.......l........',
-      '.......l........',
-      '.......y........',
-      '................',
+      '........',
+      '.......y',
+      '.......l',
+      '.......l',
+      '.......w',
+      '......lw',
+      '.....lww',
+      '.yllwwww',
     ], [
-      '................',
-      '.......y........',
-      '..y....l....y...',
-      '...l...l...l....',
-      '....l..w..l.....',
-      '.....w.w.w......',
-      '......www.......',
-      '.yllwwwwwwwlly..',
-      '......www.......',
-      '.....w.w.w......',
-      '....l..w..l.....',
-      '...l...l...l....',
-      '..y....l....y...',
-      '.......y........',
-      '................',
-      '................',
+      '........',
+      '........',
+      '..yl....',
+      '..lll..y',
+      '...lwl.l',
+      '....lwlw',
+      '.....lww',
+      '...ylwww',
     ], [
-      '................',
-      '.......y........',
-      '................',
-      '...y.......y....',
-      '................',
-      '................',
-      '.......l........',
-      '.y....lwl....y..',
-      '.......l........',
-      '................',
-      '................',
-      '...y.......y....',
-      '................',
-      '.......y........',
-      '................',
-      '................',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '.......l',
+      '......lw',
     ],
-  ].map(r => px(r));
+  ].map(q => {
+    const b = B(16, 16);
+    const full = q.map(r => r + r.split('').reverse().join(''));
+    stamp(b, full.concat(full.slice().reverse()), 0, 0);
+    outline(b, OR[2]);
+    return out(b);
+  });
 
   // ================================================================== PUFFS
-  // Cloud lobes shaded as overlapping balls: every pixel belongs to the lobe it sits deepest in
-  // and takes light / base / shadow from its offset to that lobe's centre (light from the upper-left).
+  // Cloud lobes painted back to front as separate balls, each lit from the upper-left with a
+  // shadow crescent on its lower-right, so every lobe keeps its own volume inside the mass.
   // lobes: [x0, y0, diameter]; cols: [shadow, base, light].
   function puffs(b, lobes, cols, edge) {
-    const m = B(b.w, b.h);
-    lobes.forEach(l => disc(m, l[0], l[1], l[2], 1));
-    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
-      if (Gt(m, x, y) !== 1) continue;
-      let best = -1e9, t = 0;
-      lobes.forEach(l => {
-        const r = l[2] / 2, dx = x + .5 - (l[0] + r), dy = y + .5 - (l[1] + r), mg = r - Math.hypot(dx, dy);
-        if (mg > best) { best = mg; t = (dx + dy) / r; }
-      });
-      S(b, x, y, t < 0.2 ? cols[2] : t > 0.9 ? cols[0] : cols[1]);
-    }
+    lobes.forEach(l => {
+      const r = l[2] / 2;
+      disc(b, l[0], l[1], l[2], cols[1]);
+      disc(b, l[0], l[1], l[2], cols[0], (x, y) => (x + .5 - l[0] - r) * 0.7 + (y + .5 - l[1] - r) > r * 0.5);
+      disc(b, l[0], l[1], l[2], cols[2], (x, y) => l[2] > 3 && Math.hypot(x + .5 - l[0] - r * 0.7, y + .5 - l[1] - r * 0.7) < r * 0.55);
+    });
     if (edge) outline(b, edge);
   }
   // The engine draws the dust frame with its vertical centre on the feet line, so the puff
-  // is born on rows 5-9 (ground line = row 8), swells, then lifts off and thins out.
+  // is born on rows 5-9 (ground line = row 8), swells, then lifts off as shrinking round puffs.
   const DUSTC = [BR[3], BR[4], BR[5]];
   const dust = [
     [[5, 5, 5], [8, 6, 4]],
     [[2, 3, 6], [6, 3, 7], [10, 5, 5]],
-    [[0, 1, 6], [5, 1, 6], [10, 3, 5], [4, 6, 4]],
-    [[1, 1, 2], [6, 0, 4], [12, 3, 2], [4, 5, 2], [10, 0, 2]],
-  ].map(l => { const b = B(16, 16); puffs(b, l, DUSTC); return out(b); });
+    [[1, 2, 5], [5, 1, 6], [10, 3, 5]],
+    [[2, 2, 4], [8, 1, 4], [12, 4, 2]],
+  ].map(l => { const b = B(16, 16); puffs(b, l, DUSTC, BR[2]); return out(b); });
 
   // =================================================================== POOF
-  // Impact flash -> big smoke burst -> ring of puffs opening up -> wisps.
+  // White impact burst -> one lumpy smoke mass -> ring of puffs opening up -> small fading puffs.
   const POOFC = [ST[3], ST[4], WHT];
   function ring(n, R, sizes, a0) {
     const l = [];
@@ -4185,166 +3960,62 @@ G.defineArt('items', G => {
   }
   const poof = [0, 1, 2, 3, 4].map(f => {
     const b = B(24, 24);
-    if (f === 0) {                               // eight-point impact flash: long axis rays, short diagonal ones
+    if (f === 0) {                               // chunky eight-point impact burst, white with a slate rim
       const V = [];
-      for (let i = 0; i < 16; i++) { const R = i % 2 ? 3.6 : i % 4 ? 7 : 11.5; V.push([Math.cos(i * Math.PI / 8) * R, Math.sin(i * Math.PI / 8) * R]); }
+      for (let i = 0; i < 16; i++) { const R = i % 2 ? 5.6 : i % 4 ? 8 : 10.6; V.push([Math.cos(i * Math.PI / 8) * R, Math.sin(i * Math.PI / 8) * R]); }
       for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
         const dx = x + .5 - 12, dy = y + .5 - 12, r = Math.hypot(dx, dy);
         const i = Math.floor(((Math.atan2(dy, dx) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 8)) % 16, p = V[i], q = V[(i + 1) % 16];
-        if ((q[0] - p[0]) * (dy - p[1]) - (q[1] - p[1]) * (dx - p[0]) >= 0) S(b, x, y, r < 3 ? WHT : r < 6 ? GO[3] : GO[2]);
+        if ((q[0] - p[0]) * (dy - p[1]) - (q[1] - p[1]) * (dx - p[0]) >= 0) S(b, x, y, r < 5.2 || dx + dy < 0 ? WHT : ST[4]);
       }
+      outline(b, ST[1]);
     }
-    if (f === 1) puffs(b, ring(6, 5.5, [9, 8], 0.5).concat([[7, 7, 9]]), POOFC, ST[2]);
-    if (f === 2) puffs(b, ring(6, 7.5, [7, 6], 0.6), POOFC, ST[2]);
-    if (f === 3) puffs(b, ring(6, 9, [5, 4], 0.7), POOFC, ST[2]);
-    if (f === 4) puffs(b, ring(6, 10, [2, 3], 0.8), POOFC);
+    if (f === 1) puffs(b, [[12, 10, 10], [11, 2, 10], [2, 10, 10], [7, 13, 9], [3, 3, 10], [7, 6, 10]], POOFC, ST[1]);
+    if (f === 2) puffs(b, ring(6, 7.5, [7, 6], 0.6), POOFC, ST[1]);
+    if (f === 3) puffs(b, ring(6, 9, [5, 4], 0.7), POOFC, ST[1]);
+    if (f === 4) puffs(b, ring(3, 9.5, [4], 0.8).concat(ring(3, 9.5, [2], 0.8 + Math.PI / 3)), POOFC, ST[1]);
     return out(b);
   });
 
   // ================================================================= SPLASH
-  // Left halves of the silhouettes (mirrored), shaded procedurally.
+  // A solid tapered column with two thick side fingers on a foam mound, plus four chunky
+  // droplets that arc out and fall. Each frame: [mound half-width, mound height,
+  // tubes [x0, y0, d0, x1, y1, d1] (mirrored), droplets [x, y, size] (mirrored)].
   const SPL = [
-    [
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '..........#.....',
-      '.............###',
-      '.......#...#####',
-      '.........#######',
-      '........########',
-      '.......#########',
-      '......##########',
-      '.....###########',
-      '.....###########',
-      '.....###########',
-    ], [
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '...............#',
-      '..............##',
-      '.........#....##',
-      '..............##',
-      '......#..##..###',
-      '.........##..###',
-      '....#.....##.###',
-      '..........######',
-      '.....##...######',
-      '......##..######',
-      '......###.######',
-      '.......#########',
-      '.......#########',
-      '......##########',
-      '.....###########',
-      '....############',
-      '....############',
-      '....############',
-    ], [
-      '................',
-      '...............#',
-      '......#........#',
-      '................',
-      '..#......##....#',
-      '.........##...##',
-      '...#......##..##',
-      '..##......##..##',
-      '..##.......#####',
-      '...##......#####',
-      '...###.....#####',
-      '....##.....#####',
-      '....###...######',
-      '.....###..######',
-      '.....####.######',
-      '......##########',
-      '......##########',
-      '.......#########',
-      '.......#########',
-      '......##########',
-      '.....###########',
-      '....############',
-      '....############',
-      '....############',
-    ], [
-      '................',
-      '................',
-      '................',
-      '.....#..........',
-      '...............#',
-      '.#.......#.....#',
-      '................',
-      '..#.......#.....',
-      '..##...........#',
-      '...#......##..##',
-      '..........##..##',
-      '...##......#.###',
-      '...##......#####',
-      '....##.....#####',
-      '....###...######',
-      '.....##...######',
-      '.....###.#######',
-      '......##########',
-      '.......#########',
-      '......##########',
-      '.....###########',
-      '....############',
-      '....############',
-      '....############',
-    ], [
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '.#..............',
-      '.........#......',
-      '................',
-      '....#..........#',
-      '................',
-      '..#.......#.....',
-      '..............##',
-      '....#......#..##',
-      '.............###',
-      '.....##....#####',
-      '......##.#######',
-      '......##########',
-      '.....###########',
-      '....############',
-      '....############',
-      '....############',
-    ],
+    [11, 7, [[16, 20, 7, 16, 16, 4], [10, 21, 5, 8, 18, 3]], []],
+    [11, 7, [[16, 20, 9, 16, 8, 3], [11, 20, 6, 7, 13, 3]], [[3, 9, 3]]],
+    [12, 6, [[16, 20, 9, 16, 4, 3], [11, 20, 6, 6, 10, 3]], [[1, 5, 3], [8, 1, 3]]],
+    [12, 6, [[16, 21, 8, 16, 11, 3], [10, 21, 5, 6, 15, 3]], [[1, 10, 3], [6, 5, 3]]],
+    [13, 5, [[16, 22, 6, 16, 19, 4]], [[1, 17, 2], [6, 14, 2]]],
   ];
-  // Foam white on the lit left ~60% of every horizontal run, pale blue on the rest, a mid-blue
-  // rim on the right / bottom edges and a blue outline all around.
-  const splash = SPL.map(rows => {
-    const b = B(32, 24);
-    const m = (x, y) => { if (y < 0 || y > 23 || x < 0 || x > 31) return false; const r = rows[y]; return r[x < 16 ? x : 31 - x] === '#'; };
+  const splash = SPL.map(fr => {
+    const b = B(32, 24), k = B(32, 24);
+    const a = fr[0], h = fr[1];
+    for (let y = 24 - h; y < 24; y++) {
+      const hw = Math.round(a * Math.sqrt(1 - Math.pow((23.5 - y - 0.5) / h, 2)));
+      for (let x = 16 - hw; x < 16 + hw; x++) S(k, x, y, 1);
+    }
+    fr[2].forEach(t => {
+      const n = Math.max(Math.abs(t[3] - t[0]), Math.abs(t[4] - t[1])) * 2 || 1;
+      for (let i = 0; i <= n; i++) {
+        const u = i / n, d = Math.round(t[2] + (t[5] - t[2]) * u), cx = t[0] + (t[3] - t[0]) * u, cy = t[1] + (t[4] - t[1]) * u;
+        const x0 = Math.round(cx - d / 2), y0 = Math.round(cy - d / 2);
+        disc(k, x0, y0, d, 1); disc(k, 32 - x0 - d, y0, d, 1);
+      }
+    });
+    fr[3].forEach(d => { for (let j = 0; j < d[2]; j++) for (let i = 0; i < d[2]; i++) { S(k, d[0] + i, d[1] + j, 1); S(k, 31 - d[0] - i, d[1] + j, 1); } });
+    const m = (x, y) => Gt(k, x, y) === 1;
     for (let y = 0; y < 24; y++) for (let x = 0; x < 32; x++) {
       if (!m(x, y)) continue;
       let x0 = x, x1 = x;
       while (m(x0 - 1, y)) x0--;
       while (m(x1 + 1, y)) x1++;
-      const t = (x - x0 + 0.5) / (x1 - x0 + 1), rim = !m(x + 1, y) || !m(x, y + 1), top = !m(x, y - 1) || !m(x - 1, y);
-      S(b, x, y, rim && !top ? BL[3] : t > 0.6 + [0, 0.07, 0.1, 0.07, 0, -0.05][y % 6] && !top ? BL[4] : WHT);   // scalloped shade edge
+      const w = x1 - x0 + 1, i = x - x0;
+      // lit left third, pale blue middle, darker right third (1px each on thin fingers / droplets)
+      const lit = Math.max(1, Math.round(w * 0.38)), drk = Math.max(1, Math.round(w * 0.3));
+      S(b, x, y, w === 2 ? (i ? BL[3] : WHT) : i < lit ? WHT : i >= w - drk ? (i === w - 1 && w > 5 ? BL[2] : BL[3]) : BL[4]);
     }
-    outline(b, BL[2]);
+    outline(b, BL[1]);
     return out(b);
   });
 
@@ -4354,95 +4025,58 @@ G.defineArt('items', G => {
   // the left while the face turns away, dark wall on the right as it turns back.
   const GOLD = [GO[0], GO[1], GO[2], GO[3], WHT];
   const TEALS = ['#073636', TE[0], '#126862', TE[1], '#28a690', TE[2], TE[3]];
-  const ELL = { 20: [8, 12, 14, 16, 18, 18, 20, 20, 20, 20], 16: [6, 8, 10, 12, 14, 14, 16, 16, 16, 16], 8: [2, 4, 6, 6, 8, 8, 8, 8, 8, 8] };
-  const FLD = { 20: [6, 10, 12, 14, 14, 16, 16, 16], 16: [4, 6, 8, 10, 10, 12, 12, 12], 8: [2, 4, 4, 6, 6, 6, 6, 6] };
-  const STAR = {
-    20: [
-      '.....##.....',
-      '.....##.....',
-      '....####....',
-      '....####....',
-      '############',
-      '############',
-      '.##########.',
-      '..########..',
-      '..########..',
-      '.####..####.',
-      '.###....###.',
-      '.##......##.',
-    ],
-    16: [
-      '....##....',
-      '....##....',
-      '...####...',
-      '...####...',
-      '##########',
-      '##########',
-      '.########.',
-      '..######..',
-      '..######..',
-      '.###..###.',
-      '.##....##.',
-      '.#......#.',
-    ],
-    8: [
-      '.##.',
-      '.##.',
-      '.##.',
-      '.##.',
-      '####',
-      '####',
-      '.##.',
-      '.##.',
-      '.##.',
-      '####',
-      '#..#',
-      '....',
-    ],
-  };
-  function coinFrame(fw, side, mode) {
+  // Half-profiles (row widths, top -> middle) of the 20px tall coin and its 16px tall enamel field
+  // at full width; narrower views scale them to an even width, so every silhouette is a clean,
+  // symmetric ellipse centred in the frame.
+  const ELL20 = [8, 12, 14, 16, 18, 18, 20, 20, 20, 20], FLD16 = [6, 10, 12, 14, 14, 16, 16, 16];
+  const even = v => Math.max(2, Math.round(v / 2) * 2);
+  const STAR = [
+    '.....##.....',
+    '.....##.....',
+    '....####....',
+    '....####....',
+    '############',
+    '############',
+    '.##########.',
+    '..########..',
+    '..########..',
+    '.####..####.',
+    '.###....###.',
+    '.##......##.',
+  ];
+  const STAR4 = ['.##.', '.##.', '.##.', '.##.', '####', '####', '####', '.##.', '####', '####', '#..#', '#..#'];
+  // W = silhouette width, e = visible rim-wall thickness (on the trailing side), side = -1 wall on
+  // the left (lit), +1 wall on the right (in shade).
+  function coinFrame(W, e, side) {
     const b = B(24, 24);
-    const sh = mode === 'away' ? -1 : mode === 'toward' ? 1 : 0;
-    const gi = i => GOLD[Math.max(0, Math.min(4, i + (sh > 0 ? (i >= 2 ? 1 : 0) : sh)))];
-    const tb = sh < 0 ? 2 : 3;
-    if (!fw) {                                  // edge-on: just the milled rim wall
-      const cols = [3, 4, 2, 1];
+    if (W <= 4) {                               // edge-on: thick rim wall with a centre groove
+      const cols = [GOLD[3], GOLD[2], GOLD[0], GOLD[1]];
       for (let y = 2; y < 22; y++) for (let j = 0; j < 4; j++) {
         if ((y === 2 || y === 21) && (j === 0 || j === 3)) continue;
-        const notch = (y % 3 === 0) && j > 0 && j < 3;
-        S(b, 10 + j, y, GOLD[Math.max(0, cols[j] - (notch ? 1 : 0))]);
+        S(b, 10 + j, y, y === 2 ? GOLD[3] : y === 21 ? GOLD[0] : j === 0 && y < 9 ? GOLD[4] : cols[j]);
       }
       outline(b, INK);
       return out(b);
     }
-    const e = fw === 20 ? 0 : fw === 16 ? 2 : 4;
-    const x0 = 12 - ((fw + e) >> 1);
-    const fx = side < 0 ? x0 + e : x0;          // face ellipse left edge
-    const bx = side < 0 ? x0 : x0 + e;          // far ellipse left edge
-    const rowW = i => ELL[fw][i < 10 ? i : 19 - i];
-    const fldW = i => FLD[fw][i < 8 ? i : 15 - i];
-    const inFace = (x, y) => { const i = y - 2; if (i < 0 || i > 19) return false; const w = rowW(i), s0 = fx + ((fw - w) >> 1); return x >= s0 && x < s0 + w; };
-    const inField = (x, y) => { const i = y - 4; if (i < 0 || i > 15) return false; const w = fldW(i), s0 = fx + ((fw - w) >> 1); return x >= s0 && x < s0 + w; };
-    // rim wall
-    if (e) for (let i = 0; i < 20; i++) {
-      const w = rowW(i), s0 = bx + ((fw - w) >> 1);
-      for (let x = s0; x < s0 + w; x++) {
-        if (inFace(x, i + 2)) continue;
-        const j = side < 0 ? x - s0 : s0 + w - 1 - x;      // 0 = silhouette
-        const lit = e === 2 ? [3, 2] : [2, 3, 4, 3], drk = e === 2 ? [0, 1] : [0, 0, 1, 1];
-        S(b, x, i + 2, GOLD[(side < 0 ? lit : drk)[Math.min(j, e - 1)]]);
-      }
-    }
-    // face: rim ring + enamel field
+    const fw = W - e, x0 = 12 - W / 2, fx = side < 0 ? x0 + e : x0;    // face ellipse left edge
+    const sil = (x, y) => { const i = y - 2; if (i < 0 || i > 19) return false; const w = even(ELL20[i < 10 ? i : 19 - i] * W / 20), s0 = 12 - w / 2; return x >= s0 && x < s0 + w; };
+    const inFace = (x, y) => { const i = y - 2; if (!sil(x, y)) return false; const w = even(ELL20[i < 10 ? i : 19 - i] * fw / 20), s0 = fx + (fw - w) / 2; return x >= s0 && x < s0 + w; };
+    const fdw = fw > 10 ? fw - 4 : fw - 2;
+    const inField = (x, y) => { const i = y - 4; if (i < 0 || i > 15) return false; const w = even(FLD16[i < 8 ? i : 15 - i] * fdw / 16), s0 = fx + (fw - w) / 2; return x >= s0 && x < s0 + w; };
     const litA = Math.atan2(-1, -1);
     for (let y = 2; y < 22; y++) for (let x = 0; x < 24; x++) {
-      if (!inFace(x, y)) continue;
+      if (!sil(x, y)) continue;
+      if (!inFace(x, y)) {                      // rim wall crescent
+        let j = 0; while (j < 5 && !inFace(x + (side < 0 ? j + 1 : -j - 1), y)) j++;   // 0 = next to the face
+        S(b, x, y, GOLD[side < 0 ? (j === 0 ? 2 : sil(x - 1, y) ? 3 : 4) : (j === 0 ? 1 : 0)]);
+        continue;
+      }
       const dx = (x + 0.5 - (fx + fw / 2)) * (20 / fw), dy = y + 0.5 - 12;
       let d = Math.abs(Math.atan2(dy, dx) - litA); if (d > Math.PI) d = 2 * Math.PI - d;
       d = d * 6 / Math.PI;                       // clock-hours away from the lit side, 0..6
       if (inField(x, y)) {
         const rimAdj = !inField(x - 1, y) || !inField(x + 1, y) || !inField(x, y - 1) || !inField(x, y + 1);
-        S(b, x, y, TEALS[rimAdj && d <= 2.6 ? tb - 2 : rimAdj && d >= 4.2 ? tb + 2 : tb]);
+        S(b, x, y, TEALS[rimAdj && d <= 2.6 ? 1 : rimAdj && d >= 4.2 ? 5 : 3]);
         continue;
       }
       const outer = !inFace(x - 1, y) || !inFace(x + 1, y) || !inFace(x, y - 1) || !inFace(x, y + 1);
@@ -4450,23 +4084,27 @@ G.defineArt('items', G => {
       let c = 2;
       if (outer) c = d <= 1.2 ? 4 : d <= 2.7 ? 3 : d <= 3.6 ? 2 : d <= 5 ? 1 : 0;
       else if (inner) c = d >= 3.6 ? 3 : d >= 2.6 ? 2 : 1;
-      S(b, x, y, gi(c));
+      S(b, x, y, GOLD[c]);
     }
-    // raised star + its drop shadow on the enamel
-    const st = STAR[fw], sw = st[0].length, sx = fx + ((fw - sw) >> 1), sy = 6;
-    const star = (x, y) => { const j = y - sy, i = x - sx; return j >= 0 && j < st.length && i >= 0 && i < sw && st[j][i] === '#'; };
+    // raised star (a column-resampled copy of the front star) + its drop shadow on the enamel
+    const sw = fw >= 20 ? 12 : fw >= 12 ? 8 : 4, sx = fx + (fw - sw) / 2, sy = 6;
+    const star = (x, y) => {
+      const j = y - sy, i = x - sx;
+      if (j < 0 || j >= 12 || i < 0 || i >= sw) return false;
+      return sw === 4 ? STAR4[j][i] === '#' : STAR[j][Math.floor((i + 0.5) * 12 / sw)] === '#';
+    };
     for (let y = 4; y < 20; y++) for (let x = 0; x < 24; x++) {
       if (star(x, y)) {
         const lit = !star(x - 1, y) || !star(x, y - 1), drk = !star(x + 1, y) || !star(x, y + 1);
-        S(b, x, y, GOLD[lit && !drk ? (sh < 0 ? 3 : 4) : drk && !lit ? (sh > 0 ? 3 : 2) : (sh > 0 ? 4 : 3)]);
-      } else if (inField(x, y) && star(x - 1, y - 1)) S(b, x, y, TEALS[tb - 2]);
+        S(b, x, y, GOLD[lit && !drk ? 4 : drk && !lit ? 2 : 3]);
+      } else if (inField(x, y) && star(x - 1, y - 1)) S(b, x, y, TEALS[1]);
     }
     outline(b, INK);
     return out(b);
   }
   const bigCoin = [
-    coinFrame(20, 0, 'front'), coinFrame(16, -1, 'away'), coinFrame(8, -1, 'away'),
-    coinFrame(0, 0, 'front'), coinFrame(8, 1, 'toward'), coinFrame(16, 1, 'toward'),
+    coinFrame(20, 0, 0), coinFrame(16, 2, -1), coinFrame(12, 4, -1),
+    coinFrame(4, 0, 0), coinFrame(12, 4, 1), coinFrame(16, 2, 1),
   ];
 
   // =================================================================== FONT
@@ -4569,7 +4207,7 @@ G.defineArt('items', G => {
   ]);
   const hud = {
     heart: px(heartA),
-    heartEmpty: px(heartA.map(r => r.replace(/[34wP]/g, '1'))),
+    heartEmpty: px(heartA.map(r => r.replace(/[34wP]/g, 's').replace(/[21]/g, 'S'))),   // hollow socket: navy recess, lit lower-right wall
     gem: gem[0],
     coinOn,
     coinOff,
@@ -4637,23 +4275,25 @@ G.defineArt('items', G => {
     const EXT = MK(LW, LH, (x, y) => !on(OUT, x, y) && depth(x, y) > 0);
 
     // ---- sun: disc crowned with triangular rays, only the cap above the N / F dip is kept
-    const SX = LW / 2, SY = 42, SR = 27, SCLIP = 27;
+    const SX = LW / 2, SY = 39, SR = 27, SCLIP = 27;
     const inDisc = (x, y) => (x + .5 - SX) * (x + .5 - SX) + (y + .5 - SY) * (y + .5 - SY) <= SR * SR;
-    const RAYS = [[90, 13], [75, 9], [105, 9], [60, 13], [120, 13], [45, 10], [135, 10]];   // [angle, length]
-    const inRay = (x, y) => {
+    const RAYS = [[90, 11], [75, 8], [105, 8], [60, 11], [120, 11], [45, 9], [135, 9]];   // [angle, length]
+    // 0 = outside every ray, 1 = the half of a ray facing the light, 2 = its shaded half (bevelled spikes)
+    const rayHalf = (x, y) => {
       const px = x + .5 - SX, py = y + .5 - SY;
-      return RAYS.some(r => {
+      for (const r of RAYS) {
         const ux = Math.cos(r[0] * Math.PI / 180), uy = -Math.sin(r[0] * Math.PI / 180);
         const along = px * ux + py * uy - (SR - 1), across = -px * uy + py * ux;
-        return along >= 0 && along <= r[1] - 1.2 && Math.abs(across) <= 3.7 * (1 - along / r[1]);
-      });
+        if (along >= 0 && along <= r[1] - 1.2 && Math.abs(across) <= 4.4 * (1 - along / r[1])) return (across < 0 ? -1 : 1) * (uy - ux) > 0 ? 1 : 2;
+      }
+      return 0;
     };
-    const SUN = MK(LW, LH, (x, y) => y < SCLIP && (inDisc(x, y) || inRay(x, y)));
+    const SUN = MK(LW, LH, (x, y) => y < SCLIP && (inDisc(x, y) || rayHalf(x, y) > 0));
 
     // ---- tail: a tapering tube around a Catmull-Rom centre line [x, y, radius]. It slips out from
     // under the X, runs below the word and curls up into a bushy cream-tipped plume left of the S.
     const TP = [[224, 52, 2.5], [215, 60, 2.5], [206, 68.5, 3], [184, 72.5, 3.2], [146, 73.8, 3.6], [93, 74, 4], [46, 73.5, 4.8],
-      [25, 69.5, 6.5], [14.5, 58, 9], [11.5, 45, 8.5], [11.5, 34, 5.5], [14, 25.5, 1.2], [16, 21, 0.5]];
+      [25, 69.5, 6.5], [14.5, 58, 9], [11.5, 45, 9.5], [12, 33, 8], [15, 24.5, 4.5], [18.5, 19.5, 1.5], [20, 18, 0.5]];
     const TS = [], ARC = [0];
     for (let i = 1; i < TP.length - 2; i++) for (let k = 0; k < 16; k++) {
       const t = k / 16, p0 = TP[i - 1], p1 = TP[i], p2 = TP[i + 1], p3 = TP[i + 2];
@@ -4670,7 +4310,10 @@ G.defineArt('items', G => {
         const dx = px - a[0] - ex * u, dy = py - a[1] - ey * u, d = dx * dx + dy * dy;
         if (d < bd) { bd = d; br = a[2] + (c[2] - a[2]) * u; ox = dx; oy = dy; ba = ARC[i] + Math.sqrt(l2) * u; tx = ex; ty = ey; }
       }
-      if (Math.sqrt(bd) > br) return false;
+      const q0 = (tx * oy - ty * ox) / Math.hypot(tx, ty);
+      // fur: saw-tooth tufts along the outer edge of the brush, each one sweeping back toward the tip
+      const fur = q0 < 0 && br > 5.2 ? Math.min(3.2, br * 0.36) * (1 - (ba / 9 - Math.floor(ba / 9))) : 0;
+      if (Math.sqrt(bd) > br - fur) return false;
       // lit from above under the word (the underside falls into shade), swinging round to the left on the plume
       const tt = Math.max(0, Math.min(1, (ba - 185) / 30));
       TL[y * LW + x] = -((0.447 + 0.4 * tt) * ox + (0.894 - 0.37 * tt) * oy) / br; TA[y * LW + x] = ba; TQ[y * LW + x] = (tx * oy - ty * ox) / Math.hypot(tx, ty);
@@ -4686,8 +4329,10 @@ G.defineArt('items', G => {
     each((x, y) => {
       if (!on(SUN, x, y)) return;
       const e = edge(SUN, x, y);
-      if (inDisc(x, y)) S(b, x, y, e === 1 ? WHT : Math.hypot(x + .5 - SX, y + .5 - SY) > SR - 3 ? GO[3] : GO[2]);
-      else S(b, x, y, e === 1 ? GO[2] : e === 2 ? OR[2] : OR[3]);
+      if (inDisc(x, y)) {                           // orange rim band, gold body, pale glow crescent on the lit shoulder
+        const d = Math.hypot(x + .5 - SX, y + .5 - SY), dx = x + .5 - SX;
+        S(b, x, y, d > SR - 1.2 ? (dx < 4 ? GO[3] : OR[3]) : d > SR - 4 ? (dx < 6 ? OR[3] : OR[2]) : d > SR - 8.5 && d <= SR - 5.5 && dx < -3 ? WHT : d > SR - 10 && dx < 2 ? GO[3] : GO[2]);
+      } else S(b, x, y, rayHalf(x, y) === 1 ? (e === 1 ? GO[3] : GO[2]) : (e === 2 ? OR[1] : OR[2]));
     });
     inkAround(TAIL);
     each((x, y) => {
@@ -4695,7 +4340,7 @@ G.defineArt('items', G => {
       const l = TL[y * LW + x];
       const z = TQ[y * LW + x] / 5 + 0.25, zig = Math.abs(z - Math.floor(z) - 0.5) * 2;     // 5px wide teeth across the tail
       if (TA[y * LW + x] > 217 + 4 * zig) S(b, x, y, l > 0 ? WHT : l < -0.3 ? BR[4] : BR[5]);
-      else S(b, x, y, l > 0.3 ? OR[3] : l < -0.2 ? OR[1] : OR[2]);
+      else S(b, x, y, l > 0.72 ? OR[4] : l > 0.25 ? OR[3] : l < -0.72 ? OR[0] : l < -0.25 ? OR[1] : OR[2]);
     });
     inkAround(EXT);
     const NEAR = dil(OUT, SE(5));                   // the side walls are lighter along the 2px next to the outline
@@ -4705,12 +4350,12 @@ G.defineArt('items', G => {
     });
     // faces: banded gradient + bevel (ring 1 / ring 2 lit or shaded by the outward normal)
     const E1 = ero(FACE, CROSS), E2 = ero(E1, CROSS);
-    const RAMP = [WHT, GO[3], GO[2], OR[3], OR[2], OR[1], OR[0], RD[0]];
-    const BANDS = [[0.26, 1], [0.52, 2], [0.78, 3], [9, 4]];        // [upper bound of v, ramp index]
+    const RAMP = [WHT, GO[3], GO[2], OR[3], OR[2], OR[1], OR[0]];
     each((x, y) => {
       if (!on(FACE, x, y)) return;
-      const H = WORD[LID[y * LW + x]][2], v = (y - (YB - H)) / H;
-      const bi = BANDS.find(q => v < q[0])[1];
+      // face: gold top, amber middle, orange foot, the two changes softened by a 2-row checker
+      const H = WORD[LID[y * LW + x]][2], yy = y - (YB - H), b1 = Math.round(H * 0.42), b2 = Math.round(H * 0.76), ck = (x + y) & 1;
+      const bi = yy < b1 ? 2 : yy < b1 + 2 ? 2 + ck : yy < b2 ? 3 : yy < b2 + 2 ? 3 + ck : 4;
       let nx = 0, ny = 0;                           // outward normal: pull of the empty pixels in a 7x7 window (weight 1/d2),
       for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {     // steady along stair-stepped diagonals
         if ((dx || dy) && !on(FACE, x + dx, y + dy)) { const d2 = dx * dx + dy * dy; nx += dx / d2; ny += dy / d2; }
@@ -4718,9 +4363,15 @@ G.defineArt('items', G => {
       const l = -(nx + ny) / (Math.hypot(nx, ny) || 1) * Math.SQRT1_2;
       const ring = !on(E1, x, y) ? 1 : !on(E2, x, y) ? 2 : 0;
       let c = bi;
-      if (ring === 1) c = l > 0.25 ? 0 : l < -0.25 ? bi + 2 : bi;
-      else if (ring === 2) c = l > 0.25 ? bi - 1 : l < -0.25 ? bi + 1 : bi;
+      // chunky 2px bevel: white + pale gold on every edge facing the light, deep orange + rust on the far ones
+      if (ring === 1) c = l > 0.2 ? 0 : l < -0.2 ? 6 : bi;
+      else if (ring === 2) c = l > 0.2 ? 1 : l < -0.2 ? 5 : bi;
       S(b, x, y, RAMP[c]);
+    });
+    // specular glints on the lit shoulders of the S and the X
+    [[31, 23, 3], [219, 23, 2]].forEach(g => {
+      for (let i = -g[2]; i <= g[2]; i++) { S(b, g[0] + i, g[1], WHT); S(b, g[0], g[1] + i, WHT); }
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (g[2] > 2) S(b, g[0] + i, g[1] + j, WHT);
     });
     // plug enclosed see-through specks (letter counters, pinholes between the outlines)
     const seen = new Uint8Array(LW * LH), stack = [];
