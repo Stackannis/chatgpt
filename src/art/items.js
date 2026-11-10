@@ -240,108 +240,79 @@ G.defineArt('items', G => {
   const heart = [px(heartA), px(heartB)];
 
   // ================================================================ SPARKLE
+  // Top-left quadrants, mirrored both ways around a solid 2x2 white core, then rimmed in orange
+  // so the twinkle still reads over white clouds: small + -> big + -> eight-point star -> tiny +.
   const sparkle = [
     [
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '.......l........',
-      '.......w........',
-      '.....lwwwl......',
-      '.......w........',
-      '.......l........',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '.......l',
+      '.......w',
+      '.....lww',
     ], [
-      '.......y........',
-      '.......l........',
-      '.......l........',
-      '.......w........',
-      '.......w........',
-      '......lwl.......',
-      '.....lwwwl......',
-      'yllwwwwwwwwwlly.',
-      '.....lwwwl......',
-      '......lwl.......',
-      '.......w........',
-      '.......w........',
-      '.......l........',
-      '.......l........',
-      '.......y........',
-      '................',
+      '........',
+      '.......y',
+      '.......l',
+      '.......l',
+      '.......w',
+      '......lw',
+      '.....lww',
+      '.yllwwww',
     ], [
-      '................',
-      '.......y........',
-      '..y....l....y...',
-      '...l...l...l....',
-      '....l..w..l.....',
-      '.....w.w.w......',
-      '......www.......',
-      '.yllwwwwwwwlly..',
-      '......www.......',
-      '.....w.w.w......',
-      '....l..w..l.....',
-      '...l...l...l....',
-      '..y....l....y...',
-      '.......y........',
-      '................',
-      '................',
+      '........',
+      '........',
+      '..yl....',
+      '..lll..y',
+      '...lwl.l',
+      '....lwlw',
+      '.....lww',
+      '...ylwww',
     ], [
-      '................',
-      '.......y........',
-      '................',
-      '...y.......y....',
-      '................',
-      '................',
-      '.......l........',
-      '.y....lwl....y..',
-      '.......l........',
-      '................',
-      '................',
-      '...y.......y....',
-      '................',
-      '.......y........',
-      '................',
-      '................',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '........',
+      '.......l',
+      '......lw',
     ],
-  ].map(r => px(r));
+  ].map(q => {
+    const b = B(16, 16);
+    const full = q.map(r => r + r.split('').reverse().join(''));
+    stamp(b, full.concat(full.slice().reverse()), 0, 0);
+    outline(b, OR[2]);
+    return out(b);
+  });
 
   // ================================================================== PUFFS
-  // Cloud lobes shaded as overlapping balls: every pixel belongs to the lobe it sits deepest in
-  // and takes light / base / shadow from its offset to that lobe's centre (light from the upper-left).
+  // Cloud lobes painted back to front as separate balls, each lit from the upper-left with a
+  // shadow crescent on its lower-right, so every lobe keeps its own volume inside the mass.
   // lobes: [x0, y0, diameter]; cols: [shadow, base, light].
   function puffs(b, lobes, cols, edge) {
-    const m = B(b.w, b.h);
-    lobes.forEach(l => disc(m, l[0], l[1], l[2], 1));
-    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
-      if (Gt(m, x, y) !== 1) continue;
-      let best = -1e9, t = 0;
-      lobes.forEach(l => {
-        const r = l[2] / 2, dx = x + .5 - (l[0] + r), dy = y + .5 - (l[1] + r), mg = r - Math.hypot(dx, dy);
-        if (mg > best) { best = mg; t = (dx + dy) / r; }
-      });
-      S(b, x, y, t < 0.2 ? cols[2] : t > 0.9 ? cols[0] : cols[1]);
-    }
+    lobes.forEach(l => {
+      const r = l[2] / 2;
+      disc(b, l[0], l[1], l[2], cols[1]);
+      disc(b, l[0], l[1], l[2], cols[0], (x, y) => (x + .5 - l[0] - r) * 0.7 + (y + .5 - l[1] - r) > r * 0.5);
+      disc(b, l[0], l[1], l[2], cols[2], (x, y) => l[2] > 3 && Math.hypot(x + .5 - l[0] - r * 0.7, y + .5 - l[1] - r * 0.7) < r * 0.55);
+    });
     if (edge) outline(b, edge);
   }
   // The engine draws the dust frame with its vertical centre on the feet line, so the puff
-  // is born on rows 5-9 (ground line = row 8), swells, then lifts off and thins out.
+  // is born on rows 5-9 (ground line = row 8), swells, then lifts off as shrinking round puffs.
   const DUSTC = [BR[3], BR[4], BR[5]];
   const dust = [
     [[5, 5, 5], [8, 6, 4]],
     [[2, 3, 6], [6, 3, 7], [10, 5, 5]],
-    [[0, 1, 6], [5, 1, 6], [10, 3, 5], [4, 6, 4]],
-    [[1, 1, 2], [6, 0, 4], [12, 3, 2], [4, 5, 2], [10, 0, 2]],
-  ].map(l => { const b = B(16, 16); puffs(b, l, DUSTC); return out(b); });
+    [[1, 2, 5], [5, 1, 6], [10, 3, 5]],
+    [[2, 2, 4], [8, 1, 4], [12, 4, 2]],
+  ].map(l => { const b = B(16, 16); puffs(b, l, DUSTC, BR[2]); return out(b); });
 
   // =================================================================== POOF
-  // Impact flash -> big smoke burst -> ring of puffs opening up -> wisps.
+  // White impact burst -> one lumpy smoke mass -> ring of puffs opening up -> small fading puffs.
   const POOFC = [ST[3], ST[4], WHT];
   function ring(n, R, sizes, a0) {
     const l = [];
@@ -353,166 +324,62 @@ G.defineArt('items', G => {
   }
   const poof = [0, 1, 2, 3, 4].map(f => {
     const b = B(24, 24);
-    if (f === 0) {                               // eight-point impact flash: long axis rays, short diagonal ones
+    if (f === 0) {                               // chunky eight-point impact burst, white with a slate rim
       const V = [];
-      for (let i = 0; i < 16; i++) { const R = i % 2 ? 3.6 : i % 4 ? 7 : 11.5; V.push([Math.cos(i * Math.PI / 8) * R, Math.sin(i * Math.PI / 8) * R]); }
+      for (let i = 0; i < 16; i++) { const R = i % 2 ? 5.6 : i % 4 ? 8 : 10.6; V.push([Math.cos(i * Math.PI / 8) * R, Math.sin(i * Math.PI / 8) * R]); }
       for (let y = 0; y < 24; y++) for (let x = 0; x < 24; x++) {
         const dx = x + .5 - 12, dy = y + .5 - 12, r = Math.hypot(dx, dy);
         const i = Math.floor(((Math.atan2(dy, dx) + 2 * Math.PI) % (2 * Math.PI)) / (Math.PI / 8)) % 16, p = V[i], q = V[(i + 1) % 16];
-        if ((q[0] - p[0]) * (dy - p[1]) - (q[1] - p[1]) * (dx - p[0]) >= 0) S(b, x, y, r < 3 ? WHT : r < 6 ? GO[3] : GO[2]);
+        if ((q[0] - p[0]) * (dy - p[1]) - (q[1] - p[1]) * (dx - p[0]) >= 0) S(b, x, y, r < 5.2 || dx + dy < 0 ? WHT : ST[4]);
       }
+      outline(b, ST[1]);
     }
-    if (f === 1) puffs(b, ring(6, 5.5, [9, 8], 0.5).concat([[7, 7, 9]]), POOFC, ST[2]);
-    if (f === 2) puffs(b, ring(6, 7.5, [7, 6], 0.6), POOFC, ST[2]);
-    if (f === 3) puffs(b, ring(6, 9, [5, 4], 0.7), POOFC, ST[2]);
-    if (f === 4) puffs(b, ring(6, 10, [2, 3], 0.8), POOFC);
+    if (f === 1) puffs(b, [[12, 10, 10], [11, 2, 10], [2, 10, 10], [7, 13, 9], [3, 3, 10], [7, 6, 10]], POOFC, ST[1]);
+    if (f === 2) puffs(b, ring(6, 7.5, [7, 6], 0.6), POOFC, ST[1]);
+    if (f === 3) puffs(b, ring(6, 9, [5, 4], 0.7), POOFC, ST[1]);
+    if (f === 4) puffs(b, ring(3, 9.5, [4], 0.8).concat(ring(3, 9.5, [2], 0.8 + Math.PI / 3)), POOFC, ST[1]);
     return out(b);
   });
 
   // ================================================================= SPLASH
-  // Left halves of the silhouettes (mirrored), shaded procedurally.
+  // A solid tapered column with two thick side fingers on a foam mound, plus four chunky
+  // droplets that arc out and fall. Each frame: [mound half-width, mound height,
+  // tubes [x0, y0, d0, x1, y1, d1] (mirrored), droplets [x, y, size] (mirrored)].
   const SPL = [
-    [
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '..........#.....',
-      '.............###',
-      '.......#...#####',
-      '.........#######',
-      '........########',
-      '.......#########',
-      '......##########',
-      '.....###########',
-      '.....###########',
-      '.....###########',
-    ], [
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '...............#',
-      '..............##',
-      '.........#....##',
-      '..............##',
-      '......#..##..###',
-      '.........##..###',
-      '....#.....##.###',
-      '..........######',
-      '.....##...######',
-      '......##..######',
-      '......###.######',
-      '.......#########',
-      '.......#########',
-      '......##########',
-      '.....###########',
-      '....############',
-      '....############',
-      '....############',
-    ], [
-      '................',
-      '...............#',
-      '......#........#',
-      '................',
-      '..#......##....#',
-      '.........##...##',
-      '...#......##..##',
-      '..##......##..##',
-      '..##.......#####',
-      '...##......#####',
-      '...###.....#####',
-      '....##.....#####',
-      '....###...######',
-      '.....###..######',
-      '.....####.######',
-      '......##########',
-      '......##########',
-      '.......#########',
-      '.......#########',
-      '......##########',
-      '.....###########',
-      '....############',
-      '....############',
-      '....############',
-    ], [
-      '................',
-      '................',
-      '................',
-      '.....#..........',
-      '...............#',
-      '.#.......#.....#',
-      '................',
-      '..#.......#.....',
-      '..##...........#',
-      '...#......##..##',
-      '..........##..##',
-      '...##......#.###',
-      '...##......#####',
-      '....##.....#####',
-      '....###...######',
-      '.....##...######',
-      '.....###.#######',
-      '......##########',
-      '.......#########',
-      '......##########',
-      '.....###########',
-      '....############',
-      '....############',
-      '....############',
-    ], [
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '................',
-      '.#..............',
-      '.........#......',
-      '................',
-      '....#..........#',
-      '................',
-      '..#.......#.....',
-      '..............##',
-      '....#......#..##',
-      '.............###',
-      '.....##....#####',
-      '......##.#######',
-      '......##########',
-      '.....###########',
-      '....############',
-      '....############',
-      '....############',
-    ],
+    [11, 7, [[16, 20, 7, 16, 16, 4], [10, 21, 5, 8, 18, 3]], []],
+    [11, 7, [[16, 20, 9, 16, 8, 3], [11, 20, 6, 7, 13, 3]], [[3, 9, 3]]],
+    [12, 6, [[16, 20, 9, 16, 4, 3], [11, 20, 6, 6, 10, 3]], [[1, 5, 3], [8, 1, 3]]],
+    [12, 6, [[16, 21, 8, 16, 11, 3], [10, 21, 5, 6, 15, 3]], [[1, 10, 3], [6, 5, 3]]],
+    [13, 5, [[16, 22, 6, 16, 19, 4]], [[1, 17, 2], [6, 14, 2]]],
   ];
-  // Foam white on the lit left ~60% of every horizontal run, pale blue on the rest, a mid-blue
-  // rim on the right / bottom edges and a blue outline all around.
-  const splash = SPL.map(rows => {
-    const b = B(32, 24);
-    const m = (x, y) => { if (y < 0 || y > 23 || x < 0 || x > 31) return false; const r = rows[y]; return r[x < 16 ? x : 31 - x] === '#'; };
+  const splash = SPL.map(fr => {
+    const b = B(32, 24), k = B(32, 24);
+    const a = fr[0], h = fr[1];
+    for (let y = 24 - h; y < 24; y++) {
+      const hw = Math.round(a * Math.sqrt(1 - Math.pow((23.5 - y - 0.5) / h, 2)));
+      for (let x = 16 - hw; x < 16 + hw; x++) S(k, x, y, 1);
+    }
+    fr[2].forEach(t => {
+      const n = Math.max(Math.abs(t[3] - t[0]), Math.abs(t[4] - t[1])) * 2 || 1;
+      for (let i = 0; i <= n; i++) {
+        const u = i / n, d = Math.round(t[2] + (t[5] - t[2]) * u), cx = t[0] + (t[3] - t[0]) * u, cy = t[1] + (t[4] - t[1]) * u;
+        const x0 = Math.round(cx - d / 2), y0 = Math.round(cy - d / 2);
+        disc(k, x0, y0, d, 1); disc(k, 32 - x0 - d, y0, d, 1);
+      }
+    });
+    fr[3].forEach(d => { for (let j = 0; j < d[2]; j++) for (let i = 0; i < d[2]; i++) { S(k, d[0] + i, d[1] + j, 1); S(k, 31 - d[0] - i, d[1] + j, 1); } });
+    const m = (x, y) => Gt(k, x, y) === 1;
     for (let y = 0; y < 24; y++) for (let x = 0; x < 32; x++) {
       if (!m(x, y)) continue;
       let x0 = x, x1 = x;
       while (m(x0 - 1, y)) x0--;
       while (m(x1 + 1, y)) x1++;
-      const t = (x - x0 + 0.5) / (x1 - x0 + 1), rim = !m(x + 1, y) || !m(x, y + 1), top = !m(x, y - 1) || !m(x - 1, y);
-      S(b, x, y, rim && !top ? BL[3] : t > 0.6 + [0, 0.07, 0.1, 0.07, 0, -0.05][y % 6] && !top ? BL[4] : WHT);   // scalloped shade edge
+      const w = x1 - x0 + 1, i = x - x0;
+      // lit left third, pale blue middle, darker right third (1px each on thin fingers / droplets)
+      const lit = Math.max(1, Math.round(w * 0.38)), drk = Math.max(1, Math.round(w * 0.3));
+      S(b, x, y, w === 2 ? (i ? BL[3] : WHT) : i < lit ? WHT : i >= w - drk ? (i === w - 1 && w > 5 ? BL[2] : BL[3]) : BL[4]);
     }
-    outline(b, BL[2]);
+    outline(b, BL[1]);
     return out(b);
   });
 
@@ -522,95 +389,58 @@ G.defineArt('items', G => {
   // the left while the face turns away, dark wall on the right as it turns back.
   const GOLD = [GO[0], GO[1], GO[2], GO[3], WHT];
   const TEALS = ['#073636', TE[0], '#126862', TE[1], '#28a690', TE[2], TE[3]];
-  const ELL = { 20: [8, 12, 14, 16, 18, 18, 20, 20, 20, 20], 16: [6, 8, 10, 12, 14, 14, 16, 16, 16, 16], 8: [2, 4, 6, 6, 8, 8, 8, 8, 8, 8] };
-  const FLD = { 20: [6, 10, 12, 14, 14, 16, 16, 16], 16: [4, 6, 8, 10, 10, 12, 12, 12], 8: [2, 4, 4, 6, 6, 6, 6, 6] };
-  const STAR = {
-    20: [
-      '.....##.....',
-      '.....##.....',
-      '....####....',
-      '....####....',
-      '############',
-      '############',
-      '.##########.',
-      '..########..',
-      '..########..',
-      '.####..####.',
-      '.###....###.',
-      '.##......##.',
-    ],
-    16: [
-      '....##....',
-      '....##....',
-      '...####...',
-      '...####...',
-      '##########',
-      '##########',
-      '.########.',
-      '..######..',
-      '..######..',
-      '.###..###.',
-      '.##....##.',
-      '.#......#.',
-    ],
-    8: [
-      '.##.',
-      '.##.',
-      '.##.',
-      '.##.',
-      '####',
-      '####',
-      '.##.',
-      '.##.',
-      '.##.',
-      '####',
-      '#..#',
-      '....',
-    ],
-  };
-  function coinFrame(fw, side, mode) {
+  // Half-profiles (row widths, top -> middle) of the 20px tall coin and its 16px tall enamel field
+  // at full width; narrower views scale them to an even width, so every silhouette is a clean,
+  // symmetric ellipse centred in the frame.
+  const ELL20 = [8, 12, 14, 16, 18, 18, 20, 20, 20, 20], FLD16 = [6, 10, 12, 14, 14, 16, 16, 16];
+  const even = v => Math.max(2, Math.round(v / 2) * 2);
+  const STAR = [
+    '.....##.....',
+    '.....##.....',
+    '....####....',
+    '....####....',
+    '############',
+    '############',
+    '.##########.',
+    '..########..',
+    '..########..',
+    '.####..####.',
+    '.###....###.',
+    '.##......##.',
+  ];
+  const STAR4 = ['.##.', '.##.', '.##.', '.##.', '####', '####', '####', '.##.', '####', '####', '#..#', '#..#'];
+  // W = silhouette width, e = visible rim-wall thickness (on the trailing side), side = -1 wall on
+  // the left (lit), +1 wall on the right (in shade).
+  function coinFrame(W, e, side) {
     const b = B(24, 24);
-    const sh = mode === 'away' ? -1 : mode === 'toward' ? 1 : 0;
-    const gi = i => GOLD[Math.max(0, Math.min(4, i + (sh > 0 ? (i >= 2 ? 1 : 0) : sh)))];
-    const tb = sh < 0 ? 2 : 3;
-    if (!fw) {                                  // edge-on: just the milled rim wall
-      const cols = [3, 4, 2, 1];
+    if (W <= 4) {                               // edge-on: thick rim wall with a centre groove
+      const cols = [GOLD[3], GOLD[2], GOLD[0], GOLD[1]];
       for (let y = 2; y < 22; y++) for (let j = 0; j < 4; j++) {
         if ((y === 2 || y === 21) && (j === 0 || j === 3)) continue;
-        const notch = (y % 3 === 0) && j > 0 && j < 3;
-        S(b, 10 + j, y, GOLD[Math.max(0, cols[j] - (notch ? 1 : 0))]);
+        S(b, 10 + j, y, y === 2 ? GOLD[3] : y === 21 ? GOLD[0] : j === 0 && y < 9 ? GOLD[4] : cols[j]);
       }
       outline(b, INK);
       return out(b);
     }
-    const e = fw === 20 ? 0 : fw === 16 ? 2 : 4;
-    const x0 = 12 - ((fw + e) >> 1);
-    const fx = side < 0 ? x0 + e : x0;          // face ellipse left edge
-    const bx = side < 0 ? x0 : x0 + e;          // far ellipse left edge
-    const rowW = i => ELL[fw][i < 10 ? i : 19 - i];
-    const fldW = i => FLD[fw][i < 8 ? i : 15 - i];
-    const inFace = (x, y) => { const i = y - 2; if (i < 0 || i > 19) return false; const w = rowW(i), s0 = fx + ((fw - w) >> 1); return x >= s0 && x < s0 + w; };
-    const inField = (x, y) => { const i = y - 4; if (i < 0 || i > 15) return false; const w = fldW(i), s0 = fx + ((fw - w) >> 1); return x >= s0 && x < s0 + w; };
-    // rim wall
-    if (e) for (let i = 0; i < 20; i++) {
-      const w = rowW(i), s0 = bx + ((fw - w) >> 1);
-      for (let x = s0; x < s0 + w; x++) {
-        if (inFace(x, i + 2)) continue;
-        const j = side < 0 ? x - s0 : s0 + w - 1 - x;      // 0 = silhouette
-        const lit = e === 2 ? [3, 2] : [2, 3, 4, 3], drk = e === 2 ? [0, 1] : [0, 0, 1, 1];
-        S(b, x, i + 2, GOLD[(side < 0 ? lit : drk)[Math.min(j, e - 1)]]);
-      }
-    }
-    // face: rim ring + enamel field
+    const fw = W - e, x0 = 12 - W / 2, fx = side < 0 ? x0 + e : x0;    // face ellipse left edge
+    const sil = (x, y) => { const i = y - 2; if (i < 0 || i > 19) return false; const w = even(ELL20[i < 10 ? i : 19 - i] * W / 20), s0 = 12 - w / 2; return x >= s0 && x < s0 + w; };
+    const inFace = (x, y) => { const i = y - 2; if (!sil(x, y)) return false; const w = even(ELL20[i < 10 ? i : 19 - i] * fw / 20), s0 = fx + (fw - w) / 2; return x >= s0 && x < s0 + w; };
+    const fdw = fw > 10 ? fw - 4 : fw - 2;
+    const inField = (x, y) => { const i = y - 4; if (i < 0 || i > 15) return false; const w = even(FLD16[i < 8 ? i : 15 - i] * fdw / 16), s0 = fx + (fw - w) / 2; return x >= s0 && x < s0 + w; };
     const litA = Math.atan2(-1, -1);
     for (let y = 2; y < 22; y++) for (let x = 0; x < 24; x++) {
-      if (!inFace(x, y)) continue;
+      if (!sil(x, y)) continue;
+      if (!inFace(x, y)) {                      // rim wall crescent
+        let j = 0; while (j < 5 && !inFace(x + (side < 0 ? j + 1 : -j - 1), y)) j++;   // 0 = next to the face
+        S(b, x, y, GOLD[side < 0 ? (j === 0 ? 2 : sil(x - 1, y) ? 3 : 4) : (j === 0 ? 1 : 0)]);
+        continue;
+      }
       const dx = (x + 0.5 - (fx + fw / 2)) * (20 / fw), dy = y + 0.5 - 12;
       let d = Math.abs(Math.atan2(dy, dx) - litA); if (d > Math.PI) d = 2 * Math.PI - d;
       d = d * 6 / Math.PI;                       // clock-hours away from the lit side, 0..6
       if (inField(x, y)) {
         const rimAdj = !inField(x - 1, y) || !inField(x + 1, y) || !inField(x, y - 1) || !inField(x, y + 1);
-        S(b, x, y, TEALS[rimAdj && d <= 2.6 ? tb - 2 : rimAdj && d >= 4.2 ? tb + 2 : tb]);
+        S(b, x, y, TEALS[rimAdj && d <= 2.6 ? 1 : rimAdj && d >= 4.2 ? 5 : 3]);
         continue;
       }
       const outer = !inFace(x - 1, y) || !inFace(x + 1, y) || !inFace(x, y - 1) || !inFace(x, y + 1);
@@ -618,23 +448,27 @@ G.defineArt('items', G => {
       let c = 2;
       if (outer) c = d <= 1.2 ? 4 : d <= 2.7 ? 3 : d <= 3.6 ? 2 : d <= 5 ? 1 : 0;
       else if (inner) c = d >= 3.6 ? 3 : d >= 2.6 ? 2 : 1;
-      S(b, x, y, gi(c));
+      S(b, x, y, GOLD[c]);
     }
-    // raised star + its drop shadow on the enamel
-    const st = STAR[fw], sw = st[0].length, sx = fx + ((fw - sw) >> 1), sy = 6;
-    const star = (x, y) => { const j = y - sy, i = x - sx; return j >= 0 && j < st.length && i >= 0 && i < sw && st[j][i] === '#'; };
+    // raised star (a column-resampled copy of the front star) + its drop shadow on the enamel
+    const sw = fw >= 20 ? 12 : fw >= 12 ? 8 : 4, sx = fx + (fw - sw) / 2, sy = 6;
+    const star = (x, y) => {
+      const j = y - sy, i = x - sx;
+      if (j < 0 || j >= 12 || i < 0 || i >= sw) return false;
+      return sw === 4 ? STAR4[j][i] === '#' : STAR[j][Math.floor((i + 0.5) * 12 / sw)] === '#';
+    };
     for (let y = 4; y < 20; y++) for (let x = 0; x < 24; x++) {
       if (star(x, y)) {
         const lit = !star(x - 1, y) || !star(x, y - 1), drk = !star(x + 1, y) || !star(x, y + 1);
-        S(b, x, y, GOLD[lit && !drk ? (sh < 0 ? 3 : 4) : drk && !lit ? (sh > 0 ? 3 : 2) : (sh > 0 ? 4 : 3)]);
-      } else if (inField(x, y) && star(x - 1, y - 1)) S(b, x, y, TEALS[tb - 2]);
+        S(b, x, y, GOLD[lit && !drk ? 4 : drk && !lit ? 2 : 3]);
+      } else if (inField(x, y) && star(x - 1, y - 1)) S(b, x, y, TEALS[1]);
     }
     outline(b, INK);
     return out(b);
   }
   const bigCoin = [
-    coinFrame(20, 0, 'front'), coinFrame(16, -1, 'away'), coinFrame(8, -1, 'away'),
-    coinFrame(0, 0, 'front'), coinFrame(8, 1, 'toward'), coinFrame(16, 1, 'toward'),
+    coinFrame(20, 0, 0), coinFrame(16, 2, -1), coinFrame(10, 4, -1),
+    coinFrame(4, 0, 0), coinFrame(10, 4, 1), coinFrame(16, 2, 1),
   ];
 
   // =================================================================== FONT
@@ -737,7 +571,7 @@ G.defineArt('items', G => {
   ]);
   const hud = {
     heart: px(heartA),
-    heartEmpty: px(heartA.map(r => r.replace(/[34wP]/g, '1'))),
+    heartEmpty: px(heartA.map(r => r.replace(/[34wP]/g, 's').replace(/[21]/g, 'S'))),   // hollow socket: navy recess, lit lower-right wall
     gem: gem[0],
     coinOn,
     coinOff,

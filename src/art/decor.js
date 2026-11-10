@@ -159,11 +159,11 @@ G.defineArt('decor', G => {
     layer(b, t => {
       const lobes = [], R = r || 3;
       let row = 0;
-      for (let gy = -ry + R - 1; gy <= ry - R + 1.01; gy += 3, row++) for (let gx = -rx + R - 1 + (row & 1 ? 2 : 0); gx <= rx - R + 1.01; gx += 4) {
+      for (let gy = -ry + R - 1; gy <= ry - R + 1.01; gy += 4, row++) for (let gx = -rx + R - 1 + (row & 1 ? 2.5 : 0); gx <= rx - R + 1.01; gx += 5) {
         const ex = gx / (rx - R + 1), ey = gy / (ry - R + 1);
         if (ex * ex + ey * ey > 1.08) continue;
         const v = -(gx / rx * 0.55 + gy / ry * 0.85) + (bias || 0);
-        lobes.push([cx + gx, cy + gy, v > 0.62 ? 4 : v > 0.14 ? 3 : v > -0.42 ? 2 : 1, v]);
+        lobes.push([Math.round(cx + gx), Math.round(cy + gy), v > 0.6 ? 4 : v > 0.12 ? 3 : v > -0.3 ? 2 : 1, v, row]);
       }
       for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
         const dx = (x + 0.5 - cx) / (rx - 1), dy = (y + 0.5 - cy) / (ry - 1);
@@ -175,6 +175,12 @@ G.defineArt('decor', G => {
           const dx = (x + 0.5 - l[0]) / (R + 0.3), dy = (y + 0.5 - l[1]) / (R - 0.1);
           if (dx * dx + dy * dy <= 1) S(t, x, y, GR[l[2]]);
         }
+      });
+      // leaf accents: a short lit edge on the upper-left of every leaf, a shadow notch below it
+      lobes.forEach(l => {
+        const x = l[0], y = l[1], c = l[2];
+        if (c < 4 && Gt(t, x - 1, y - 2) === GR[c]) { S(t, x - 2, y - 1, GR[c + 1]); S(t, x - 1, y - 2, GR[c + 1]); S(t, x, y - 2, GR[c + 1]); }
+        if (c > 1 && Gt(t, x + 1, y + 1) === GR[c] && Gt(t, x + 2, y + 1) === GR[c]) { S(t, x + 1, y + 1, GR[c - 1]); S(t, x + 2, y, GR[c - 1]); }
       });
     }, { col: GR[0] });
   }
@@ -217,7 +223,7 @@ G.defineArt('decor', G => {
   }
   const FR_LIT = { spine: GR[4], a: GR[3], b: GR[2], rim: GR[1] };
   const FR_MID = { spine: GR[3], a: GR[2], b: GR[1], rim: GR[0] };
-  const FR_BACK = { spine: GR[1], a: GR[1], b: GR[0], rim: DEEP };
+  const FR_BACK = { spine: GR[2], a: GR[1], b: GR[0], rim: DEEP };
 
   // grass blade / stem: quadratic lean, 2px at the base tapering to 1px
   function blade(b, x0, y0, h, lean, cl, cd, w) {
@@ -275,8 +281,8 @@ G.defineArt('decor', G => {
     const crown = [35, 29];
     const fr = (p1, p2, cols, o) => layer(b, t => frond(t, crown, p1, p2, Object.assign({ len: 8, lenUp: 4, cols }, o)), { col: cols.rim });
     // back fronds (darkest green)
-    fr([37, 13], [43, 3], FR_BACK, { len: 5, lenUp: 4, grav: 0.2 });
-    fr([31, 14], [25, 5], FR_BACK, { len: 5, lenUp: 4, grav: 0.2, phase: 1 });
+    fr([39, 11], [48, 2], FR_BACK, { len: 6, lenUp: 4, grav: 0.2 });
+    fr([31, 12], [22, 1], FR_BACK, { len: 6, lenUp: 4, grav: 0.2, phase: 1 });
     fr([46, 27], [50, 55], FR_BACK, { len: 7, lenUp: 5, phase: 2 });
     // trunk
     layer(b, t => {
@@ -351,10 +357,9 @@ G.defineArt('decor', G => {
   const BERRY = ['.kk.', 'kprk', 'krdk', '.kk.'], BERRYP = { k: RD[0], p: PK[1], r: RD[2], d: RD[1] };
   function makeBush1() {
     const b = B(32, 16);
-    clump(b, 17, 9, 9, 7, 0);
-    clump(b, 24, 12, 7, 5, -0.2);
-    clump(b, 8, 12, 7, 5, 0);
-    clump(b, 16, 14, 6, 4, -0.1);
+    clump(b, 16, 9, 12, 8, 0.05);
+    clump(b, 25, 12, 7, 6, -0.25);
+    clump(b, 7, 12, 7, 6, -0.05);
     return out(b);
   }
   function makeBush2() {
@@ -372,14 +377,13 @@ G.defineArt('decor', G => {
   function makeFern() {
     const b = B(24, 16);
     const base = [12, 16];
-    const fr = (p1, p2, cols, o) => frond(b, base, p1, p2, Object.assign({ len: 3, lenUp: 2, step: 2, grav: 0.25, lean: 0.7, e0: 0.3, cols }, o));
-    const BK = { spine: GR[1], a: GR[1], b: GR[1] }, MD = { spine: GR[2], a: GR[2], b: GR[2] }, LT = { spine: GR[4], a: GR[3], b: GR[3] };
-    fr([12, 5], [11, 1], BK, {});
-    fr([16, 0], [21, 4], MD, { phase: 1 });
-    fr([7, 0], [3, 4], LT, {});
-    fr([20, 6], [23, 13], MD, {});
-    fr([4, 6], [0, 13], LT, { phase: 1 });
-    outline(b, { col: GR[0] });
+    const fr = (p1, p2, cols, o) => layer(b, t => frond(t, base, p1, p2, Object.assign({ len: 3, lenUp: 2, step: 2, grav: 0.2, lean: 0.8, e0: 0.35, cols }, o)), { col: cols.rim });
+    const BK = { spine: GR[2], a: GR[1], rim: GR[0] }, MD = { spine: GR[3], a: GR[2], rim: GR[0] }, LT = { spine: GR[4], a: GR[3], rim: GR[1] };
+    fr([12, 6], [13, 2], BK, {});
+    fr([18, 1], [21, 5], MD, { phase: 1 });
+    fr([6, 1], [3, 5], LT, {});
+    fr([20, 8], [23, 14], MD, {});
+    fr([4, 8], [1, 14], LT, { phase: 1 });
     return out(b);
   }
 
@@ -473,8 +477,7 @@ G.defineArt('decor', G => {
       if (x > 8 && x < 21 && Gt(b, x, 22)) S(b, x, 22, RK[1]);
     }
     // moss: a cap following the top facets, dripping down the faces
-    mossTop(b, 6, [1, 2, 2, 4, 5, 3, 2, 2, 3, 6, 7, 4, 2, 2, 3, 2, 4, 5, 2, 1, 1]);
-    S(b, 4, 15, GR[2]); S(b, 5, 15, GR[2]); S(b, 4, 16, GR[1]); S(b, 24, 13, GR[1]); S(b, 25, 13, GR[1]);
+    mossTop(b, 7, [1, 2, 3, 4, 5, 7, 6, 6, 6, 5, 6, 8, 5, 3, 3, 2, 1]);
     outline(b);
     return out(b);
   }
@@ -532,20 +535,20 @@ G.defineArt('decor', G => {
       '.+++++++++++',
       '...#########',
       '...########+',
-      '...#+######+',
-      '...##+######',
+      '...##+#####+',
+      '...###+####+',
+      '...####+####',
+      '...######+++',
       '...#####++++',
-      '...####+++++',
-      '...###++++oo',
-      '...###+++o++',
-      '...++#+++o+*',
-      '...++#+++o+*',
-      '...###+++o++',
-      '...###++++oo',
-      '...####+++++',
       '...#####++++',
-      '...##+######',
-      '...#+######+',
+      '...+++##+++o',
+      '...+++##+++o',
+      '...#####++++',
+      '...#####++++',
+      '...######+++',
+      '...####+####',
+      '...###+####+',
+      '...##+#####+',
       '...########+',
       '...#########',
       '++++++++++++',
@@ -559,13 +562,13 @@ G.defineArt('decor', G => {
     for (let y = 0; y <= 2; y++) for (let x = 12; x < 24; x++) rows[y][x] = '.';
     rows[3][21] = rows[3][20] = '.'; rows[4][22] = '.';
     rows[13][23] = '.'; rows[23][1] = '.'; rows[24][22] = '.';
-    rows[30][20] = rows[31][20] = rows[32][20] = '.'; rows[31][19] = 'o';
+    rows[29][20] = rows[30][20] = rows[31][20] = '.'; rows[30][19] = 'o';
     rows[43][23] = rows[43][22] = rows[44][23] = '.'; rows[47][0] = '.';
     stone(b, rows.map(r => r.join('')), 0, 0, { shadeFrom: 16, lightTo: 2 });
     // eyes: deep sockets
     rect(b, 4, 12, 2, 1, RS[0]); rect(b, 18, 12, 2, 1, RS[0]);
     // cracks
-    line(b, 15, 8, 17, 10, RS[1]); line(b, 6, 37, 8, 41, RS[1]); S(b, 7, 37, RS[4]);
+    line(b, 15, 8, 17, 10, RS[1]); line(b, 5, 36, 6, 41, RS[1]);
     // moss on the top-facing ledges only
     moss(b, 8, 6, [1, 2, 3, 2, 1, 1, 2]);
     moss(b, 2, 23, [2, 3, 2, 1]); moss(b, 18, 23, [1, 2, 2, 1]);
@@ -578,7 +581,7 @@ G.defineArt('decor', G => {
   function makePillar() {
     const b = B(16, 48);
     // fluted shaft (x 3..12), jagged fracture across the top
-    const top = [15, 12, 10, 11, 7, 6, 9, 13, 12, 16];
+    const top = [6, 5, 7, 10, 9, 11, 12, 10, 12, 14];
     const tone = [3, 4, 2, 3, 3, 1, 2, 2, 0, 1];
     for (let i = 0; i < 10; i++) for (let y = top[i]; y <= 39; y++) {
       let t = tone[i];
@@ -587,10 +590,13 @@ G.defineArt('decor', G => {
     }
     // bitten-out notch on the shadow side, crack running down from the fracture
     rect(b, 12, 24, 1, 5, null); rect(b, 11, 25, 1, 3, RS[0]); S(b, 12, 29, RS[2]);
-    line(b, 7, 11, 6, 16, RS[1]); line(b, 6, 16, 7, 21, RS[1]); S(b, 7, 14, RS[4]);
+    rect(b, 3, 30, 1, 3, null); S(b, 4, 31, RS[2]);
+    line(b, 6, 11, 6, 15, RS[1]); line(b, 6, 15, 7, 19, RS[1]);
     const base = ['..++++++++++++..', '..############..', '.++++++++++++++.', '.##############.', '.##############.', '++++++++++++++++', '################', '################', '################'];
     stone(b, base, 0, 39, { shadeFrom: 11 });
-    moss(b, 4, 12, [1, 2, 1]); moss(b, 9, 13, [1, 2]);
+    moss(b, 6, 10, [1, 2, 1]); moss(b, 10, 12, [1, 2]);
+    // drum seams: the shaft is stacked from separate drums
+    [22, 31].forEach(y => { for (let x = 3; x <= 12; x++) if (Gt(b, x, y)) { S(b, x, y, RS[x < 9 ? 1 : 0]); if (x < 8 && Gt(b, x, y + 1)) S(b, x, y + 1, RS[4]); } });
     moss(b, 9, 39, [1, 2, 3, 2, 1]);
     outline(b);
     // fallen chunks lying in front of the base
@@ -741,7 +747,7 @@ G.defineArt('decor', G => {
       [[7, 4.5], [41, 4.5], [36, 6], [13, 6], [24, 6], [29, 8.5], [20, 9.5]],
       [[19, 4], [29, 4], [24, 5], [42, 5], [6, 5], [34, 6.5], [14, 6.5]],
     ][f];
-    POSE.forEach(p => puff(b, p[0], 16 - p[1] * 0.45, p[1] * 1.15, p[1], FO));
+    POSE.sort((a, c) => c[0] - a[0]).forEach(p => puff(b, p[0], 16 - p[1] * 0.45, p[1] * 1.15, p[1], FO));
     // bottom edge melts into the water surface colour
     for (let x = 0; x < 48; x++) {
       if (Gt(b, x, 15)) S(b, x, 15, BL[3]);
