@@ -91,114 +91,53 @@ G.defineArt('items', G => {
   }
 
   // ==================================================================== GEM
-  // Sun shard: a four-pointed crystal star (two shallow pyramids back to back),
-  // spinning about its vertical axis. 0, 30, 60, 90, 120, 150 degrees; the ridge
-  // crossing drifts right, the star thins to a blade, then the lit back swings in.
-  const gem = [
-    [
-      '................',
-      '.......wg.......',
-      '......lwgO......',
-      '......lwgO......',
-      '.....llwggO.....',
-      '....lylwggyy....',
-      '..llllywgyyyyg..',
-      '.lllwwwwwlyyyyg.',
-      '.gggggywlgOOOOo.',
-      '..OOgggyoooooo..',
-      '....Oggyoorr....',
-      '.....ggyorr.....',
-      '......gyor......',
-      '......gyor......',
-      '.......gr.......',
-      '................',
-    ], [
-      '................',
-      '.......lO.......',
-      '......llOo......',
-      '......llOo......',
-      '.....llllOo.....',
-      '.....ylllOo.....',
-      '...yyyyllOggg...',
-      '..llllllwggggg..',
-      '..OOOOOOlooooo..',
-      '...oooogyorrr...',
-      '.....oggyor.....',
-      '.....gggyor.....',
-      '......gyor......',
-      '......gyor......',
-      '.......gr.......',
-      '................',
-    ], [
-      '................',
-      '.......yO.......',
-      '.......yO.......',
-      '......lyyO......',
-      '......lyyO......',
-      '......gyyO......',
-      '.....gggyyO.....',
-      '....gyyyylOO....',
-      '....oooooyrr....',
-      '.....oooggr.....',
-      '......oggr......',
-      '......yggr......',
-      '......yggr......',
-      '.......gr.......',
-      '.......gr.......',
-      '................',
-    ], [
-      '................',
-      '.......lO.......',
-      '.......lO.......',
-      '.......lO.......',
-      '.......wO.......',
-      '......lwOO......',
-      '......lwOo......',
-      '......wwlo......',
-      '......yyoo......',
-      '......yyor......',
-      '......gyor......',
-      '.......yr.......',
-      '.......yr.......',
-      '.......gr.......',
-      '.......gr.......',
-      '................',
-    ], [
-      '................',
-      '.......wl.......',
-      '.......wl.......',
-      '......wlly......',
-      '......wlly......',
-      '......wlll......',
-      '.....lwllll.....',
-      '....llwwwwwl....',
-      '....OOlggggg....',
-      '.....OyyOOO.....',
-      '......yyyO......',
-      '......yygo......',
-      '......yygo......',
-      '.......yo.......',
-      '.......yo.......',
-      '................',
-    ], [
-      '................',
-      '.......ly.......',
-      '......llyy......',
-      '......llyy......',
-      '.....llyyyy.....',
-      '.....llyyyl.....',
-      '...llllyyllll...',
-      '..wwwwwwwwllll..',
-      '..ggggglgggggg..',
-      '...OOOyggOOOO...',
-      '.....yygggO.....',
-      '.....yygggg.....',
-      '......yygg......',
-      '......yygg......',
-      '.......yg.......',
-      '................',
-    ],
-  ].map(r => spr(r));
+  // Sun shard: a four-pointed crystal star, two shallow pyramids back to back. It is a real little
+  // solid (4 tips, 4 notch corners, front + back apex) turned about its vertical axis in 30 degree
+  // steps and flat-shaded per facet with a fixed upper-left light, so the ridge and the light / dark
+  // facet split travel across the shard as it spins and the far side swings in from the left.
+  const GEMR = [OR[0], OR[1], OR[2], OR[3], GO[2], GO[3], WHT];
+  const gem = [0, 1, 2, 3, 4, 5].map(f => {
+    const a = f * Math.PI / 6, ca = Math.cos(a), sa = Math.sin(a), TIP = 7.8, IN = 3, DP = 3.4;
+    const rot = p => [p[0] * ca + p[2] * sa, p[1], -p[0] * sa + p[2] * ca];
+    const tips = [[0, -TIP, 0], [TIP, 0, 0], [0, TIP, 0], [-TIP, 0, 0]];
+    const inn = [[IN, -IN, 0], [IN, IN, 0], [-IN, IN, 0], [-IN, -IN, 0]];
+    const tris = [];
+    [[0, 0, DP], [0, 0, -DP]].forEach(ap => {
+      for (let i = 0; i < 4; i++) { tris.push([ap, tips[i], inn[i]]); tris.push([ap, inn[i], tips[(i + 1) % 4]]); }
+    });
+    const L = [-0.52, -0.62, 0.59];
+    const b = B(16, 16);
+    for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const px = x + .5 - 8, py = y + .5 - 8;
+      let bz = -1e9, bc = null;
+      tris.forEach(t => {
+        const A = rot(t[0]), Bv = rot(t[1]), Cv = rot(t[2]);
+        const d = (Bv[1] - Cv[1]) * (A[0] - Cv[0]) + (Cv[0] - Bv[0]) * (A[1] - Cv[1]);
+        if (Math.abs(d) < 1e-6) return;
+        const u = ((Bv[1] - Cv[1]) * (px - Cv[0]) + (Cv[0] - Bv[0]) * (py - Cv[1])) / d;
+        const v = ((Cv[1] - A[1]) * (px - Cv[0]) + (A[0] - Cv[0]) * (py - Cv[1])) / d, w = 1 - u - v;
+        if (u < -1e-4 || v < -1e-4 || w < -1e-4) return;
+        const z = u * A[2] + v * Bv[2] + w * Cv[2];
+        if (z <= bz) return;
+        let n = [(Bv[1] - A[1]) * (Cv[2] - A[2]) - (Bv[2] - A[2]) * (Cv[1] - A[1]), (Bv[2] - A[2]) * (Cv[0] - A[0]) - (Bv[0] - A[0]) * (Cv[2] - A[2]), (Bv[0] - A[0]) * (Cv[1] - A[1]) - (Bv[1] - A[1]) * (Cv[0] - A[0])];
+        const nl = Math.hypot(n[0], n[1], n[2]) * (n[2] < 0 ? -1 : 1);
+        const li = (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / nl;
+        bz = z; bc = GEMR[Math.max(0, Math.min(6, Math.floor((li + 0.42) * 5.2)))];
+      });
+      if (bc) S(b, x, y, bc);
+    }
+    // sliver facets leave lone pixels: fold each into the neighbouring cluster it touches most
+    for (let pass = 0; pass < 2; pass++) for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+      const c = Gt(b, x, y);
+      if (!c) continue;
+      const nb = [Gt(b, x - 1, y), Gt(b, x + 1, y), Gt(b, x, y - 1), Gt(b, x, y + 1)].filter(v => v);
+      if (nb.indexOf(c) >= 0 || !nb.length) continue;
+      const best = nb.slice().sort((p, q) => nb.filter(v => v === q).length - nb.filter(v => v === p).length)[0];
+      S(b, x, y, best);
+    }
+    outline(b, INK);
+    return out(b);
+  });
 
   // ================================================================== HEART
   const heartA = [
@@ -467,8 +406,8 @@ G.defineArt('items', G => {
     return out(b);
   }
   const bigCoin = [
-    coinFrame(20, 0, 0), coinFrame(16, 2, -1), coinFrame(10, 4, -1),
-    coinFrame(4, 0, 0), coinFrame(10, 4, 1), coinFrame(16, 2, 1),
+    coinFrame(20, 0, 0), coinFrame(16, 2, -1), coinFrame(12, 4, -1),
+    coinFrame(4, 0, 0), coinFrame(12, 4, 1), coinFrame(16, 2, 1),
   ];
 
   // =================================================================== FONT
@@ -639,23 +578,25 @@ G.defineArt('items', G => {
     const EXT = MK(LW, LH, (x, y) => !on(OUT, x, y) && depth(x, y) > 0);
 
     // ---- sun: disc crowned with triangular rays, only the cap above the N / F dip is kept
-    const SX = LW / 2, SY = 42, SR = 27, SCLIP = 27;
+    const SX = LW / 2, SY = 39, SR = 27, SCLIP = 27;
     const inDisc = (x, y) => (x + .5 - SX) * (x + .5 - SX) + (y + .5 - SY) * (y + .5 - SY) <= SR * SR;
-    const RAYS = [[90, 13], [75, 9], [105, 9], [60, 13], [120, 13], [45, 10], [135, 10]];   // [angle, length]
-    const inRay = (x, y) => {
+    const RAYS = [[90, 11], [75, 8], [105, 8], [60, 11], [120, 11], [45, 9], [135, 9]];   // [angle, length]
+    // 0 = outside every ray, 1 = the half of a ray facing the light, 2 = its shaded half (bevelled spikes)
+    const rayHalf = (x, y) => {
       const px = x + .5 - SX, py = y + .5 - SY;
-      return RAYS.some(r => {
+      for (const r of RAYS) {
         const ux = Math.cos(r[0] * Math.PI / 180), uy = -Math.sin(r[0] * Math.PI / 180);
         const along = px * ux + py * uy - (SR - 1), across = -px * uy + py * ux;
-        return along >= 0 && along <= r[1] - 1.2 && Math.abs(across) <= 3.7 * (1 - along / r[1]);
-      });
+        if (along >= 0 && along <= r[1] - 1.2 && Math.abs(across) <= 4.4 * (1 - along / r[1])) return (across < 0 ? -1 : 1) * (uy - ux) > 0 ? 1 : 2;
+      }
+      return 0;
     };
-    const SUN = MK(LW, LH, (x, y) => y < SCLIP && (inDisc(x, y) || inRay(x, y)));
+    const SUN = MK(LW, LH, (x, y) => y < SCLIP && (inDisc(x, y) || rayHalf(x, y) > 0));
 
     // ---- tail: a tapering tube around a Catmull-Rom centre line [x, y, radius]. It slips out from
     // under the X, runs below the word and curls up into a bushy cream-tipped plume left of the S.
     const TP = [[224, 52, 2.5], [215, 60, 2.5], [206, 68.5, 3], [184, 72.5, 3.2], [146, 73.8, 3.6], [93, 74, 4], [46, 73.5, 4.8],
-      [25, 69.5, 6.5], [14.5, 58, 9], [11.5, 45, 8.5], [11.5, 34, 5.5], [14, 25.5, 1.2], [16, 21, 0.5]];
+      [25, 69.5, 6.5], [14.5, 58, 9], [11.5, 45, 9.5], [12, 33, 8], [15, 24.5, 4.5], [18.5, 19.5, 1.5], [20, 18, 0.5]];
     const TS = [], ARC = [0];
     for (let i = 1; i < TP.length - 2; i++) for (let k = 0; k < 16; k++) {
       const t = k / 16, p0 = TP[i - 1], p1 = TP[i], p2 = TP[i + 1], p3 = TP[i + 2];
@@ -672,7 +613,10 @@ G.defineArt('items', G => {
         const dx = px - a[0] - ex * u, dy = py - a[1] - ey * u, d = dx * dx + dy * dy;
         if (d < bd) { bd = d; br = a[2] + (c[2] - a[2]) * u; ox = dx; oy = dy; ba = ARC[i] + Math.sqrt(l2) * u; tx = ex; ty = ey; }
       }
-      if (Math.sqrt(bd) > br) return false;
+      const q0 = (tx * oy - ty * ox) / Math.hypot(tx, ty);
+      // fur: saw-tooth tufts along the outer edge of the brush, each one sweeping back toward the tip
+      const fur = q0 < 0 && br > 5.2 ? Math.min(3.2, br * 0.36) * (1 - (ba / 9 - Math.floor(ba / 9))) : 0;
+      if (Math.sqrt(bd) > br - fur) return false;
       // lit from above under the word (the underside falls into shade), swinging round to the left on the plume
       const tt = Math.max(0, Math.min(1, (ba - 185) / 30));
       TL[y * LW + x] = -((0.447 + 0.4 * tt) * ox + (0.894 - 0.37 * tt) * oy) / br; TA[y * LW + x] = ba; TQ[y * LW + x] = (tx * oy - ty * ox) / Math.hypot(tx, ty);
@@ -688,8 +632,10 @@ G.defineArt('items', G => {
     each((x, y) => {
       if (!on(SUN, x, y)) return;
       const e = edge(SUN, x, y);
-      if (inDisc(x, y)) S(b, x, y, e === 1 ? WHT : Math.hypot(x + .5 - SX, y + .5 - SY) > SR - 3 ? GO[3] : GO[2]);
-      else S(b, x, y, e === 1 ? GO[2] : e === 2 ? OR[2] : OR[3]);
+      if (inDisc(x, y)) {                           // orange rim band, gold body, pale glow crescent on the lit shoulder
+        const d = Math.hypot(x + .5 - SX, y + .5 - SY), dx = x + .5 - SX;
+        S(b, x, y, d > SR - 1.2 ? (dx < 4 ? GO[3] : OR[3]) : d > SR - 4 ? (dx < 6 ? OR[3] : OR[2]) : d > SR - 8.5 && d <= SR - 5.5 && dx < -3 ? WHT : d > SR - 10 && dx < 2 ? GO[3] : GO[2]);
+      } else S(b, x, y, rayHalf(x, y) === 1 ? (e === 1 ? GO[3] : GO[2]) : (e === 2 ? OR[1] : OR[2]));
     });
     inkAround(TAIL);
     each((x, y) => {
@@ -697,7 +643,7 @@ G.defineArt('items', G => {
       const l = TL[y * LW + x];
       const z = TQ[y * LW + x] / 5 + 0.25, zig = Math.abs(z - Math.floor(z) - 0.5) * 2;     // 5px wide teeth across the tail
       if (TA[y * LW + x] > 217 + 4 * zig) S(b, x, y, l > 0 ? WHT : l < -0.3 ? BR[4] : BR[5]);
-      else S(b, x, y, l > 0.3 ? OR[3] : l < -0.2 ? OR[1] : OR[2]);
+      else S(b, x, y, l > 0.72 ? OR[4] : l > 0.25 ? OR[3] : l < -0.72 ? OR[0] : l < -0.25 ? OR[1] : OR[2]);
     });
     inkAround(EXT);
     const NEAR = dil(OUT, SE(5));                   // the side walls are lighter along the 2px next to the outline
@@ -707,12 +653,12 @@ G.defineArt('items', G => {
     });
     // faces: banded gradient + bevel (ring 1 / ring 2 lit or shaded by the outward normal)
     const E1 = ero(FACE, CROSS), E2 = ero(E1, CROSS);
-    const RAMP = [WHT, GO[3], GO[2], OR[3], OR[2], OR[1], OR[0], RD[0]];
-    const BANDS = [[0.26, 1], [0.52, 2], [0.78, 3], [9, 4]];        // [upper bound of v, ramp index]
+    const RAMP = [WHT, GO[3], GO[2], OR[3], OR[2], OR[1], OR[0]];
     each((x, y) => {
       if (!on(FACE, x, y)) return;
-      const H = WORD[LID[y * LW + x]][2], v = (y - (YB - H)) / H;
-      const bi = BANDS.find(q => v < q[0])[1];
+      // face: gold top, amber middle, orange foot, the two changes softened by a 2-row checker
+      const H = WORD[LID[y * LW + x]][2], yy = y - (YB - H), b1 = Math.round(H * 0.42), b2 = Math.round(H * 0.76), ck = (x + y) & 1;
+      const bi = yy < b1 ? 2 : yy < b1 + 2 ? 2 + ck : yy < b2 ? 3 : yy < b2 + 2 ? 3 + ck : 4;
       let nx = 0, ny = 0;                           // outward normal: pull of the empty pixels in a 7x7 window (weight 1/d2),
       for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {     // steady along stair-stepped diagonals
         if ((dx || dy) && !on(FACE, x + dx, y + dy)) { const d2 = dx * dx + dy * dy; nx += dx / d2; ny += dy / d2; }
@@ -720,9 +666,15 @@ G.defineArt('items', G => {
       const l = -(nx + ny) / (Math.hypot(nx, ny) || 1) * Math.SQRT1_2;
       const ring = !on(E1, x, y) ? 1 : !on(E2, x, y) ? 2 : 0;
       let c = bi;
-      if (ring === 1) c = l > 0.25 ? 0 : l < -0.25 ? bi + 2 : bi;
-      else if (ring === 2) c = l > 0.25 ? bi - 1 : l < -0.25 ? bi + 1 : bi;
+      // chunky 2px bevel: white + pale gold on every edge facing the light, deep orange + rust on the far ones
+      if (ring === 1) c = l > 0.2 ? 0 : l < -0.2 ? 6 : bi;
+      else if (ring === 2) c = l > 0.2 ? 1 : l < -0.2 ? 5 : bi;
       S(b, x, y, RAMP[c]);
+    });
+    // specular glints on the lit shoulders of the S and the X
+    [[31, 23, 3], [219, 23, 2]].forEach(g => {
+      for (let i = -g[2]; i <= g[2]; i++) { S(b, g[0] + i, g[1], WHT); S(b, g[0], g[1] + i, WHT); }
+      for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) if (g[2] > 2) S(b, g[0] + i, g[1] + j, WHT);
     });
     // plug enclosed see-through specks (letter counters, pinholes between the outlines)
     const seen = new Uint8Array(LW * LH), stack = [];
