@@ -60,7 +60,7 @@
     document.addEventListener('pointerdown', gesture, true);
 
     window.addEventListener('keydown', function (e) {
-      gesture();
+      gesture(); I.keyboardUser = true;
       var k = e.key;
       if (k === 'ArrowLeft' || k === 'a' || k === 'A' || k === 'q' || k === 'Q') { I.left = true; if (PP.game) PP.game.onKey('left', e); }
       else if (k === 'ArrowRight' || k === 'd' || k === 'D') { I.right = true; if (PP.game) PP.game.onKey('right', e); }

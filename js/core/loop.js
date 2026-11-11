@@ -12,13 +12,15 @@
     window.requestAnimationFrame(frame);
     var t = now();
     var delta = (t - L.last) / 1000; L.last = t;
+    var raw = delta;
     if (delta < 0) delta = 0;
     if (delta > 0.1) delta = 0.1;
     L.frames++; L.fpsT += delta;
     if (L.fpsT >= 0.5) { L.fps = L.frames / L.fpsT; L.frames = 0; L.fpsT = 0; }
     var t0 = now();
     PP.game.frame(delta);
-    PP.quality.frame(delta * 1000, now() - t0, t);
+    // frames after a long stall (tab hidden, debugger, harness) say nothing about rendering cost
+    if (raw < 0.25 && !PP.game.busy && !PP.game.hidden && !PP.game.paused) PP.quality.frame(delta * 1000, now() - t0, t);
   }
 
   /* advance the simulation by real time `delta` using fixed steps; returns steps done */

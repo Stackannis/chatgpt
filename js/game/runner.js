@@ -31,7 +31,8 @@
     G.seed = o.seed !== undefined && o.seed !== null ? (o.seed >>> 0) : (def ? def.seed : ((Math.random() * 1e9) >>> 0));
     G.rng = U.rng(G.seed);
     G.H = PP.R && PP.R.ready ? PP.R.H : 640; if (o.H) G.H = o.H;
-    G.sy = G.H - 110;
+    G.syOff = G.mode === 'demo' ? 300 : 110;
+    G.sy = G.H - G.syOff;
     G.t = 0; G.tl = 0; G.dist = 0; G.tick = 0; G.bi = 0;
     G.scrollBase = def ? def.scroll : B.scroll(L); G.scroll = G.scrollBase;
     G.len = def ? def.length : 1e9;

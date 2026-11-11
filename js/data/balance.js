@@ -11,11 +11,13 @@
    * multiplies hpMult (and boss HP) per level. 1 = table value. */
   var TUNE = [0,
     1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 1, 1];
-  var B = PP.bal = { HP: HP, TUNE: TUNE, BOSS_HP: BOSS_HP };
+    1.5, 1.5, 1.5, 1.4, 1.6, 1,
+    2.2, 1.7, 1.2, 0.7, 0.8, 1,
+    1.2, 0.8, 1.2, 1.1, 0.8, 1,
+    0.8, 0.6, 1.3, 1.2, 1.1, 1];
+  /* separate retune factor for boss HP (index = boss number 1..5) */
+  var BOSS_TUNE = [0, 1, 0.85, 1, 0.7, 0.7];
+  var B = PP.bal = { HP: HP, TUNE: TUNE, BOSS_HP: BOSS_HP, BOSS_TUNE: BOSS_TUNE };
 
   B.mid = function (L) { return 5 + 1.6 * (L - 1); };
   B.peak = function (L) { return 1.4 * B.mid(L); };
@@ -38,7 +40,7 @@
     return v;
   };
   B.bossHp = function (L) {
-    if (BOSS_HP[L]) return Math.round(BOSS_HP[L] * TUNE[L] / 100) * 100;
+    if (BOSS_HP[L]) return Math.round(BOSS_HP[L] * BOSS_TUNE[L / 6] / 100) * 100;
     return Math.round(1.4 * B.mid(L) * 24 * B.M(L) * 30 * 0.85 / 100) * 100;
   };
   B.star2 = function (L) { return Math.round(0.8 * B.mid(L)); };

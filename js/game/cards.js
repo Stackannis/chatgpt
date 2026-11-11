@@ -29,8 +29,12 @@
       if (id === 'pierce' && (SQ.weapon.id === 'beam' || SQ.weapon.id === 'cookie')) continue;
       if (id === 'big' && SQ.big >= 2) continue;
       if (id === 'lucky' && SQ.lucky > 1) continue;
+      if (id === 'pop' && SQ.cardDmg >= 1.74) continue;      // stacking caps (only reachable in Endless)
+      if (id === 'rate' && SQ.cardRate >= 1.59) continue;
+      if (id === 'buddy' && G.mode === 'endless' && SQ.n > 1.3 * PP.bal.mid(G.L)) continue;
       pool.push(all[i]);
     }
+    for (i = 0; pool.length < 2 && i < all.length; i++) if ((all[i].id === 'shield' || all[i].id === 'buddy') && pool.indexOf(all[i]) < 0) pool.push(all[i]);
     var a = G.rng.int(0, pool.length - 1), b = G.rng.int(0, pool.length - 2);
     if (b >= a) b++;                    // no duplicate card within one offer
     G.cards = [pool[a], pool[b]];
@@ -38,7 +42,11 @@
     PP.events.emit('cardOffered', { cards: [pool[a].id, pool[b].id] });
     if (PP.game && !PP.headless) PP.game.onCards();
   };
-  CD.buddyGain = function () { return Math.max(3, Math.round(PP.squad.n * 0.25)); };
+  CD.buddyGain = function () {
+    var g = Math.max(3, Math.round(PP.squad.n * 0.25));
+    if (PP.G.mode === 'endless') g = Math.min(g, Math.max(3, Math.round(0.3 * PP.bal.mid(PP.G.L))));   // no runaway growth in the Marathon
+    return g;
+  };
   CD.choose = function (i) {
     var G = PP.G, SQ = PP.squad;
     if (!G.cards) return false;

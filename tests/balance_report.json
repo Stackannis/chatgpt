@@ -1,0 +1,946 @@
+{
+ "levels": [
+  {
+   "L": 1,
+   "boss": false,
+   "M": 1,
+   "Mtable": 1,
+   "weapon": "wand",
+   "buddy": 0,
+   "exp": {
+    "win": true,
+    "squad": 11,
+    "stars": 3,
+    "time": 69.6,
+    "peak": 11,
+    "lost": 0,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 11,
+   "noupg": {
+    "win": true,
+    "squad": 11,
+    "stars": 3,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 69.6,
+    "win": true
+   }
+  },
+  {
+   "L": 2,
+   "boss": false,
+   "M": 1,
+   "Mtable": 1.05,
+   "weapon": "wand",
+   "buddy": 0,
+   "exp": {
+    "win": true,
+    "squad": 16,
+    "stars": 3,
+    "time": 71.4,
+    "peak": 16,
+    "lost": 0,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 16,
+   "noupg": {
+    "win": true,
+    "squad": 16,
+    "stars": 3,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 71.4,
+    "win": true
+   }
+  },
+  {
+   "L": 3,
+   "boss": false,
+   "M": 1.06,
+   "Mtable": 1.09,
+   "weapon": "wand",
+   "buddy": 0,
+   "exp": {
+    "win": true,
+    "squad": 19,
+    "stars": 3,
+    "time": 72.3,
+    "peak": 19,
+    "lost": 0,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 18,
+   "noupg": {
+    "win": true,
+    "squad": 19,
+    "stars": 3,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 72.3,
+    "win": true
+   }
+  },
+  {
+   "L": 4,
+   "boss": false,
+   "M": 1.16,
+   "Mtable": 1.14,
+   "weapon": "shaker",
+   "buddy": 0,
+   "exp": {
+    "win": true,
+    "squad": 27,
+    "stars": 3,
+    "time": 74.2,
+    "peak": 27,
+    "lost": 0,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 29,
+   "noupg": {
+    "win": true,
+    "squad": 27,
+    "stars": 3,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 74.2,
+    "win": true
+   }
+  },
+  {
+   "L": 5,
+   "boss": false,
+   "M": 1.22,
+   "Mtable": 1.18,
+   "weapon": "shaker",
+   "buddy": 0,
+   "exp": {
+    "win": true,
+    "squad": 27,
+    "stars": 3,
+    "time": 75.1,
+    "peak": 27,
+    "lost": 0,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 30,
+   "noupg": {
+    "win": true,
+    "squad": 39,
+    "stars": 3,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 75.1,
+    "win": true
+   }
+  },
+  {
+   "L": 6,
+   "boss": true,
+   "M": 1.22,
+   "Mtable": 1.23,
+   "weapon": "shaker",
+   "buddy": 1,
+   "exp": {
+    "win": true,
+    "squad": 19,
+    "stars": 3,
+    "time": 70.4,
+    "peak": 19,
+    "lost": 0,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 20,
+   "noupg": {
+    "win": true,
+    "squad": 17,
+    "stars": 3,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 70.4,
+    "win": true
+   }
+  },
+  {
+   "L": 7,
+   "boss": false,
+   "M": 1.33,
+   "Mtable": 1.27,
+   "weapon": "gumball",
+   "buddy": 1,
+   "exp": {
+    "win": true,
+    "squad": 28,
+    "stars": 3,
+    "time": 77.8,
+    "peak": 28,
+    "lost": 2,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 25,
+   "noupg": {
+    "win": true,
+    "squad": 11,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 0.9,
+   "god": {
+    "time": 77.8,
+    "win": true
+   }
+  },
+  {
+   "L": 8,
+   "boss": false,
+   "M": 1.4,
+   "Mtable": 1.32,
+   "weapon": "gumball",
+   "buddy": 1,
+   "exp": {
+    "win": true,
+    "squad": 43,
+    "stars": 3,
+    "time": 79.7,
+    "peak": 43,
+    "lost": 0,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 32,
+   "noupg": {
+    "win": true,
+    "squad": 27,
+    "stars": 3,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 79.7,
+    "win": true
+   }
+  },
+  {
+   "L": 9,
+   "boss": false,
+   "M": 1.4,
+   "Mtable": 1.36,
+   "weapon": "gumball",
+   "buddy": 1,
+   "exp": {
+    "win": true,
+    "squad": 28,
+    "stars": 3,
+    "time": 80.6,
+    "peak": 29,
+    "lost": 1,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 31,
+   "noupg": {
+    "win": true,
+    "squad": 26,
+    "stars": 3,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 80.6,
+    "win": true
+   }
+  },
+  {
+   "L": 10,
+   "boss": false,
+   "M": 1.45,
+   "Mtable": 1.41,
+   "weapon": "gumball",
+   "buddy": 1,
+   "exp": {
+    "win": true,
+    "squad": 21,
+    "stars": 2,
+    "time": 82.5,
+    "peak": 21,
+    "lost": 5,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.3,
+   "avgSquad": 21,
+   "noupg": {
+    "win": true,
+    "squad": 9,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 0.8,
+   "god": {
+    "time": 82.5,
+    "win": true
+   }
+  },
+  {
+   "L": 11,
+   "boss": false,
+   "M": 1.45,
+   "Mtable": 1.45,
+   "weapon": "star",
+   "buddy": 1,
+   "exp": {
+    "win": true,
+    "squad": 25,
+    "stars": 3,
+    "time": 83.4,
+    "peak": 25,
+    "lost": 0,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.35,
+   "avgSquad": 23,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 65
+   },
+   "noupgRate": 0.3,
+   "god": {
+    "time": 83.4,
+    "win": true
+   }
+  },
+  {
+   "L": 12,
+   "boss": true,
+   "M": 1.45,
+   "Mtable": 1.5,
+   "weapon": "star",
+   "buddy": 2,
+   "exp": {
+    "win": true,
+    "squad": 22,
+    "stars": 2,
+    "time": 77.8,
+    "peak": 27,
+    "lost": 8,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.2,
+   "avgSquad": 22,
+   "noupg": {
+    "win": true,
+    "squad": 5,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 0.05,
+   "god": {
+    "time": 77.8,
+    "win": true
+   }
+  },
+  {
+   "L": 13,
+   "boss": false,
+   "M": 1.45,
+   "Mtable": 1.54,
+   "weapon": "star",
+   "buddy": 2,
+   "exp": {
+    "win": true,
+    "squad": 48,
+    "stars": 3,
+    "time": 86.2,
+    "peak": 48,
+    "lost": 0,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 53,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 72
+   },
+   "noupgRate": 0.05,
+   "god": {
+    "time": 86.2,
+    "win": true
+   }
+  },
+  {
+   "L": 14,
+   "boss": false,
+   "M": 1.45,
+   "Mtable": 1.59,
+   "weapon": "star",
+   "buddy": 2,
+   "exp": {
+    "win": true,
+    "squad": 28,
+    "stars": 2,
+    "time": 88.1,
+    "peak": 28,
+    "lost": 6,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.85,
+   "avgSquad": 33,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 23
+   },
+   "noupgRate": 0,
+   "god": {
+    "time": 88.1,
+    "win": true
+   }
+  },
+  {
+   "L": 15,
+   "boss": false,
+   "M": 1.6,
+   "Mtable": 1.63,
+   "weapon": "cookie",
+   "buddy": 2,
+   "exp": {
+    "win": true,
+    "squad": 27,
+    "stars": 2,
+    "time": 89.1,
+    "peak": 30,
+    "lost": 11,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.3,
+   "avgSquad": 30,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 76
+   },
+   "noupgRate": 0.05,
+   "god": {
+    "time": 89.1,
+    "win": true
+   }
+  },
+  {
+   "L": 16,
+   "boss": false,
+   "M": 1.76,
+   "Mtable": 1.67,
+   "weapon": "cookie",
+   "buddy": 2,
+   "exp": {
+    "win": true,
+    "squad": 21,
+    "stars": 1,
+    "time": 90.9,
+    "peak": 30,
+    "lost": 26,
+    "progress": 100
+   },
+   "winRate": 0.95,
+   "avgStars": 1.5789473684210527,
+   "avgSquad": 23,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 38
+   },
+   "noupgRate": 0,
+   "god": {
+    "time": 90.9,
+    "win": true
+   }
+  },
+  {
+   "L": 17,
+   "boss": false,
+   "M": 1.76,
+   "Mtable": 1.72,
+   "weapon": "cookie",
+   "buddy": 2,
+   "exp": {
+    "win": true,
+    "squad": 30,
+    "stars": 2,
+    "time": 91.9,
+    "peak": 30,
+    "lost": 11,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.2,
+   "avgSquad": 32,
+   "noupg": {
+    "win": true,
+    "squad": 15,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 0.75,
+   "god": {
+    "time": 91.9,
+    "win": true
+   }
+  },
+  {
+   "L": 18,
+   "boss": true,
+   "M": 1.84,
+   "Mtable": 1.77,
+   "weapon": "cookie",
+   "buddy": 2,
+   "exp": {
+    "win": true,
+    "squad": 26,
+    "stars": 2,
+    "time": 83.7,
+    "peak": 35,
+    "lost": 11,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 1.6,
+   "avgSquad": 23,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 73
+   },
+   "noupgRate": 0,
+   "god": {
+    "time": 83.7,
+    "win": true
+   }
+  },
+  {
+   "L": 19,
+   "boss": false,
+   "M": 1.92,
+   "Mtable": 1.81,
+   "weapon": "confetti",
+   "buddy": 2,
+   "exp": {
+    "win": true,
+    "squad": 38,
+    "stars": 2,
+    "time": 94.7,
+    "peak": 38,
+    "lost": 5,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.55,
+   "avgSquad": 39,
+   "noupg": {
+    "win": true,
+    "squad": 12,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 94.7,
+    "win": true
+   }
+  },
+  {
+   "L": 20,
+   "boss": false,
+   "M": 1.99,
+   "Mtable": 1.86,
+   "weapon": "confetti",
+   "buddy": 2,
+   "exp": {
+    "win": true,
+    "squad": 25,
+    "stars": 1,
+    "time": 96.6,
+    "peak": 29,
+    "lost": 23,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.3,
+   "avgSquad": 38,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 53
+   },
+   "noupgRate": 0.1,
+   "god": {
+    "time": 96.6,
+    "win": true
+   }
+  },
+  {
+   "L": 21,
+   "boss": false,
+   "M": 1.99,
+   "Mtable": 1.9,
+   "weapon": "confetti",
+   "buddy": 3,
+   "exp": {
+    "win": true,
+    "squad": 44,
+    "stars": 3,
+    "time": 97.6,
+    "peak": 44,
+    "lost": 5,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.05,
+   "avgSquad": 37,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 94
+   },
+   "noupgRate": 0.15,
+   "god": {
+    "time": 97.6,
+    "win": true
+   }
+  },
+  {
+   "L": 22,
+   "boss": false,
+   "M": 1.99,
+   "Mtable": 1.94,
+   "weapon": "confetti",
+   "buddy": 3,
+   "exp": {
+    "win": true,
+    "squad": 35,
+    "stars": 2,
+    "time": 99.5,
+    "peak": 40,
+    "lost": 25,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2,
+   "avgSquad": 37,
+   "noupg": {
+    "win": true,
+    "squad": 10,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 99.5,
+    "win": true
+   }
+  },
+  {
+   "L": 23,
+   "boss": false,
+   "M": 2.08,
+   "Mtable": 1.99,
+   "weapon": "confetti",
+   "buddy": 3,
+   "exp": {
+    "win": true,
+    "squad": 47,
+    "stars": 3,
+    "time": 100.4,
+    "peak": 47,
+    "lost": 9,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 1.75,
+   "avgSquad": 33,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 89
+   },
+   "noupgRate": 0.25,
+   "god": {
+    "time": 100.4,
+    "win": true
+   }
+  },
+  {
+   "L": 24,
+   "boss": true,
+   "M": 2.15,
+   "Mtable": 2.04,
+   "weapon": "confetti",
+   "buddy": 3,
+   "exp": {
+    "win": true,
+    "squad": 44,
+    "stars": 2,
+    "time": 85.7,
+    "peak": 52,
+    "lost": 13,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.05,
+   "avgSquad": 42,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 86
+   },
+   "noupgRate": 0,
+   "god": {
+    "time": 85.7,
+    "win": true
+   }
+  },
+  {
+   "L": 25,
+   "boss": false,
+   "M": 2.24,
+   "Mtable": 2.08,
+   "weapon": "beam",
+   "buddy": 3,
+   "exp": {
+    "win": true,
+    "squad": 35,
+    "stars": 2,
+    "time": 103.3,
+    "peak": 37,
+    "lost": 21,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 1.9,
+   "avgSquad": 39,
+   "noupg": {
+    "win": true,
+    "squad": 18,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 0.95,
+   "god": {
+    "time": 103.3,
+    "win": true
+   }
+  },
+  {
+   "L": 26,
+   "boss": false,
+   "M": 2.24,
+   "Mtable": 2.13,
+   "weapon": "beam",
+   "buddy": 3,
+   "exp": {
+    "win": true,
+    "squad": 43,
+    "stars": 2,
+    "time": 105.2,
+    "peak": 48,
+    "lost": 18,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.25,
+   "avgSquad": 49,
+   "noupg": {
+    "win": true,
+    "squad": 12,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 0.9,
+   "god": {
+    "time": 105.2,
+    "win": true
+   }
+  },
+  {
+   "L": 27,
+   "boss": false,
+   "M": 2.45,
+   "Mtable": 2.17,
+   "weapon": "beam",
+   "buddy": 3,
+   "exp": {
+    "win": true,
+    "squad": 53,
+    "stars": 2,
+    "time": 106.2,
+    "peak": 53,
+    "lost": 9,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 2.1,
+   "avgSquad": 49,
+   "noupg": {
+    "win": true,
+    "squad": 29,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 106.2,
+    "win": true
+   }
+  },
+  {
+   "L": 28,
+   "boss": false,
+   "M": 2.56,
+   "Mtable": 2.22,
+   "weapon": "beam",
+   "buddy": 3,
+   "exp": {
+    "win": true,
+    "squad": 82,
+    "stars": 3,
+    "time": 108.1,
+    "peak": 82,
+    "lost": 3,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 3,
+   "avgSquad": 82,
+   "noupg": {
+    "win": true,
+    "squad": 13,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 1,
+   "god": {
+    "time": 108.1,
+    "win": true
+   }
+  },
+  {
+   "L": 29,
+   "boss": false,
+   "M": 2.56,
+   "Mtable": 2.26,
+   "weapon": "beam",
+   "buddy": 3,
+   "exp": {
+    "win": true,
+    "squad": 34,
+    "stars": 1,
+    "time": 109.1,
+    "peak": 40,
+    "lost": 25,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 1.65,
+   "avgSquad": 44,
+   "noupg": {
+    "win": true,
+    "squad": 15,
+    "stars": 1,
+    "progress": 100
+   },
+   "noupgRate": 0.6,
+   "god": {
+    "time": 109.1,
+    "win": true
+   }
+  },
+  {
+   "L": 30,
+   "boss": true,
+   "M": 2.56,
+   "Mtable": 2.3,
+   "weapon": "beam",
+   "buddy": 4,
+   "exp": {
+    "win": true,
+    "squad": 35,
+    "stars": 1,
+    "time": 110.1,
+    "peak": 59,
+    "lost": 25,
+    "progress": 100
+   },
+   "winRate": 1,
+   "avgStars": 1.4,
+   "avgSquad": 40,
+   "noupg": {
+    "win": false,
+    "squad": 0,
+    "stars": 0,
+    "progress": 75
+   },
+   "noupgRate": 0,
+   "god": {
+    "time": 110.1,
+    "win": true
+   }
+  }
+ ],
+ "targets": {
+  "a_expectedWinsAll": true,
+  "a_wins": 30,
+  "a_twoStarShare": 0.8666666666666667,
+  "a_ok": true,
+  "b_noupgClears1to10": 10,
+  "b_noupgFails19to30": 5,
+  "b_ok": true,
+  "c_outside60to120": 0,
+  "c_ok": true
+ },
+ "text": "  L  M(real/table) weapon    exp: win stars squad(peak) time  rate | noupg: win prog rate | god time\n  1  1.00/1.00     wand    WIN    3    11( 11)   70  100% |       WIN 100% 100% |    70\n  2  1.00/1.05     wand    WIN    3    16( 16)   71  100% |       WIN 100% 100% |    71\n  3  1.06/1.09     wand    WIN    3    19( 19)   72  100% |       WIN 100% 100% |    72\n  4  1.16/1.14   shaker    WIN    3    27( 27)   74  100% |       WIN 100% 100% |    74\n  5  1.22/1.18   shaker    WIN    3    27( 27)   75  100% |       WIN 100% 100% |    75\n  6* 1.22/1.23   shaker    WIN    3    19( 19)   70  100% |       WIN 100% 100% |    70\n  7  1.33/1.27  gumball    WIN    3    28( 28)   78  100% |       WIN 100%  90% |    78\n  8  1.40/1.32  gumball    WIN    3    43( 43)   80  100% |       WIN 100% 100% |    80\n  9  1.40/1.36  gumball    WIN    3    28( 29)   81  100% |       WIN 100% 100% |    81\n 10  1.45/1.41  gumball    WIN    2    21( 21)   83  100% |       WIN 100%  80% |    83\n 11  1.45/1.45     star    WIN    3    25( 25)   83  100% |      fail  65%  30% |    83\n 12* 1.45/1.50     star    WIN    2    22( 27)   78  100% |       WIN 100%   5% |    78\n 13  1.45/1.54     star    WIN    3    48( 48)   86  100% |      fail  72%   5% |    86\n 14  1.45/1.59     star    WIN    2    28( 28)   88  100% |      fail  23%   0% |    88\n 15  1.60/1.63   cookie    WIN    2    27( 30)   89  100% |      fail  76%   5% |    89\n 16  1.76/1.67   cookie    WIN    1    21( 30)   91   95% |      fail  38%   0% |    91\n 17  1.76/1.72   cookie    WIN    2    30( 30)   92  100% |       WIN 100%  75% |    92\n 18* 1.84/1.77   cookie    WIN    2    26( 35)   84  100% |      fail  73%   0% |    84\n 19  1.92/1.81 confetti    WIN    2    38( 38)   95  100% |       WIN 100% 100% |    95\n 20  1.99/1.86 confetti    WIN    1    25( 29)   97  100% |      fail  53%  10% |    97\n 21  1.99/1.90 confetti    WIN    3    44( 44)   98  100% |      fail  94%  15% |    98\n 22  1.99/1.94 confetti    WIN    2    35( 40)  100  100% |       WIN 100% 100% |   100\n 23  2.08/1.99 confetti    WIN    3    47( 47)  100  100% |      fail  89%  25% |   100\n 24* 2.15/2.04 confetti    WIN    2    44( 52)   86  100% |      fail  86%   0% |    86\n 25  2.24/2.08     beam    WIN    2    35( 37)  103  100% |       WIN 100%  95% |   103\n 26  2.24/2.13     beam    WIN    2    43( 48)  105  100% |       WIN 100%  90% |   105\n 27  2.45/2.17     beam    WIN    2    53( 53)  106  100% |       WIN 100% 100% |   106\n 28  2.56/2.22     beam    WIN    3    82( 82)  108  100% |       WIN 100% 100% |   108\n 29  2.56/2.26     beam    WIN    1    34( 40)  109  100% |       WIN 100%  60% |   109\n 30* 2.56/2.30     beam    WIN    1    35( 59)  110  100% |      fail  75%   0% |   110\ntargets: (a) expected wins 30/30, >=2 stars on 87% -> OK | (b) no-upgrade clears L1-10: 10, fails in L19-30: 5 -> OK | (c) god runs outside 60-120 s: 0 -> OK"
+}

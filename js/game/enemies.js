@@ -13,7 +13,7 @@
   });
   var FXK = { jelly: 'v', dust: 'w', bean: 'g', twin: 'c', mini: 'c', cloud: 'v', snail: 'p', dasher: 'o', minijelly: 'v', drop: 'm', snowball: 'm', orb: 'p', crate: 'o', gift: 'p', jar: 'c' };
 
-  EN.clear = function () { pool.clear(); };
+  EN.clear = function () { pool.clear(); EN.uid = 1; };   // uid feeds the zigzag phase: reset for determinism
   EN.grumblies = function () { var n = 0; for (var i = 0; i < pool.n; i++) if (pool.items[i].def.grumbly) n++; return n; };
 
   /* spawn(id, x, y, elite, ramp). ramp undefined => time-based ramp of the level */
@@ -28,7 +28,7 @@
     e.def = def; e.x = x; e.y = y; e.r = def.r; e.bump = def.bump; e.own = def.speed; e.elite = !!elite; e.sc = def.scale || 1;
     if (elite) { hp *= 3; shell *= 3; e.own *= 0.9; e.bump *= 2; e.r *= 1.4; e.sc *= 1.4; }
     e.hp = e.maxHp = hp; e.shell = e.maxShell = shell;
-    e.flash = 0; e.t = 0; e.st = 0; e.tm = 0; e.tm2 = 0; e.bx = x; e.vx = 0; e.vy = 0; e.dead = 0; e.kb = 0; e.dmgAcc = 0; e.dmgT = 0; e.gift = null;
+    e.flash = -1; e.t = 0; e.st = 0; e.tm = 0; e.tm2 = 0; e.bx = x; e.vx = 0; e.vy = 0; e.dead = 0; e.kb = 0; e.dmgAcc = 0; e.dmgT = 0; e.gift = null;
     e.dark = false; e.uid = EN.uid++; e.ph = (e.uid * 1.7) % TAU;
     e.sprN = PP.spr[def.spr]; e.sprF = PP.spr[def.spr + '_f'] || e.sprN; e.sprD = id === 'cloud' ? PP.spr.e_cloud_d : null;
     return e;
@@ -36,7 +36,7 @@
 
   EN.damage = function (e, dmg, shellMult) {
     if (e.dead) return;
-    e.flash = 0.06;
+    if (e.flash < -0.12) e.flash = 0.06;      // 60 ms white flash, at most ~5 per second
     if (e.shell > 0) {
       e.shell -= dmg * (shellMult || 1);
       if (e.shell <= 0) {
@@ -99,7 +99,7 @@
       e = a[i];
       if (e.dead) { pool.killAt(i); continue; }
       e.t += dt;
-      if (e.flash > 0) e.flash -= dt;
+      if (e.flash > -1) e.flash -= dt;
       if (e.kb > 0) { k = 95 * dt; if (k > e.kb) k = e.kb; e.y -= k; e.kb -= k; }
       ai = e.def.ai;
       if (ai === 'walk') e.y += (sc + e.own) * dt;

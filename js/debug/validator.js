@@ -46,7 +46,7 @@
       case 'mul': return n * g.val;
       case 'sub': return Math.max(1, n - (g.val || Math.round(0.75 * A)));
       case 'div': return Math.max(1, Math.floor(n / g.val));
-      case 'grow': return n + Math.round(0.5 * A);          // an average player grows it about half way
+      case 'grow': return n + Math.round(1.4 * A);          // grow gates are usually shot most of the way up (max 1.5 A)
       default: return n * 1.2;
     }
   };
@@ -143,7 +143,7 @@
     // count rule
     info.target = Math.round(B.density(L) * def.length / 10);
     if (Math.abs(info.enemies - info.target) > Math.max(1, info.target * 0.1) + 0.5) err('enemy count ' + info.enemies + ' vs target ' + info.target + ' (+-10%)');
-    if (def.id !== 1 && gates.length && gates[0] < 4) warn('first gate row very early');
+    if (gates.length && gates[0] < 3) warn('first gate row very early');
     return info;
   };
 

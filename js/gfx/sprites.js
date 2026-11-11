@@ -48,6 +48,9 @@
     for (var i = i0; i < end; i++) buildOne(S.defs[i]);
     return end;
   };
+  /* boot helpers: build a few named sprites first (splash), then the rest in chunks */
+  S.buildNames = function (names) { for (var i = 0; i < names.length; i++) if (S.index[names[i]]) buildOne(S.index[names[i]]); };
+  S.finish = function () { S.built = true; if (PP.atlas) PP.atlas.build(); if (PP.bg) PP.bg.invalidate(); };
   S.buildAll = function (rs) {
     S.rs = rs;
     for (var i = 0; i < S.defs.length; i++) buildOne(S.defs[i]);
@@ -282,24 +285,27 @@
   }
   def('e_cloud', 56, 54, 28, 24, function (g) { cloud(g, '#8E9AC9', '#7380B4', false); });
   def('e_cloud_d', 56, 54, 28, 24, function (g) { cloud(g, '#5E6796', '#4A5280', true); });
-  function snailBody(g, col) {
-    // eye stalks + head pointing down (towards the parade)
-    line(g, -5, 10, -8, 19, 5.5); line(g, 5, 10, 8, 19, 5.5);
-    line(g, -5, 10, -8, 19, 2.5, col); line(g, 5, 10, 8, 19, 2.5, col);
-    body(g, pe(0, 6, 13, 10.5), col, { hl: [-5, 0, 4, 2.4] });
-    body(g, pe(-8.5, 19.5, 3.6, 3.6), '#fff', { lw: 1.8, flat: true }); body(g, pe(8.5, 19.5, 3.6, 3.6), '#fff', { lw: 1.8, flat: true });
-    dot(g, -8.5, 20.3, 1.9, OL); dot(g, 8.5, 20.3, 1.9, OL);
-    brows(g, 0, 15.4, 8.5, 3, 1.2, 1.7);
-    frown(g, 0, 10.5, 3, 1.6); blush(g, 0, 9, 8, 1.6, 'rgba(255,140,190,0.5)');
+  /* snail head (facing the parade): face on the head, little antennae */
+  function snailHead(g, col, y) {
+    line(g, -7, y - 4, -13, y - 11, 4.6); line(g, 7, y - 4, 13, y - 11, 4.6);
+    line(g, -7, y - 4, -13, y - 11, 2, col); line(g, 7, y - 4, 13, y - 11, 2, col);
+    body(g, pe(-13.5, y - 12, 2.6, 2.6), '#FFE27A', { lw: 1.6, flat: true }); body(g, pe(13.5, y - 12, 2.6, 2.6), '#FFE27A', { lw: 1.6, flat: true });
+    body(g, pe(0, y, 12.5, 10), col, { hl: [-5, y - 4.5, 3.6, 2] });
+    eyes(g, 0, y - 1, 4.4, 2);
+    brows(g, 0, y - 4.8, 4.4, 2.6, 1.3, 1.7);
+    frown(g, 0, y + 3.6, 2.6, 1.5); blush(g, 0, y + 2.4, 8.2, 1.5, 'rgba(255,140,190,0.5)');
   }
-  def('e_snail', 54, 62, 27, 30, function (g) {
-    snailBody(g, '#D9CCF2');
-    body(g, pe(0, -7, 19, 18), '#E07AC0', { hl: [-8, -16, 6, 3.4], shade: '#C45BA4' });
+  def('e_snail', 54, 62, 27, 32, function (g) {
+    body(g, pe(0, -9, 18, 17), '#E07AC0', { hl: [-8, -18, 5.5, 3], shade: '#C45BA4' });
     g.strokeStyle = '#FFD0EE'; g.lineWidth = 3; g.beginPath();
-    for (var i = 0; i <= 40; i++) { var a = i / 40 * 4.2 * Math.PI, r = 1 + i * 0.36; var x = r * Math.cos(a), y = -7 + r * Math.sin(a) * 0.95; if (i) g.lineTo(x, y); else g.moveTo(x, y); }
+    for (var i = 0; i <= 40; i++) { var a = i / 40 * 4.2 * Math.PI, r = 1 + i * 0.33; var x = r * Math.cos(a), y = -9 + r * Math.sin(a) * 0.95; if (i) g.lineTo(x, y); else g.moveTo(x, y); }
     g.stroke();
+    snailHead(g, '#D9CCF2', 13);
   });
-  def('e_snail_n', 54, 62, 27, 30, function (g) { g.translate(0, -8); snailBody(g, '#D9CCF2'); });
+  def('e_snail_n', 54, 62, 27, 32, function (g) {
+    body(g, pe(0, -6, 9, 13), '#C9B8E8', { lw: 2.2, shade: '#B3A0D6' });
+    snailHead(g, '#D9CCF2', 11);
+  });
   function donut(g, R, glaze, dough, face, hole) {
     body(g, pe(0, 0, R, R), dough, { hl: [-R * 0.45, -R * 0.55, R * 0.3, R * 0.17] });
     // glaze with drips
@@ -651,17 +657,14 @@
     for (var k = 0; k < 6; k++) { var a2 = k * 1.05 + 0.3; dot(g, R * 0.86 * Math.cos(a2), R * 0.8 * Math.sin(a2), 3, '#FFF6A8'); }
   }
   def('b_snail', 160, 150, 80, 76, function (g) {
-    // body + head (down), eyes on stalks
-    line(g, -16, 44, -24, 62, 12); line(g, 16, 44, 24, 62, 12);
-    line(g, -16, 44, -24, 62, 6.5, '#D9CCF2'); line(g, 16, 44, 24, 62, 6.5, '#D9CCF2');
-    body(g, pe(0, 30, 44, 30), '#D9CCF2', { hl: [-20, 14, 11, 5], lw: 3.5 });
-    body(g, pe(-25, 62, 10, 10), '#fff', { lw: 2.6, flat: true }); body(g, pe(25, 62, 10, 10), '#fff', { lw: 2.6, flat: true });
-    dot(g, -25, 64, 5.2, OL); dot(g, 25, 64, 5.2, OL); dot(g, -26.5, 62, 1.9, '#fff'); dot(g, 23.5, 62, 1.9, '#fff');
-    brows(g, 0, 50.5, 25, 8, 3, 3.6);
-    frown(g, 0, 41, 8, 3); blush(g, 0, 37, 22, 4, 'rgba(255,140,190,0.5)');
-    g.save(); g.translate(0, -18); bigShell(g, 54); g.restore();
-    // monocle-ish bow tie
-    body(g, function (c) { c.beginPath(); c.moveTo(0, 50); c.lineTo(-9, 45); c.lineTo(-9, 56); c.closePath(); c.moveTo(0, 50); c.lineTo(9, 45); c.lineTo(9, 56); c.closePath(); }, '#7FC8FF', { lw: 1.8, flat: true });
+    g.save(); g.translate(0, -20); bigShell(g, 52); g.restore();
+    // antennae + head with the face, in front of the shell
+    line(g, -22, 22, -40, 2, 11); line(g, 22, 22, 40, 2, 11);
+    line(g, -22, 22, -40, 2, 5.5, '#D9CCF2'); line(g, 22, 22, 40, 2, 5.5, '#D9CCF2');
+    body(g, pe(-41, 0, 7, 7), '#FFE27A', { lw: 2.6, flat: true }); body(g, pe(41, 0, 7, 7), '#FFE27A', { lw: 2.6, flat: true });
+    body(g, pe(0, 38, 38, 28), '#D9CCF2', { hl: [-17, 24, 11, 5], lw: 3.5, sx: -3, sy: -5 });
+    grumpFace(g, 0, 33, 13.5, 5.6, { mw: 8 });
+    body(g, function (c) { c.beginPath(); c.moveTo(0, 59); c.lineTo(-10, 53); c.lineTo(-10, 65); c.closePath(); c.moveTo(0, 59); c.lineTo(10, 53); c.lineTo(10, 65); c.closePath(); }, '#7FC8FF', { lw: 1.8, flat: true });
   });
   defc('b_snail_spin', 62, 60, function (g) { bigShell(g, 54); });
   defc('b_donut', 56, 56, function (g) {

@@ -16,7 +16,7 @@
   (function buildSlots() {
     var pts = [];
     for (var q = -4; q <= 4; q++) for (var r = -4; r <= 4; r++) {
-      var x = 15 * (q + r / 2), y = 15 * r * 0.866;
+      var x = 16 * (q + r / 2), y = 16 * r * 0.866;
       pts.push({ ox: x, oy: y, d: x * x + y * y * 1.02 + (y > 0 ? 0.5 : 0) });
     }
     pts.sort(function (a, b) { return a.d - b.d; });
@@ -48,7 +48,7 @@
     var G = PP.G, prof = o.prof;
     SQ.x = SQ.tx = 180; SQ.kv = 0; SQ.invuln = 0; SQ.squashT = 0; SQ.fireAcc = 0; SQ.frenzy = 0; SQ.magnet = 0;
     SQ.runDmg = 1; SQ.runRate = 1; SQ.cardDmg = 1; SQ.cardRate = 1; SQ.pierce = 0; SQ.big = 0; SQ.lucky = 1;
-    SQ.inSyrup = false; SQ.onIce = false; SQ.moved = 0; SQ.bubbleCount = 0; SQ.t = 0; SQ.beamOn = false; SQ.botX = -1; SQ.hideN = 0;
+    SQ.inSyrup = false; SQ.onIce = false; SQ.moved = 0; SQ.bubbleCount = 0; SQ.t = 0; SQ.beamOn = false; SQ.botX = -1; SQ.hideN = 0; SQ.flip = 1;
     SQ.weapon = PP.data.weaponById[o.weapon] || PP.data.weapons[0];
     SQ.wlv = o.wlv || 1;
     SQ.powerMult = 1 + 0.06 * (prof.upg.power || 0);
@@ -239,14 +239,19 @@
     var pipDrawn = false;
     for (i = 0; i < MAXV; i++) {
       idx = SQ.drawOrder[i];
-      if (idx >= SQ.nvis - SQ.hideN) continue;
+      if (idx >= SQ.nvis - SQ.hideN || idx === 0) continue;   // Pip is drawn last, on top
       m = SQ.mem[idx];
       var b = Math.sin(t * 4 * TAU + m.ph), frame = b > 0 ? 0 : 1;
       var s = frame ? m.s1 : m.s0;
       var sc = m.pop < 1 ? U.easeOutBack(m.pop) : 1;
       var bx = SQ.x + (m.x - SQ.x) * sqx, by = G.sy + (m.y - G.sy) * sqy + (b > 0 ? -b * 1.6 : 0);
       if (sc !== 1 || sqx !== 1) R.drawX(s, bx, by, sc * (2 - sqy), sc * sqy, 0); else R.draw(s, bx, by);
-      if (idx === 0) pipDrawn = true;
+    }
+    if (SQ.hideN < SQ.nvis) {
+      m = SQ.mem[0];
+      var pb = Math.sin(t * 4 * TAU + m.ph), psc = (m.pop < 1 ? U.easeOutBack(m.pop) : 1) * 1.12;
+      R.drawX(pb > 0 ? m.s0 : m.s1, SQ.x + (m.x - SQ.x) * sqx, G.sy + (m.y - G.sy) * sqy - 4 + (pb > 0 ? -pb * 1.6 : 0), psc * (2 - sqy), psc * sqy, 0);
+      pipDrawn = true;
     }
     if (blink) R.ctx.globalAlpha = 1;
     if (SQ.shields > 0) {

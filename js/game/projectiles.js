@@ -110,7 +110,11 @@
       s.life -= dt;
       if (s.k === 3) homing(s, dt);
       else if (s.k === 4) {
-        if (s.leg === 0) { if (s.y0 - s.y >= s.range || s.y < 12) { s.leg = 1; s.vy = 380; s.hn = 0; } }
+        if (s.leg === 0) {
+          var rg = s.range;
+          if (BS.on && BS.targetable()) { var need = s.y0 - (BS.y - BS.ry * 0.3); if (need > rg) rg = need; }   // cookies always reach the boss
+          if (s.y0 - s.y >= rg || s.y < 12) { s.leg = 1; s.vy = 380; s.hn = 0; }
+        }
         else { s.vx = U.clamp((SQ.x - s.x) * 4, -220, 220); }
       }
       s.x += s.vx * dt; s.y += s.vy * dt; s.rot += s.vr * dt;
@@ -121,6 +125,10 @@
       if (s.life <= 0 || s.y < -24 || s.y > G.H + 24 || s.x < -24 || s.x > 384 || (s.k === 4 && s.leg === 1 && s.y >= G.sy - 8)) { pool.killAt(i); continue; }
       if (hasGrow && s.vy < 0 && GT.absorb(s)) { pool.killAt(i); continue; }
       if (BS.on && BS.hitTest(s.x, s.y, s.r)) {
+        if (s.k === 4) {            // the boomerang cookie passes through the boss: one hit per leg
+          if (!wasHit(s, -7)) { record(s, -7); BS.damage(s.dmg, s.x, s.y); PP.fx.hit(s.x, s.y); }
+          continue;
+        }
         BS.damage(s.dmg, s.x, s.y);
         if (s.k === 5) splash(s, null, true);
         PP.fx.hit(s.x, s.y);

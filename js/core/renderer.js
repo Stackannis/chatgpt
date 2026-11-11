@@ -44,7 +44,7 @@
       if (srs !== PP.sprites.rs) PP.sprites.buildAll(srs);
     }
     R.spriteRs = srs;
-    if (PP.G && PP.G.on) { PP.G.H = H; PP.G.sy = H - 110; }
+    if (PP.G && PP.G.on) { PP.G.H = H; PP.G.sy = H - (PP.G.syOff || 110); }
     if (PP.game && PP.game.onResize) PP.game.onResize();
   };
 

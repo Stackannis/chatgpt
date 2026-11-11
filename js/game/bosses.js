@@ -12,6 +12,7 @@
   };
   var SIZE = [null, [58, 46], [54, 52], [46, 46], [72, 40], [54, 56]];
   var SPR = [null, 'b_wobble', 'b_snail', 'b_donut', 'b_puff', 'b_queen'];
+  BS.HOME = 152;   // resting y (clear of the HUD / safe top margin)
   BS.names = [null, 'wobble', 'shellwhirl', 'donut', 'thunderpuff', 'queen'];
 
   BS.clear = function () {
@@ -22,7 +23,7 @@
   BS.start = function (type, hp, mini) {
     var G = PP.G;
     BS.clear();
-    BS.on = true; BS.type = type; BS.hp = BS.maxHp = hp; BS.phase = 1; BS.t = 0; BS.inv = 0; BS.st = 'enter'; BS.flash = 0; BS.rot = 0;
+    BS.on = true; BS.type = type; BS.hp = BS.maxHp = hp; BS.phase = 1; BS.t = 0; BS.inv = 0; BS.st = 'enter'; BS.flash = -1; BS.rot = 0;
     BS.x = 180; BS.y = -90; BS.rx = SIZE[type][0]; BS.ry = SIZE[type][1]; BS.mini = !!mini; BS.L = Math.min(40, Math.round(G.L));
     BS.tA = 0; BS.tB = 0; BS.tC = 0; BS.fanT = 0; BS.vx = 140; BS.squash = 0; BS.dmgAcc = 0; BS.dmgT = 0; BS.hitCd = 0;
     BS.sp = type === 5 ? 1.25 : 1; BS.orbT = 0; BS.orbA = 0;
@@ -69,7 +70,7 @@
     if (!BS.on || BS.dying > 0) return;
     if (BS.inv > 0 || BS.st === 'enter') { return; }
     if (BS.type === 2 && BS.st === 'spin') { dmg *= 0.1; if ((PP.G.tick & 7) === 0) PP.fx.tink(x, y); }
-    BS.hp -= dmg; BS.flash = 0.06; BS.dmgAcc += dmg;
+    BS.hp -= dmg; if (BS.flash < -0.14) BS.flash = 0.06; BS.dmgAcc += dmg;
     if (BS.hp <= 0) {
       BS.hp = 0; BS.dying = 0.01; clearAttacks(); popOrbs();
       PP.run.bossDefeated();
@@ -170,13 +171,13 @@
     if (!BS.on) return;
     var G = PP.G, SQ = PP.squad, sp = BS.sp, p2 = BS.phase >= 2, ds = dt * sp;
     BS.t += dt;
-    if (BS.flash > 0) BS.flash -= dt;
+    if (BS.flash > -1) BS.flash -= dt;
     if (BS.hitCd > 0) BS.hitCd -= dt;
-    if (BS.dmgAcc > 0) { BS.dmgT -= dt; if (BS.dmgT <= 0) { PP.fx.dmg(BS.x, BS.y - BS.ry - 6, BS.dmgAcc); BS.dmgAcc = 0; BS.dmgT = 0.2; } }
+    if (BS.dmgAcc > 0) { BS.dmgT -= dt; if (BS.dmgT <= 0) { PP.fx.dmg(BS.x + (BS.t * 7 % 2 < 1 ? -1 : 1) * (BS.rx * 0.6), BS.y + BS.ry * 0.5, BS.dmgAcc); BS.dmgAcc = 0; BS.dmgT = 0.2; } }
     if (BS.dying > 0) { BS.dying += dt; return; }
     if (BS.st === 'enter') {
       BS.y += 150 * dt;
-      if (BS.y >= 130) { BS.y = 130; BS.st = BS.type === 2 ? 'open' : 'roam'; PP.audio.sfx('roar'); }
+      if (BS.y >= BS.HOME) { BS.y = BS.HOME; BS.st = BS.type === 2 ? 'open' : 'roam'; PP.audio.sfx('roar'); }
       return;
     }
     updRipples(dt); updSnow(dt);
@@ -206,7 +207,7 @@
       }
     } else if (t === 3) {
       if (BS.st === 'roam') {
-        BS.x += BS.vx * dt; BS.rot += BS.vx / 48 * dt; BS.y = 130;
+        BS.x += BS.vx * dt; BS.rot += BS.vx / 48 * dt; BS.y = BS.HOME;
         if (BS.x > 282) { BS.x = 282; BS.vx = -140; } else if (BS.x < 78) { BS.x = 78; BS.vx = 140; }
         BS.tA += dt; if (BS.tA >= 3) { BS.tA = 0; fan(7, 70, 210, 0.04, true, 0); }
         BS.tB += dt;
@@ -227,7 +228,7 @@
       } else if (BS.st === 'away') {
         BS.tC -= dt; if (BS.tC <= 0) { BS.st = 'return'; BS.y = -70; }
       } else if (BS.st === 'return') {
-        BS.y += 300 * dt; if (BS.y >= 130) { BS.y = 130; BS.st = 'roam'; BS.tA = 1.5; }
+        BS.y += 300 * dt; if (BS.y >= BS.HOME) { BS.y = BS.HOME; BS.st = 'roam'; BS.tA = 1.5; }
       }
       if (BS.st === 'roll' && BS.hitCd <= 0) {
         var dx = BS.x - SQ.x, dy = BS.y - G.sy, rr = 42 + SQ.R * 0.8;

@@ -19,7 +19,7 @@
     switch (p.type) {
       case 'button': G.buttonsRun += 1; break;
       case 'stack': G.buttonsRun += 5; break;
-      case 'heart': SQ.add(PP.bal.heartGain(Math.round(G.L))); break;
+      case 'heart': if (G.mode !== 'endless' || SQ.n < 1.5 * PP.bal.mid(G.L)) SQ.add(PP.bal.heartGain(Math.round(G.L))); else G.buttonsRun += 3; break;
       case 'shield': if (SQ.shields < Math.max(2, G.prof.upg.shield || 0)) SQ.shields++; break;
       case 'frenzy': SQ.frenzy = 5; break;
       case 'magnet': SQ.magnet = 8; break;

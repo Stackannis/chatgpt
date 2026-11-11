@@ -20,8 +20,15 @@
     if (id === 'cloud' && rng() < 0.5) id = 'jelly';
     return id;
   }
-  function gateRow(rng, Le, A) {
+  function gateRow(rng, Le, A, n) {
     var g, tri = Le >= 13;
+    if (n > 1.3 * B.mid(Le)) {
+      // a big squad meets stingier rows, so the Marathon stays a challenge
+      var s = rng.int(0, 3), sm = Math.max(2, Math.round(0.35 * A));
+      g = s === 0 ? ['pop', '-' + A, '/2'] : (s === 1 ? ['spd', '-' + Math.round(1.5 * A), '/2'] : (s === 2 ? ['pop', 'spd', '-' + A] : ['+' + (n > 2 * B.mid(Le) ? 1 : sm), '-' + Math.round(1.5 * A), '/2']));
+      for (var q = g.length - 1; q > 0; q--) { var w = rng.int(0, q), t2 = g[q]; g[q] = g[w]; g[w] = t2; }
+      return g;
+    }
     if (!tri) {
       var k = rng.int(0, 4);
       g = k === 0 ? ['+' + A, 'x2'] : (k === 1 ? ['+' + A, '-' + Math.round(A * 0.7)] : (k === 2 ? ['pop', '+' + A] : (k === 3 ? ['grow', '+' + Math.round(0.6 * A)] : ['spd', '+' + A])));
@@ -46,7 +53,7 @@
       return;
     }
     if (tl >= EL.nextGate) {
-      EL.row.g = gateRow(rng, Le, G.A); EL.row.move = Le >= 25 && rng() < 0.3 ? 1 : 0;
+      EL.row.g = gateRow(rng, Le, G.A, PP.squad.n); EL.row.move = Le >= 25 && rng() < 0.3 ? 1 : 0;
       var row = PP.gates.spawnRow(EL.row);
       if (row) {      // rule 6: best side never the same more than 3 rows in a row
         var best = PP.gates.best(row, PP.squad.n);
@@ -63,7 +70,12 @@
         w.p = (w.e === 'cloud') ? 'line' : rng.pick(PATS);
         var nmax = Math.min(10, Math.floor(3 + Le / 5));
         w.n = w.e === 'cloud' ? 2 : (w.e === 'snail' || w.e === 'twin' ? rng.int(2, 4) : rng.int(3, nmax));
-        w.el = Le >= 19 && rng() < 0.18 ? 1 : 0;
+        w.el = Le >= 19 && rng() < Math.min(0.4, 0.18 + (Le - 19) * 0.006) ? 1 : 0;
+        // the further you go, the more waves span the whole road and must be shot through
+        if ((w.e === 'jelly' || w.e === 'dust' || w.e === 'bean' || w.e === 'twin') && rng() < Math.min(0.7, 0.2 + (Le - 12) * 0.012)) {
+          w.p = (w.e === 'jelly' || w.e === 'dust') && rng() < 0.4 ? 'wall' : 'line';
+          w.n = w.p === 'wall' ? 5 : (w.e === 'bean' ? 5 : (w.e === 'twin' ? 4 : 6));
+        }
         w.x = undefined; w.lane = undefined; w.gap = undefined;
         EL.beat[1] = 'wave'; EL.beat[2] = w;
         PP.run.exec(EL.beat);
