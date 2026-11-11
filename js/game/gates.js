@@ -59,7 +59,7 @@
     for (i = 0; i < GT.rows.length; i++) if (!GT.rows[i].on) { row = GT.rows[i]; break; }
     if (!row) return null;
     var toks = p.g, n = toks.length;
-    row.on = true; row.y = -40; row.n = n; row.moving = !!p.move; row.ph = 0; row.off = 0; row.passed = false; row.chosen = -1; row.fade = 1; row.hasGrow = false; row.t = 0;
+    row.on = true; row.y = G.oy - 40; row.n = n; row.moving = !!p.move; row.ph = 0; row.off = 0; row.passed = false; row.chosen = -1; row.fade = 1; row.hasGrow = false; row.t = 0;
     row.tut = false;
     var w = n === 2 ? 140 : 92, gap = n === 2 ? 20 : 12;
     for (i = 0; i < n; i++) {
@@ -73,7 +73,7 @@
     return row;
   };
   GT.growActive = function () {
-    for (var i = 0; i < GT.rows.length; i++) { var r = GT.rows[i]; if (r.on && r.hasGrow && !r.passed && r.y > -20) return true; }
+    for (var i = 0; i < GT.rows.length; i++) { var r = GT.rows[i]; if (r.on && r.hasGrow && !r.passed && r.y > PP.G.oy - 20) return true; }
     return false;
   };
   function feed(g, dmg) {
@@ -102,7 +102,7 @@
     var G = PP.G, best = -1e9, bg = null;
     for (var i = 0; i < GT.rows.length; i++) {
       var r = GT.rows[i];
-      if (!r.on || !r.hasGrow || r.passed || r.y > G.sy || r.y < 0) continue;
+      if (!r.on || !r.hasGrow || r.passed || r.y > G.sy || r.y < G.oy) continue;
       for (var k = 0; k < r.n; k++) {
         var g = r.g[k];
         if (g.type === 'grow' && x + half > g.x0 + r.off && x - half < g.x1 + r.off && r.y > best) { best = r.y; bg = g; }
@@ -140,6 +140,7 @@
         var lost = before - after;
         if (!PP.headless) for (var i = 0; i < Math.min(4, lost); i++) { var m = SQ.mem[Math.max(1, SQ.nvis - 1 - i)]; PP.fx.lose(m.x, m.y, m.sp); }
         SQ.setCount(after); SQ.squashT = 0.18; G.lostTotal += lost;
+        if (G.lostBy) G.lostBy.gate += lost;
       }
       len = AT2.num(Math.abs(after - before), after >= before ? AT2.PLUS : AT2.MINUS, AT2.BANG);
     }
@@ -160,7 +161,7 @@
         if (G.state === 'run' && SQ.n > 0) apply(r, r.chosen);
       }
       if (r.passed) { r.fade -= dt * 4; if (r.fade < 0) r.fade = 0; }
-      if (r.y > G.H + 50) r.on = false;
+      if (r.y > G.bot + 50) r.on = false;
     }
   };
 

@@ -26,6 +26,7 @@
   /* advance the simulation by real time `delta` using fixed steps; returns steps done */
   L.advance = function (delta, stepFn) {
     var sp = L.speed;
+    if (sp !== 1 && !PP.cheated && PP.G && PP.G.mode !== 'demo') PP.cheat('speed');
     L.acc += delta * sp;
     var max = Math.ceil(5 * Math.max(1, sp)), n = 0;
     while (L.acc >= DT && n < max) { stepFn(DT); L.acc -= DT; n++; }

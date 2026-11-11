@@ -4,7 +4,7 @@
   var PP = window.PP, U = PP.util, C = PP.cfg, TAU = Math.PI * 2;
   var MAXV = C.MAX_VIS;
   var SQ = PP.squad = {
-    x: 180, tx: 180, kv: 0, n: 3, nvis: 3, R: 14, VR: 18, PR: 30, invuln: 0, shields: 0, squashT: 0,
+    x: 180, tx: 180, kv: 0, n: 3, nvis: 3, R: 14, Rh: 11, VR: 18, PR: 30, invuln: 0, shields: 0, squashT: 0, helpDmg: 1,
     fireAcc: 0, frenzy: 0, magnet: 0, runDmg: 1, runRate: 1, cardDmg: 1, cardRate: 1, pierce: 0, big: 0, lucky: 1,
     weapon: null, wlv: 1, inSyrup: false, onIce: false, moved: 0, bubbleCount: 0, flip: 1,
     powerMult: 1, rateMult: 1, magnetMult: 1, beamOn: false, beamTop: 0, beamW: 8, t: 0, botX: -1,
@@ -36,6 +36,7 @@
     var s = Math.sqrt(nv);
     SQ.VR = 10 + 4.5 * s;
     SQ.R = Math.min(36, 10 + 2.5 * s);
+    SQ.Rh = Math.min(24, 8 + 2 * s);        // smaller, forgiving hitbox used against hazards and telegraphed attacks
     SQ.PR = (SQ.VR + 12) * SQ.magnetMult;
     // emitters = front-most visible pompoms (drawOrder is sorted front to back)
     var E = SQ.weapon ? Math.min(SQ.n, SQ.weapon.ecap) : 0, k = 0;
@@ -54,7 +55,8 @@
     SQ.powerMult = 1 + 0.06 * (prof.upg.power || 0);
     SQ.rateMult = 1 + 0.04 * (prof.upg.rate || 0);
     SQ.magnetMult = 1 + 0.25 * (prof.upg.magnet || 0);
-    SQ.shields = prof.upg.shield || 0;
+    SQ.shields = (prof.upg.shield || 0) + (o.shield || 0);
+    SQ.helpDmg = o.helpDmg || 1;
     SQ.n = o.squad;
     recalc();
     for (var i = 0; i < MAXV; i++) {
@@ -108,7 +110,10 @@
     SQ.setCount(n); SQ.squashT = 0.18;
     if (kind === 'hazard') SQ.invuln = 0.6;
     G.lostTotal += lost;
-    if (lost > 0) PP.events.emit('pompomLost', { n: lost, left: n, cause: kind });
+    if (lost > 0) {
+      if (G.lostBy) G.lostBy[kind] = (G.lostBy[kind] || 0) + lost;      // by source, for the lose-screen hint
+      PP.events.emit('pompomLost', { n: lost, left: n, cause: kind });
+    }
     if (n === 0) PP.run.fail();
     return true;
   };
@@ -116,7 +121,7 @@
   /* per-projectile damage for the current weapon (GDD 3.2 firing model) */
   SQ.shotDamage = function () {
     var w = SQ.weapon, E = SQ.emitN || 1;
-    return w.dmg * PP.data.weaponLvMult(SQ.wlv) * SQ.powerMult * SQ.runDmg * SQ.cardDmg * SQ.n / E;
+    return w.dmg * PP.data.weaponLvMult(SQ.wlv) * SQ.powerMult * SQ.runDmg * SQ.cardDmg * SQ.helpDmg * SQ.n / E;
   };
   SQ.fireRate = function () {
     var w = SQ.weapon;
@@ -158,7 +163,7 @@
         }
         case 'star':
           s = SH.fire(3, ex, ey, (rng() - 0.5) * 60, -sp, dmg, w.r * big);
-          if (s) { s.pierce = SQ.pierce; s.flag = lv >= 5 ? 1 : 0; s.turn = 6 * (lv >= 3 ? 1.5 : 1); s.tt = 0; }
+          if (s) { s.pierce = SQ.pierce; s.flag = lv >= 5 ? 1 : 0; s.turn = (w.turn || 4.5) * (lv >= 3 ? 1.5 : 1); s.tt = 0; }
           break;
         case 'cookie': {
           var cn = lv >= 5 ? 2 : 1;

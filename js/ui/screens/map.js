@@ -7,6 +7,16 @@
   function nodeX(L) { return 50 + 28 * Math.sin(L * 1.05 + 0.6); }          // % of width
   function nodeY(L) { return TOP + (30 - L) * STEP; }                          // logical units from the top
 
+  /* Helping Hand badge: glove + tier pips (1-4) + what it gives (pompoms, shield, damage). null when inactive. */
+  UI.helpPill = function (hp, size) {
+    if (!hp || hp.tier <= 0) return null;
+    var pips = h('span', 'hpips');
+    for (var i = 0; i < 4; i++) pips.appendChild(h('span', 'pip' + (i < hp.tier ? ' on' : '')));
+    var kids = [UI.icon('i_glove', size || 24), pips, h('span', null, '+' + hp.pom), UI.icon('pom_bunny_0', 18)];
+    if (hp.shield) kids.push(UI.icon('k_shield', 18));
+    if (hp.dmg > 1) { kids.push(UI.icon('i_up_power', 18)); kids.push(h('span', null, '+' + Math.round((hp.dmg - 1) * 100) + '%')); }
+    return h('div', 'pill help', kids, { 'data-testid': 'helping-hand', 'data-tier': String(hp.tier) });
+  };
   function levelCard(el, L) {
     var t = PP.t, sv = PP.save.data, B = PP.bal, rec = sv.levels[L] || { s: 0, best: 0, pct: 0 };
     var modal = h('div', 'modal', null, { 'data-testid': 'level-card' });
@@ -21,7 +31,8 @@
     th.appendChild(h('span', 'pill', [UI.icon('i_star', 14), UI.icon('i_star', 14), UI.icon('i_star', 14), h('span', null, '≥ ' + B.star3(L)), UI.icon('pom_bunny_0', 16)]));
     panel.appendChild(th);
     if (rec.s === 0 && rec.pct > 0) panel.appendChild(h('div', 'muted', t('map.best', { n: rec.pct })));
-    if (PP.econ.helping(L) > 0) panel.appendChild(h('div', 'pill', [UI.icon('i_glove', 22), h('span', null, '+' + PP.econ.helping(L))], { 'data-testid': 'helping-hand', style: 'margin-top:calc(var(--u)*4)' }));
+    var hh = UI.helpPill(PP.econ.helping(L), 22);
+    if (hh) { hh.style.marginTop = 'calc(var(--u)*4)'; panel.appendChild(hh); }
     // weapon carousel (equip)
     var wsel = h('div', 'wsel');
     PP.data.weapons.forEach(function (w) {
@@ -30,16 +41,18 @@
       b.addEventListener('click', function () {
         PP.econ.equip(w.id); PP.audio.sfx('click');
         var all = wsel.querySelectorAll('.wbtn'); for (var i = 0; i < all.length; i++) all[i].classList.remove('sel');
-        b.classList.add('sel'); name.textContent = t('weapon.' + w.id) + ' · ' + t('shop.lv', { n: sv.weapons[w.id].lv });
+        b.classList.add('sel'); name.textContent = t('weapon.' + w.id) + ' · ' + t('shop.lv', { n: sv.toy || 1 });
       });
       wsel.appendChild(b);
     });
     panel.appendChild(wsel);
-    var name = h('div', 'muted', t('weapon.' + sv.equipped) + ' · ' + t('shop.lv', { n: sv.weapons[sv.equipped].lv }));
+    var name = h('div', 'muted', t('weapon.' + sv.equipped) + ' · ' + t('shop.lv', { n: sv.toy || 1 }));
     panel.appendChild(name);
     var play = UI.btn(t('menu.play'), 'card-play', function () { close(); PP.game.startLevel(L); }, 'primary');
     play.setAttribute('data-autofocus', '1');
     panel.appendChild(play);
+    // boss levels, after 3 fails: skip the run-in and start the boss fight with a mid squad (no run-in Buttons)
+    if (PP.econ.canSkipToBoss(L)) panel.appendChild(UI.btn(t('map.toboss'), 'card-toboss', function () { close(); PP.game.startLevel(L, { toBoss: true }); }, 'small gold', BOSS_SPR[L], 26));
     modal.appendChild(panel);
     modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
     el.appendChild(modal);

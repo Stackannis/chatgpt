@@ -19,9 +19,11 @@
       r1.appendChild(shop);
       box.appendChild(r1);
       var r2 = h('div', 'menu-row');
-      var eb = UI.btn(endless ? t('menu.endless') : t('menu.endless') + ' · L30', 'btn-endless', function () {
+      var eb = UI.btn(t('menu.endless'), 'btn-endless', function () {
         if (PP.save.endlessUnlocked()) PP.game.startEndless(); else UI.toast(t('menu.endless.locked'));
       }, 'small' + (endless ? '' : ' off'), endless ? 'i_bridge' : 'i_lock', 20);
+      // "Marathon · L30" in portrait; "L30" drops to its own line in the compact landscape layout
+      if (!endless) eb.lastChild.appendChild(h('span', 'lk', [h('span', 'sep', ' · '), h('span', null, 'L30')]));
       r2.appendChild(eb);
       r2.appendChild(UI.btn(t('menu.settings'), 'btn-settings', function () { PP.game.goto('settings', { from: 'menu' }); }, 'small'));
       box.appendChild(r2);

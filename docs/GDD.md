@@ -1,4 +1,6 @@
-# POMPOM PARADE: Game Design and Implementation Document (v1.0)
+# POMPOM PARADE: Game Design and Implementation Document (v1.1)
+
+> **v1.1 = v1.0 + round-1 fix plan (`docs/FIX_PLAN_R1.md`).** Where a paragraph is marked "round 1" it overrides the older text or table next to it. The measured balance tables and the list of bands that are not yet met are in `README.md`.
 
 Audience: the implementing agent. This document is the spec. Where it gives a number, use that number. Every balance value is a starting point that the **balance harness** (§9) must confirm. Units: **u** = logical pixel in the 360-wide game space, **s** = seconds, **L** = level number.
 
@@ -38,7 +40,8 @@ Audience: the implementing agent. This document is the spec. Where it gives a nu
 ### 3.1 Screen and space
 - Logical width is always **360 u**. Logical height `H = clamp(360 × viewportH / viewportW, 600, 780)`. Anything beyond that is letterboxed or pillarboxed with a pre-rendered world-themed pattern, not plain black.
 - The road spans x 30–330 (300 u wide). The side margins hold decorations. For telegraphs, the road is divided into **4 lanes of 75 u** with centres 67.5, 142.5, 217.5 and 292.5.
-- The squad centre sits at `y = H − 110`. Enemies spawn at y = −40. **Safe top margin:** HUD elements go at y ≥ 48 because of the YouTube overlay.
+- **Fixed design frame (round 1):** gameplay is identical on every screen height. The simulation always runs in a 640 u tall design frame with the squad centre at design y = 530; enemies spawn at design y = −40. On screen the squad stands at `sy = min(H − 110, 530)` and every gameplay y is drawn at `designY + oy`, `oy = sy − 530` (so on H = 600 the top 40 u of the frame are off-screen). On screens taller than 640 the area below the design frame is road-only **thumb space**: the road is repainted over whatever scrolled past the squad. The same seed gives a bit-identical run at H = 600, 640, 700 and 780 (`tests/regress.js`). **Safe top margin:** HUD elements go at y ≥ 48 because of the YouTube overlay (plus the safe-area inset).
+- **Landscape (round 1):** the canvas stays a full-height portrait column; DOM menus and overlays use the whole viewport with two-column layouts; when the column is narrower than 300 CSS px the pause button and the counters move into the side bars; dragging works anywhere on screen. A one-time toast says "Best in portrait". No orientation lock, no rotate overlay.
 
 ### 3.2 Squad
 | Stat | Value |
@@ -47,7 +50,8 @@ Audience: the implementing agent. This document is the spec. Where it gives a nu
 | Squad cap | 999 (counter); **visible pompoms capped at 30**. Above 30, a "×N" badge appears over Pip |
 | Formation | Pip at the centre, then hex rings at 15 u spacing. Pompom sprite radius 9 u. Each pompom bobs at 4 Hz with random phase and lerps to its slot at 12/s |
 | Visual radius | `10 + 4.5·√Nvis` |
-| **Hitbox** (all collisions except pickups) | circle at the squad centre, `R = min(36, 10 + 2.5·√Nvis)` |
+| **Hitbox** (enemy contact) | circle at the squad centre, `R = min(36, 10 + 2.5·√Nvis)` |
+| **Small hitbox** (hazards, boss attacks, raindrops / snowballs, charging Dashers) | `Rh = min(24, 8 + 2·√Nvis)`; these shapes also collide at 85 % of their visual size. Each hazard can hurt only once |
 | Pickup radius | visual radius + 12 u (× Magnet bonus) |
 | Gate choice | decided by the **squad centre x** only |
 | Losing pompoms | they tumble away dizzy (spin + fall + "boing") and are never shown hurt. Squad shrinks with a squash 1.15/0.85 |
@@ -59,7 +63,15 @@ Audience: the implementing agent. This document is the spec. Where it gives a nu
 - `fireRate = weaponRate × (1 + 0.04 × QuickPawsLv) × runRateMult`, capped at 3× weaponRate.
 
 ### 3.3 Weapons (7, one equipped per run)
-Baseline DPS per pompom at Lv1 is about 24. Later weapons carry a small tier bonus (the "Eff." column) so that unlocks feel like progress, and each has a distinct role.
+Baseline DPS per pompom at Toy Level 1 is 24 × Eff. Later toys are clearly stronger (the "Eff." column) and each has a role, shown as "Best against" icons on its Workshop card.
+
+**Round 1 (overrides the table below where they differ):**
+- **Shared Toy Level (1–5):** one level for every toy instead of one per weapon. Cost to reach k = `150 × 1.8^(k−2)` (150 / 270 / 486 / 875), no weapon-tier factor. The Lv3 / Lv5 perks apply to whichever toy is equipped. Old saves migrate to Toy Level = highest owned weapon level.
+- **Eff.:** Wand 1.00, Shaker 1.06, Gumball 1.12, Star 0.92, Cookie 1.24, Confetti 1.32, Beam 1.40. Current base numbers: Star dmg 7.9; Cookie dmg 19, 5 emitters, 420 u/s, range 300; Confetti 21 + splash 13; Beam 33.6 DPS per pompom.
+- **Star Wand** is the "easy aim" toy and pays for it: 50° cone, turn 4.5 rad/s, it never homes in on a boss, ×0.5 damage to shells and crates.
+- **Roles:** Shaker: swarms. Gumball: shells, crates and bosses (×2 shells / crates, ×1.5 bosses). Cookie: columns, pierces all. Confetti: clusters and Twinjellies (×1.5 on Twinjellies and minis). Beam: bosses and Elites (×1.4 each).
+- **Auto-equip:** a newly unlocked toy is equipped at once; the result card says "Equipped!" and offers "Keep <old toy>".
+- **Acceptance** (`tests/weapons_cmp.js`, good model, same Toy Level): the newest toy is the best or within 5 points of the best on its world's levels, and never more than 5 points below Star.
 
 | # | Name (EN / FR) | Unlock | Ecap | Projectile | Dmg | Rate/s | Speed u/s | Behaviour | Eff. | Lv3 perk / Lv5 perk |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -91,6 +103,8 @@ Baseline DPS per pompom at Lv1 is about 24. Later weapons carry a small tier bon
 
 Enemy projectiles are **always magenta #FF3FA4 with a white core** and appear nowhere else.
 
+**Telegraphs (round 1):** no attack is telegraphed for less than 1.0 s in worlds 1–2 and 0.8 s afterwards. The Donut Dasher's lane stripe lasts 1.0 s in world 3 (0.8 s later); a Grumpcloud darkens 1.0 / 0.8 s before each raindrop. Player projectiles have a 1.5 u plum rim (#4A3B52 at 60 %); bubbles are #2FC8F0, cookies #8A4F1F with an icing dot.
+
 ### 3.5 Obstacles and destructibles
 | Object | Intro | Type | Values |
 |---|---|---|---|
@@ -103,7 +117,9 @@ Enemy projectiles are **always magenta #FF3FA4 with a white core** and appear no
 | Candy-cane Fence | L20 | indestructible hazard | spans the road with one 110 u gap (gap marked by sparkles); contact −3 |
 | Ice Patch | L21 | zone | 300×100 u; steering response ×0.4 (drift) |
 
-All indestructible hazards use red/white candy stripes. Only hazards use that pattern. **Hazard contact cost** is `max(listed, round(0.08 × squadMid(L)))` so hazards stay relevant later.
+All indestructible hazards use red/white candy stripes. Only hazards use that pattern. **Hazard contact cost** is `max(listed, round(0.05 × squadMid(L)))` (round 1; was 0.08). Hazards collide with the small hitbox `Rh` at 85 % of their visual size and each one can hurt the squad once.
+
+**No free ride (round 1, from L4, validator-enforced):** every level has at least one **centre-blocking hazard** (covering x 150–210: a Spinner within 25 u of the centre, a Rolling Gumball at x = 180, or a Fence whose gap lies fully to one side) in every 15 s; the generator places one every 15 s in world 1, 12 s in world 2 and 10 s from world 3 and in boss run-ins. No hazard arrives within 1.5 s before or 2.0 s after a gate row.
 
 ### 3.6 Pickups
 | Pickup | Intro | Effect |
@@ -134,6 +150,12 @@ Gates are candy arches spanning the road. Two gates are 140 u wide with a 20 u p
 - L4–12, trade-offs: `[+A | ×2]` (the better one depends on the current squad), `[+A | −n]` (trap), `[POP | +A]`, `[grow | +round(0.6A)]`.
 - L13+, three-gate rows: `[×2 | +1.5A | −A]`, `[×3 | ÷2 | +A]`, `[POP | SPEED | +A]`, `[grow | grow | −n]`.
 
+**Round 1 gate rules (generator + validator):**
+- From L4 at least **40 % of a level's rows contain a trap gate** (a `−n` or `÷2`). A trap never takes more than 30 % of the squad expected at that row, and a row never has two traps.
+- From L13 at most half of the rows are 3-gate rows; the rest are wide 2-gate rows. In a 3-gate trap row the best gate is on one side, the trap on the other and the weakest good gate in the middle; in the first two such rows (never the first row of a level) the trap itself sits in the middle lane. Staying in the middle of the road never pays best.
+- Every `+` gate is worth at least 0.45·A (0.9·A in boss run-ins), so each row matters and one missed row never ruins a run. The perfect path ends at ≤ 1.3 × mid (≤ 1.9 × mid in boss run-ins, so the squad reaches the boss near mid even after a slip).
+- From L7 at least one wave per level enters through the two side lanes only.
+
 **Fairness rules (validator-enforced, §9):**
 1. Every row has ≥ 1 gate with a non-negative effect.
 2. No gate ever reduces the squad below 1, so gates alone can never fail a run.
@@ -154,7 +176,14 @@ Gates are candy arches spanning the road. Two gates are 140 u wide with a 20 u p
 ### 3.9 Bosses (L6, 12, 18, 24, 30)
 At the end of the run-in a "BOSS!" banner shows for 1.5 s. Scroll slows to 25 u/s and the boss enters to y ≈ 130. A HP bar sits at the top (y 52) with a boss portrait. There is no timer. The boss absorbs any shot reaching its ellipse hitbox. **Boss hit cost** = `max(1, round(f × squadMid(L)))`. Between phases the boss is invulnerable for 1.5 s ("huff" star burst) and **all enemy projectiles are cleared**. On defeat: giant confetti pop, 0.3× slow-mo for 0.8 s, then win.
 
-`BossHP = round(1.4·squadMid × 24 × M × Ttarget × 0.85, −2)`, where Ttarget = 25 / 30 / 35 / 40 / 50 s. Values are in §4.
+`BossHP = round(1.4·squadMid × 24 × M × Ttarget × 0.85 × bossFactor(world), −2)`, where Ttarget = 25 / 30 / 35 / 40 / 50 s and bossFactor is **one factor per world** (`BOSS_TUNE` in `js/data/balance.js`: 0.75 / 0.46 / 1.80 / 1.25 / 0.80, tuned with the simulated-human models).
+
+**Round 1 (overrides the pattern table below where they differ):**
+- **Hit cost** = `max(1, round(f × squadMid(L) × w))` with w = 0.6 in world 1, 0.75 in world 2, 1 afterwards.
+- Telegraphs ≥ 1.0 s (worlds 1–2) / 0.8 s. Boss attacks use the small hitbox `Rh` and 85 % shapes; the Big Roll hurts only inside the striped lane it telegraphs.
+- **A loss is final:** once the squad is gone no shot still in the air can defeat the boss. The Rainbow Beam only hits a boss that is a real target in front of the squad (not entering, rolling away or returning).
+- **Every boss asks for a small, unhurried dodge and none can be beaten standing still:** Big Wobble sways with a 7 s period and each Jelly Ripple opens its gap 75–95 u from the squad. Sir Shellwhirl fires a fan every 1.2 s while spinning and every second fan is aimed. Grand Donut roams at 100 u/s, fires a 4-sprinkle fan that brackets the squad every 4 s, warns 2.2 s before a Big Roll (1.4 s for the clone) and a roll costs f = 0.20. Thunderpuff's and the Queen's snow shimmers for 2.0 s and always falls on the squad's own lane plus one more, with a clear lane next to it. The Queen's fan has 8 sprinkles.
+- **Go to boss:** after 3 fails on a boss level the level card (and the lose screen) offer "Go to boss": the fight starts at once with `round(mid)` + Helping Hand pompoms, no run-in Buttons, no Sparkle Meter.
 
 | Boss | Pattern |
 |---|---|
@@ -167,18 +196,18 @@ At the end of the run-in a "BOSS!" banner shows for 1.5 s. Scroll slows to 25 u/
 ### 3.10 Permanent upgrades (Workshop, Buttons only; no real money, no ads)
 | Upgrade (EN / FR) | Per level | Max | Cost of level k+1 (k = current level) |
 |---|---|---|---|
-| Pop Power / Force pop | +6% dmg | 15 | `60 × 1.45^k` |
-| Quick Paws / Pattes rapides | +4% fire rate | 12 | `80 × 1.5^k` |
-| Buddy Start / Copains au départ | +1 starting pompom | 6 | `100 × 1.8^k` |
+| Pop Power / Force pop | +6% dmg | 15 | `40 × 1.30^k` (round 1) |
+| Quick Paws / Pattes rapides | +4% fire rate | 12 | `50 × 1.35^k` (round 1) |
+| Buddy Start / Copains au départ | +1 starting pompom | 6 | `80 × 1.6^k` (round 1) |
 | Bubble Shield / Bouclier bulle | +1 shield charge at start | 3 | `300 × 2.5^k` |
 | Lucky Buttons / Boutons chanceux | +10% Buttons | 5 | `150 × 1.6^k` |
 | Magnet Paws / Pattes aimantées | +25% pickup radius | 4 | `80 × 1.6^k` |
 
 **Rewards:**
 - **Win:** `20 + 6L` + `floor(endSquad / 2)` (Finish Arch "Bonus Bridge", where pompoms hop across and drop Buttons) + Buttons collected in the run + **10 per newly earned star**. Lucky Buttons multiplies everything except the star bonus.
-- **Fail:** keep **all collected Buttons** + `floor((20 + 6L) × 0.5 × progress)`. Best progress % is saved and shown on the map.
-- **Helping Hand:** after 2 consecutive fails on a level, the next attempt starts with +3 pompoms. After 4 fails it is +6. Shown as a wordless glove icon. Resets on win.
-- Expected first-clear income across L1–30 is about 5,500–6,500 Buttons. Total sinks are well above 20,000, so upgrades stay meaningful in Endless.
+- **Fail (round 1):** keep **all collected Buttons** + `floor((20 + 6L) × (0.15 + 0.6 × progress))`, times luck. Best progress % is saved and shown on the map.
+- **Helping Hand (round 1), by consecutive fails on the level:** ≥ 2: + `max(3, round(0.1·mid))` pompoms; ≥ 3: + 1 Shield charge; ≥ 4: +15 % damage and the pompom bonus becomes `max(3, round(0.2·mid))`; ≥ 6: +30 % damage. Shown as a glove with one pip per tier (1–4) on the level card, the lose screen and above the squad at the start of the run. Resets on win.
+- **Expected profile** (`PP.econ.expectedProfile`, used by every balance table): shared Toy Level, newest toy auto-equipped, the costs above, the win income of each level plus 0.5 failed attempts per level (at half progress), greedy spending on the cheapest of Power / Quick Paws / Buddy Start / Toy Level, Shield and Lucky ×1 from L10. At L30 it is Power 11, Quick Paws 8, Buddy 5, Shield 1, Lucky 1, Toy Level 4; the campaign simulation ends on almost the same profile.
 
 ---
 
@@ -193,9 +222,17 @@ At the end of the run-in a "BOSS!" banner shows for 1.5 s. Scroll slows to 25 u/
 | 4 Frosty Sundae Peaks / Pics Sundae | 19–24 | #EAF6FF / #B9E4FF / #7FC8FF | ice-cream mountains, lavender #C9B8FF |
 | 5 Starlight Candy Castle / Château Étoilé | 25–30 | #7A6BC9 / #2E2A5C / #FF8AD8 | night, twinkling stars #FFE27A, castle towers |
 
-### 4.2 Difficulty curve (authoritative table)
+### 4.2 Difficulty curve
 
-Formulas:
+**Round 1 (FIX_PLAN_R1) replaces the hpMult / En./10s / P / Boss HP columns of the table below.** The per-level `TUNE` array fitted to the perfect bot is gone. `js/data/balance.js` now holds:
+- **Enemy toughness** `hpMult(L) = base(L) × g(L) × ADJ[L]`: `base(L) = 1.25 × 1.072^(L−1)` (1.25 at L1, 9.39 at L30), `g(L)` a global piecewise-linear factor with 4 knots (L1, L12, L20, L30; all 1.00 at the moment), `ADJ` an optional per-level correction limited to ±8 % (none in use).
+- **Enemy amount**: every level is composed to a **wave-HP-per-second budget** `hpsTarget(L)` instead of an enemy count: 24 HP/s at L1, ×1.18 per normal level (×1.14 in world 3), the first level of each world at 0.92 × the level two before it, boss run-ins like the level before. Result: 24 → 47 (L5) → 43 (L7) → 83 (L11) → 76 (L13) → 129 (L17) → 119 (L19) → 230 (L23) → 211 (L25) → 410 HP/s (L29).
+- **Monotonicity (validator + `tests/curve.js`):** every normal level is 1.00–1.20 × the previous normal level; world openers (L7, 13, 19, 25) are 0.85–0.95 × L−2. Measured: 1.14–1.185 and 0.918–0.921.
+- **Boss HP**: formula of §3.9 with one factor per world.
+- **Balance is tuned and reported with simulated-human player models, never with the perfect bot** (`js/debug/humans.js`, ported 1:1 from the round-1 review): `good` (+0.15 s reaction, 12 u noise, 90 % best gate), `avg` (+0.30 s, 20 u, 75 %), `sloppy`, `lazy` (drifts around the centre, random gates), plus `bot` as the "is it possible" check. Every table is produced at screen heights 600 and 780. Target bands, the measured table and the honest list of misses are in the README.
+- **Retune procedure:** change `HPS` / `G_KNOTS` / `BOSS_TUNE` in `js/data/balance.js`, run `node tools/gen_levels.js` (it re-composes every level to the budget and validates it), then `node tests/curve.js`, `node tests/balance.js`, `node tests/campaign.js`, `node tests/weapons_cmp.js` and `node tests/endless_sim.js`. `node tests/tune.js` sweeps a factor without writing anything.
+
+Formulas (squad, run length, scroll and stars are unchanged):
 - `squadMid = 5 + 1.6(L−1)`, `peak = 1.4 × mid`
 - `M = 1 + 0.045(L−1)`, which assumes the greedy economy profile (perm + weapon tier/level)
 - `ExpDPS = mid × 24 × M`
@@ -239,9 +276,17 @@ Formulas:
 | 29 | Grand Parade (everything) | 102 | 122 | 23.6 | 17.6 | 50/70 | 2701 | .46 | – | 40/57 |
 | 30 | **FINAL BOSS Queen Grumblina** | 45+boss | 124 | 24.8 | 18.1 | 51/72 | 2844 | .47 | 169,200 | 41/59 |
 
-**Target first-attempt win rates** (for the "average-good" bot and real players): L1–5 ≥ 90%; normal levels 65–80%; bosses 55–65%; first level of a world ≥ 80% (relief).
+**Target first-attempt win rates (round 1, expected profile, 24 seeds per cell, H = 600 and 780):**
 
-**Retune procedure:** the balance harness measures the real greedy-profile M. If it deviates from the table by more than 15%, scale hpMult for that level proportionally. Do not change costs. Boss HP follows the same correction.
+| | good, normal | good, boss | avg, normal | avg, boss |
+|---|---|---|---|---|
+| W1 | 95–100 % | 85–95 % | 85–100 % | 65–85 % |
+| W2 | 88–98 % | 75–90 % | 70–88 % | 50–70 % |
+| W3 | 82–94 % | 65–85 % | 60–80 % | 40–60 % |
+| W4 | 78–92 % | 60–80 % | 55–75 % | 35–55 % |
+| W5 | 72–90 % | 55–75 % | 50–70 % | 30–50 % |
+
+Lazy: may win L1–3; ≤ 50 % on average over L4–12, ≤ 30 % on L6 and L12, ≤ 15 % from L13. Bot ≥ 95 % everywhere. Campaign (fresh save, greedy spending, Helping Hand): good ≤ 55 attempts and ≤ 8 per level, avg ≤ 110 and ≤ 15. What is and is not reached is listed in the README.
 
 ### 4.3 Level authoring
 Levels are **hand-authored timelines** in `js/data/levels.js`:
@@ -255,17 +300,17 @@ Levels are **hand-authored timelines** in `js/data/levels.js`:
 - **Rhythm per level:** 0–3 s calm (lone weak enemies) → repeating blocks of (wave 6–10 s → 2 s breather → gate row) → one mid-level "event" (new element showcase) → final 10 s crescendo wave → Finish Arch.
 - **Gate rows:** about one every 11–14 s, so 4–8 per level.
 - **Intro rule:** the level that introduces an element shows it **alone first** with an easy instance and a 1-line hint (§5). It then becomes a regular part of the mix 2–3 levels later.
-- **Count rule:** total enemies ≈ `density × length / 10` (±10%). The validator checks this.
+- **Budget rule (round 1, replaces the count rule):** the level's wave HP per second (Σ enemies × HP units × hpMult × ramp / length) is within 4 % of `hpsTarget(L)` and obeys the monotonic rule of §4.2; `tools/gen_levels.js` composes the waves to the budget (a swarm level has many weak Grumblies, a Twinjelly level fewer tough ones). The validator also enforces the "no free ride" rules of §3.5 and §3.7 (centre-blocking hazard every 15 s, ≥ 40 % trap rows, side-lane wave from L7).
 
 ### 4.4 Unlocks and endgame
 - **Levels:** strictly sequential. Clearing L unlocks L+1. Any cleared level is replayable.
 - **Weapons:** unlock on clearing L3, L6, L10, L14, L18 and L24 (see the table). This is a free unlock with a "New weapon!" card. Upgrades are bought with Buttons.
 - **Endless "Parade Marathon"** (unlocks after L30): procedural, using the same pattern library and a seeded RNG.
-  - Level-equivalent `Le = 12 + t/20`, continuous.
-  - For L > 30: `hpMult = 24.8 × 1.08^(L−30)`; density +0.45 per Le, capped at 26.
-  - A gate row every 11 s.
-  - A mini-boss (a random boss 1–4 at 40% of its formula HP) every 100 s.
-  - **Score = metres travelled** (`distance / 10`). The best score is saved and is the only value sent to `sendScore`.
+  - **Fair start (round 1):** level-equivalent `Le = 10 + t/15`, squad `round(mid(10)) + Buddy Start` (19 + buddies), first gate row after 4 s, then one every 11 s.
+  - **Escalation between Le 20 and Le 40** (t = 150–450 s): stingy gate rows 0 → 60 % (and always for an oversized squad), Elites 0 → 35 %, hazard spacing 15 s → 7 s (half of them centre-blocking), a mini-boss (random boss 1–4) every 90 s whose HP goes from 50 % to 100 % of the mini-boss formula (40 % of a campaign boss of that Le).
+  - Marathon Grumblies are `HP_K = 14` times tougher than the campaign curve at the same Le (the squad carries every upgrade, gate and card bonus), ×1.08 per Le beyond 30 and another ×1.09 per Le beyond 40; from Le 18 enemy bumps and hazard costs grow with `(mid(Le)/mid(18))^1.5`. Density +0.45 per Le, capped at 26.
+  - **Measured (24 runs, L30 profile + Beam, `tests/endless_sim.js`):** good median 4.6 min, avg 2.4 min, the bot dies before 15 min in 100 % of runs (median 13.9 min). Targets: 4–7 min, 2–4 min, ≥ 80 %.
+  - **Score = metres travelled** (`distance / 10`). The best score is saved and is the only value sent to `sendScore`, and only from a clean session: a run with any debug parameter, god mode, autoplay, speed ≠ 1 or override never updates the record or the leaderboard.
   - Buttons are earned as normal.
 - **End of content** is made explicit: after the final boss, the ending plays, the map shows a "THE END ★ Endless unlocked" banner, and the total stars appear on the map header (out of 90).
 
@@ -283,7 +328,7 @@ All menus are **DOM overlays** (HTML/CSS) on top of the canvas: crisp text, easy
 | **Pause** | Resume, Restart, Map, toggles (music / SFX / vibration). Esc = resume. |
 | **Card choice** | 2 cards with an icon, a short name and a big number (e.g. "+25%"). |
 | **Win** | Stars pop one by one with sound, Buttons count up (each part labelled with an icon: level, bridge, collected, stars), a "New weapon!" or "New world!" card when relevant, a progress strip to the next weapon unlock. Buttons: **Next** (primary), Replay, Workshop. |
-| **Lose** | "So close!" / "Presque !". Progress % vs. best, Buttons kept count-up, one **hint icon**: an upgrade arrow to the Workshop if an upgrade is affordable, otherwise a "pick blue gates" pictogram. Helping Hand glove if active. **Retry** (primary), Workshop, Map. |
+| **Lose** | Title by progress (round 1): < 40 % "Keep going!" / "Continue !", 40–80 % "Nice try!" / "Bien essayé !", > 80 % "So close!" / "Presque !". Progress % vs. best, Buttons kept count-up, one **hint by cause**: (1) the Helping Hand tier just rose → glove with its pips; (2) otherwise an upgrade is affordable → upgrade arrow to the Workshop; (3) otherwise the biggest source of lost pompoms: boss → flashing-lane pictogram ("watch the warning, then dodge"), hazard → candy-stripe pictogram, Grumblies → "pop them early", and blue gates whenever gates took ≥ 30 % of the losses. Helping Hand glove if active. **Retry** (primary), "Go to boss" on boss levels after 3 fails, Workshop, Map. |
 | **Workshop** | Tabs: Weapons / Upgrades. Weapon card: animated icon, 3 stat bars (Power, Speed, Special), level pips, Upgrade (cost) and Equip. Locked weapons show a silhouette + "Level 10". Upgrade rows: icon, level pips, effect "+6% → +12%", cost. Unaffordable costs are greyed out. Purchases trigger a sparkle + SFX. |
 | **Settings** | Music on/off, Sound effects on/off, Vibration on/off (hidden if `navigator.vibrate` is missing), Screen shake full/reduced, Control sensitivity (3 steps), Language Auto/English/Français (**hidden inside Playables**, where the platform language is used), Reset progress (two-step confirm), credits line. **There is no master mute button** (Playables rule): music and SFX are separate toggles. |
 | **Ending** | 6 canvas-drawn panels, auto-advancing every 2.5 s or on tap, then credits. Endless is unlocked. |
@@ -367,10 +412,14 @@ js/gfx/   sprites.js(procedural painters + cache) atlas.js particles.js fx.js ba
 js/game/  squad.js projectiles.js enemies.js gates.js obstacles.js pickups.js bosses.js
           collision.js(uniform grid 60 u) runner.js(level timeline) endless.js cards.js economy.js save.js
 js/ui/    ui.js screens/*.js hud.js tutorial.js
-js/debug/ debug.js autoplay.js balance.js validator.js
+js/debug/ debug.js autoplay.js humans.js balance.js validator.js   (web build only, injected by js/core/debug_loader.js)
+js/build_flags.js (PP.BUILD = 'web' | 'playables')   js/core/debug_loader.js
 js/main.js
-README.md (how to run, URL params, test API)
+tools/gen_levels.js   tools/package_playables.js (builds dist/playables without js/debug, BUILD = 'playables')
+README.md (how to run, URL params, test API, balance tables)
 ```
+- **Debug code never ships to Playables (round 1):** the debug scripts are not static `<script>` tags; `js/core/debug_loader.js` injects them only when `PP.BUILD !== 'playables'` and the page is not inside the Playables environment. There, URL parameters are ignored and `window.__game` does not exist. `PP.cheated` is true as soon as any debug URL parameter is present, or god / autoplay / speed ≠ 1 / a squad, weapon or upgrade override is used, or a mutating `__game` method is called (which also switches the session to no-persist on the spot). `platform.sendScore` and the saved Endless record are skipped when `PP.cheated` (checked in both `platform.sendScore` and `econ.settle`).
+- **Input (round 1):** the first finger owns steering; other pointers are tracked but never steal it; when the owner lifts, the oldest remaining pointer takes over with a fresh baseline. Drags made behind the pause / card overlays are ignored and never replayed. Key auto-repeat is ignored for P, Esc and Enter. Pausing is refused once the run is over, so the result or ending screen can never be skipped; `ended` is saved only when the ending finishes or is skipped, and Settings offers "Replay ending" afterwards.
 - **index.html:**
   - `<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">`
   - CSS: `touch-action:none`, `overscroll-behavior:none`, `user-select:none`; the context menu is suppressed.
@@ -380,14 +429,14 @@ README.md (how to run, URL params, test API)
 - **Rendering:** a single canvas. `renderScale = cssScale × min(devicePixelRatio, dprCap)`, with `dprCap` 2 (high), 1.5 (mid) or 1 (low). The canvas backing store is sized to the letterboxed CSS rect. All drawing uses `setTransform` in logical units.
   - On `resize`/`orientationchange`, debounce 100 ms, recompute H and scale, re-cache sprites if renderScale changed, and **keep all state**.
   - Desktop and landscape show a centred portrait column with themed pillarbox.
-- **Quality scaler:** rolling average of frame time over 90 frames.
-  - If it stays > 20 ms, step down: particles ×0.5 → DPR 1.5 → DPR 1 → no side-decor animation.
-  - If it stays < 12 ms for 5 s, step back up one level.
-  - At most 2 changes per minute.
+- **Quality scaler (round 1):** rolling average of frame time over 60 frames.
+  - If it stays > 20 ms, step down one level; above 30 ms, two levels at once: particles ×0.5 → DPR 1.5 → DPR 1 → no side-decor animation. At most 4 downward changes per minute.
+  - If it stays < 12 ms of work for 5 s, step back up one level (at most 2 changes per minute).
+  - The DPR is capped at 1.5 whenever the backing store would exceed 1.2 MP.
   - `?quality=low|mid|high` forces a level.
 - **Pause:** the game pauses on `platform.onPause` and on blur of the game area. This stops the simulation, input, audio (suspend) and rendering, then shows the pause screen. It does not auto-resume. On `onResume`, the pause screen stays and the player taps Resume.
 - **Save:** the storage abstraction is `PP.save.load()` (async) / `PP.save.write()` (debounced 500 ms, async) over the platform adapter. The JSON is versioned and expected to stay under 4 KB:
-  `{v:1, unlocked, levels:{"1":{s:3,best:1,pct:100}}, buttons, upg:{power,rate,buddy,shield,luck,magnet}, weapons:{wand:{own:1,lv:1},...}, equipped, settings:{music,sfx,vib,shake,sens,lang}, hints:{...}, endlessBest, fails:{"7":2}, stats:{pops,plays}}`
+  `{v:2, unlocked, levels:{"1":{s:3,best:1,pct:100}}, buttons, upg:{power,rate,buddy,shield,luck,magnet}, weapons:{wand:{own:1},...}, equipped, toy:1..5, settings:{music,sfx,vib,shake,sens,lang}, hints:{...}, endlessBest, fails:{"7":2}, stats:{pops,plays}, ended}` (v1 saves with per-weapon `lv` migrate to `toy` = highest owned level)
   - `migrate(obj)` fills defaults and tolerates unknown or old versions. Corrupt data → reset to defaults; never crash.
   - Save on level end, purchase, settings change, card or hint completion, and onPause.
   - **Never save before the first load has resolved** (queue writes).
@@ -414,7 +463,9 @@ README.md (how to run, URL params, test API)
 
 ## 9. Debug and test hooks
 
-**URL parameters** (combinable). Any debug parameter puts the session in **no-persist mode** (in-memory save) unless `&save=1` is set.
+**Standalone web build only.** In the Playables package / environment none of this exists (see §8).
+
+**URL parameters** (combinable). Any debug parameter marks the session as cheated (`PP.cheated`: no scores, no Endless record) and puts it in **no-persist mode** (in-memory save) unless `&save=1` is set. Round 1 additions: `model=good|avg|sloppy|lazy` (with `autoplay=1`: watch a simulated human), `fails=N` (consecutive fails on `level`), `cause=boss|hazard|enemy|gate` and `progress=0..1` (for `screen=lose`), and `balance=1&models=good,avg,lazy&H=600,780&runs=24` (the balance table).
 
 | Param | Effect |
 |---|---|
@@ -456,12 +507,11 @@ README.md (how to run, URL params, test API)
 - Gate rows within 260 u override the path choice. The bot picks the gate with the best resulting value (squad after the gate; a power gate counts as +20% of squad).
 - Cards: it prefers dmg/rate, then Buddy.
 
-**Balance harness:** runs L1–30 headless at maximum speed with the bot, using `profile=expected`. The profile simulates the economy: rewards with an average of 2 stars, spent greedily on the cheapest of Power / Quick Paws / equipped weapon level / Buddy Start, with Shield and Lucky ×1 after L10, and the newest weapon equipped. Output per level: win, end squad, star count, time, real M versus the table. It also runs a "no upgrades, Wand" pass. **Targets:**
-- (a) expected profile wins all 30 levels, reaching ★★ on ≥ 60% of them;
-- (b) the no-upgrade pass clears L1–10 and fails ≥ 3 levels in L19–30;
-- (c) with `god=1`, no level runs outside 60–120 s total.
+**Simulated-human models (round 1, `js/debug/humans.js`):** a 1:1 port of the round-1 review's player models, wrapped around the bot: `good` (+0.15 s, 12 u noise, 520 u/s, best gate 90 %), `avg` (+0.30 s, 20 u, 420 u/s, 75 %), `sloppy` (+0.50 s, 30 u, 330 u/s, 50 %), `lazy` (drifts 180 ± 45 u at 60 u/s, random gates), `badgates`, `bot`. Cards are picked at random. Known property of the model (kept on purpose so that results match the reviewers' scripts cell for cell): it records its own position into its reaction buffer on the 5 of 6 simulation steps on which the bot does not refresh its target, so the effective steering speed is roughly 60 u/s for `good` and 25 u/s for `avg`, far below the nominal finger speed.
 
-**Validator:** checks every gate fairness rule in §3.7, enemy counts against the density, the intro order, sizes and seeds, and that every beat references existing ids.
+**Balance harness (round 1, `js/debug/balance.js`):** headless, with the expected profile of §3.10. `PP.balance.table({models, H, runs})` (also `?balance=1&models=good,avg,lazy&H=600,780&runs=24` and `node tests/balance.js`) prints win % / stars / progress per level, model and screen height, and checks the bands and curve-shape rules of §4.2. `curve()` checks the monotonic curve, `campaign()` plays a full campaign from a fresh save, `weapons()` compares the toys, `endless()` measures Marathon survival. The perfect bot is only the "every level is possible" check (≥ 95 %).
+
+**Validator:** checks every gate fairness rule in §3.7, the wave-HP budget and the monotonic curve (§4.2, §4.3), the "no free ride" rules (centre-blocking hazard every 15 s, ≥ 40 % trap rows, side-lane wave from L7), the intro order, sizes and seeds, and that every beat references existing ids.
 
 ---
 
@@ -495,18 +545,18 @@ README.md (how to run, URL params, test API)
 
 **Gameplay systems**
 - [ ] Auto-fire. Squad count acts as health. The visible pompom cap of 30 and the ×N badge work.
-- [ ] All 7 weapons feel and look different and unlock at the listed levels. Upgrades Lv1–5 work.
+- [ ] All 7 weapons feel and look different, unlock at the listed levels and are auto-equipped. The shared Toy Level 1–5 works.
 - [ ] 7 enemy types plus Elite, all obstacles, pickups and gate types, each introduced at its listed level.
 - [ ] Fairness rules pass the validator for all 30 levels.
-- [ ] 5 bosses with distinct patterns, telegraphs ≥ 0.6 s, phase transitions and HP bars. The final ending plays and Endless unlocks.
+- [ ] 5 bosses with distinct patterns, telegraphs ≥ 1.0 s (worlds 1–2) / 0.8 s, phase transitions and HP bars. The final ending plays and Endless unlocks.
 - [ ] 30 levels across 5 visually distinct worlds. Normal levels last 60–120 s.
-- [ ] Endless runs ≥ 10 min with the bot and `god=1` without slowdown or leaks. Its best score is saved.
+- [ ] Endless runs ≥ 10 min with the bot and `god=1` without slowdown or leaks. Its best score is saved from clean sessions only (never from a debug / cheated run).
 
 **Progression and balance**
 - [ ] Stars use the table thresholds and are visible live in the HUD.
-- [ ] Failing still grants Buttons and records best %. Helping Hand triggers after 2 fails.
+- [ ] Failing still grants Buttons and records best %. Helping Hand grows after 2 / 3 / 4 / 6 fails; boss levels offer "Go to boss" after 3.
 - [ ] Workshop costs and effects match §3.10. No real money, no ads, no timers or energy.
-- [ ] Balance harness targets (a), (b) and (c) are met. A report is pasted into README.
+- [ ] Balance tables (good / avg / lazy at H = 600 and 780, plus the bot check), the curve, campaign, weapon-order and Endless checks are run and pasted into README, with every band that is not met listed.
 
 **UX and presentation**
 - [ ] Tutorial hints appear once, are almost wordless, and are FR/EN.

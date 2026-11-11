@@ -47,6 +47,8 @@
         });
         p.appendChild(h('div', 'set-row', [h('span', 'lbl', t('set.lang')), lseg]));
       }
+      // the ending can be watched again once it has been seen
+      if (PP.save.data.ended) p.appendChild(h('div', 'set-row', [h('span', 'lbl', t('set.ending')), UI.btn(t('set.ending.replay'), 'set-replay-ending', function () { confirmReset = false; PP.game.goto('ending', { replay: true, back: 'settings' }); }, 'small')]));
       var rb = UI.btn(confirmReset ? t('set.reset.confirm') : t('set.reset'), confirmReset ? 'set-reset-confirm' : 'set-reset', function () {
         if (!confirmReset) { confirmReset = true; UI.show('settings', { from: back }); return; }
         confirmReset = false;

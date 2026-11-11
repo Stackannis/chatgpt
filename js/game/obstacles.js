@@ -23,18 +23,22 @@
     var G = PP.G, o = null;
     for (var i = 0; i < OB.list.length; i++) if (!OB.list[i].on) { o = OB.list[i]; break; }
     if (!o) return null;
-    o.on = true; o.type = type; o.x = x; o.y = y === undefined ? -40 : y; o.rot = 0; o.t = 0; o.st = 0; o.vy = 0; o.gap = 0;
+    o.on = true; o.type = type; o.x = x; o.y = y === undefined ? G.oy - 40 : y; o.rot = 0; o.t = 0; o.st = 0; o.vy = 0; o.gap = 0; o.spent = false;
     o.cost = LISTED[type] ? PP.bal.hazardCost(LISTED[type], Math.round(G.L)) : 0;
-    if (type === 'spinner') { o.y = -60; o.rot = (opt && opt.rot) || 0; }
-    else if (type === 'roller') { o.st = 0; o.t = 0; o.y = -46; PP.audio.sfx('warn'); }
+    if (G.bumpK > 1) o.cost = Math.round(o.cost * G.bumpK);      // Endless only: late hazards cost more
+    if (type === 'spinner') { o.y = G.oy - 60; o.rot = (opt && opt.rot) || 0; }
+    else if (type === 'roller') { o.st = 0; o.t = 0; o.y = G.oy - 46; PP.audio.sfx('warn'); }
     else if (type === 'fence') { o.gap = x; o.x = 180; }
     else if (type === 'syrup') { o.w = 120; o.h = 80; o.vy = (opt && opt.vy) || 0; }
-    else if (type === 'ice') { o.x = 180; o.w = 300; o.h = 100; o.y = -60; }
+    else if (type === 'ice') { o.x = 180; o.w = 300; o.h = 100; o.y = G.oy - 60; }
     return o;
   };
+  /* Hazards are forgiving: they collide with the small squad hitbox SQ.Rh and at 85 % of their visual size. */
+  var K = 0.85;
+  OB.K = K; OB.BAR = 55 * K; OB.BAR_R = 6 * K; OB.ROLL_R = 24 * K; OB.FENCE_HALF = 55 + 3; OB.FENCE_H = 7 * K;
 
   OB.update = function (dt) {
-    var G = PP.G, SQ = PP.squad, GR = PP.grid, i, o, hit, R = SQ.R;
+    var G = PP.G, SQ = PP.squad, GR = PP.grid, i, o, hit, R = SQ.Rh;
     var syr = false, ice = false;
     var canHit = G.state === 'run' || G.state === 'boss' || G.state === 'bossintro';
     for (i = 0; i < OB.list.length; i++) {
@@ -44,25 +48,26 @@
       if (o.type === 'spinner') {
         o.y += G.scroll * dt; o.rot += 0.4 * TAU * dt;
         if (Math.abs(o.y - G.sy) < 70 + R) {
-          var cx = Math.cos(o.rot) * 55, cy = Math.sin(o.rot) * 55, rr = 6 + R * 0.85;
+          var cx = Math.cos(o.rot) * OB.BAR, cy = Math.sin(o.rot) * OB.BAR, rr = OB.BAR_R + R;
           hit = GR.segDist2(SQ.x, G.sy, o.x - cx, o.y - cy, o.x + cx, o.y + cy) < rr * rr;
         }
       } else if (o.type === 'roller') {
         if (o.st === 0) { if (o.t >= 1.0) o.st = 1; }
         else {
           o.y += (G.scroll + 160) * dt; o.rot += 5 * dt;
-          var dx = o.x - SQ.x, dy = o.y - G.sy, r2 = 24 + R * 0.85;
+          var dx = o.x - SQ.x, dy = o.y - G.sy, r2 = OB.ROLL_R + R;
           hit = dx * dx + dy * dy < r2 * r2;
         }
       } else if (o.type === 'fence') {
         o.y += G.scroll * dt;
-        if (Math.abs(o.y - G.sy) < 7 + R * 0.7) hit = (SQ.x - R * 0.6 < o.gap - 55) || (SQ.x + R * 0.6 > o.gap + 55);
+        if (Math.abs(o.y - G.sy) < OB.FENCE_H + R * 0.7) hit = (SQ.x - R * 0.6 < o.gap - OB.FENCE_HALF) || (SQ.x + R * 0.6 > o.gap + OB.FENCE_HALF);
       } else {
         o.y += (G.scroll + o.vy) * dt;
         if (Math.abs(SQ.x - o.x) < o.w / 2 && Math.abs(G.sy - o.y) < o.h / 2) { if (o.type === 'syrup') syr = true; else ice = true; }
       }
-      if (hit && canHit) SQ.hurt(o.cost, 'hazard');
-      if (o.y > G.H + 80) o.on = false;
+      // every hazard can hurt the squad once only (a spinner does not hit again on its way past)
+      if (hit && canHit && !o.spent && SQ.hurt(o.cost, 'hazard')) o.spent = true;
+      if (o.y > G.bot + 80) o.on = false;
     }
     SQ.inSyrup = syr; SQ.onIce = ice;
     for (i = 0; i < OB.tele.length; i++) { var t = OB.tele[i]; if (t.on) { t.t += dt; if (t.t >= t.dur) t.on = false; } }
@@ -85,7 +90,7 @@
       var fade = t.dur - t.t; if (fade < 0.15) a *= fade / 0.15;
       ctx.globalAlpha = a < 0 ? 0 : a;
       var off = t.kind === 0 ? 0 : (t.t * (t.kind === 2 ? 240 : 60)) % 128;
-      for (y = off - 128; y < G.H; y += 128) R.drawR(s, t.x, y, t.w, 128);
+      for (y = off - 128; y < G.H - (G.viewY || 0); y += 128) R.drawR(s, t.x, y, t.w, 128);
     }
     ctx.globalAlpha = 1;
   };

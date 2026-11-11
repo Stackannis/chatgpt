@@ -24,18 +24,18 @@ const SPEC = {
   3: { intro: 'dust', mix: { jelly: 5, dust: 3 }, pats: ['line', 'column', 'v', 'sides', 'zigzag'], nmax: 4, show: 'dust', force: { 1: 'x2' } },
   4: { intro: 'redgate', mix: { jelly: 5, dust: 4 }, pats: ['line', 'column', 'v', 'sides', 'zigzag', 'wall'], nmax: 4, force: { 1: 'trap', 2: 'trade' }, first: 'spinner', obj: { spinner: 2 } },
   5: { intro: 'bean', mix: { jelly: 4, dust: 3, bean: 2 }, pats: ['line', 'column', 'v', 'sides', 'zigzag', 'wall', 'cluster'], nmax: 4, show: 'bean', force: { 1: 'trade' } },
-  6: { intro: 'boss', mix: { jelly: 4, dust: 3, bean: 2 }, pats: ['line', 'column', 'v', 'sides', 'zigzag', 'cluster', 'stream'], nmax: 4, force: { 0: 'addhalf', 1: 'trade' } },
-  7: { intro: 'growgate', mix: { jelly: 4, dust: 3, bean: 3 }, pats: ['line', 'column', 'v', 'sides', 'zigzag', 'wall', 'cluster', 'stream', 'pincer'], nmax: 5, force: { 1: 'grow', 2: 'pop', 4: 'spd' } },
+  6: { intro: 'boss', mix: { jelly: 4, dust: 3, bean: 2 }, pats: ['line', 'column', 'v', 'sides', 'zigzag', 'cluster', 'stream'], nmax: 4, force: { 0: 'addhalf' } },
+  7: { intro: 'growgate', mix: { jelly: 4, dust: 3, bean: 3 }, pats: ['line', 'column', 'v', 'sides', 'zigzag', 'wall', 'cluster', 'stream', 'pincer'], nmax: 5, force: { 1: 'grow', 3: 'pop' } },
   8: { intro: 'twin', mix: { jelly: 3, dust: 3, bean: 3, twin: 2 }, pats: 'all', nmax: 5, show: 'twin', force: { 1: 'trade' } },
   9: { intro: 'cloud', mix: { jelly: 3, dust: 3, bean: 2, twin: 2, cloud: 1 }, pats: 'all', nmax: 5, show: 'cloud', force: { 2: 'grow' } },
   10: { intro: 'gift', mix: { jelly: 3, dust: 3, bean: 3, twin: 2, cloud: 1 }, pats: 'all', nmax: 5, first: 'gift', force: { 1: 'trap' } },
   11: { intro: 'roller', mix: { jelly: 3, dust: 3, bean: 3, twin: 2, cloud: 1 }, pats: 'all', nmax: 5, first: 'roller', obj: { roller: 2 }, force: { 2: 'pop' } },
-  12: { intro: 'boss', mix: { jelly: 3, dust: 3, bean: 3, twin: 2, cloud: 1 }, pats: 'all', nmax: 5, force: { 0: 'trade', 1: 'pop' } },
+  12: { intro: 'boss', mix: { jelly: 3, dust: 3, bean: 3, twin: 2, cloud: 1 }, pats: 'all', nmax: 5, force: { 0: 'trade' } },
   13: { intro: 'trigate', mix: { jelly: 3, dust: 3, bean: 3, twin: 3, cloud: 1 }, pats: 'all', nmax: 6, force: { 0: 't_x3', 1: 't_x2', 3: 't_mix' } },
   14: { intro: 'snail', mix: { jelly: 3, dust: 3, bean: 3, twin: 2, cloud: 1, snail: 1 }, pats: 'all', nmax: 6, show: 'snail', obj: { gift: 1 }, force: { 2: 't_pow' } },
   15: { intro: 'dasher', mix: { jelly: 3, dust: 3, bean: 2, twin: 2, cloud: 1, snail: 1, dasher: 2 }, pats: 'all', nmax: 6, show: 'dasher', force: { 1: 't_grow' } },
-  16: { intro: 'syrup', mix: { jelly: 2, dust: 3, bean: 3, twin: 2, cloud: 1, snail: 2, dasher: 2 }, pats: 'all', nmax: 6, first: 'syrup', obj: { syrup: 2 } },
-  17: { intro: 'gauntlet', mix: { jelly: 2, dust: 2, bean: 2, twin: 2, cloud: 1, snail: 2, dasher: 2 }, pats: 'all', nmax: 6, force: { 0: 't_x3' } },
+  16: { intro: 'syrup', mix: { jelly: 3, dust: 3, bean: 3, twin: 2, cloud: 1, snail: 1, dasher: 2 }, pats: 'all', nmax: 6, first: 'syrup', obj: { syrup: 2 } },
+  17: { intro: 'gauntlet', mix: { jelly: 3, dust: 3, bean: 2, twin: 2, cloud: 1, snail: 2, dasher: 1 }, pats: 'all', nmax: 6, force: { 0: 't_x3' } },
   18: { intro: 'boss', mix: { jelly: 2, dust: 3, bean: 2, twin: 2, cloud: 1, snail: 1, dasher: 2 }, pats: 'all', nmax: 6, obj: { gift: 1 }, force: { 0: 't_x2' } },
   19: { intro: 'elite', mix: { jelly: 3, dust: 3, bean: 2, twin: 2, cloud: 1, snail: 1, dasher: 2 }, pats: 'all', nmax: 6, elite: 0.16, showElite: true },
   20: { intro: 'fence', mix: { jelly: 2, dust: 3, bean: 3, twin: 2, cloud: 1, snail: 2, dasher: 2 }, pats: 'all', nmax: 7, elite: 0.15, first: 'fence', obj: { fence: 2 } },
@@ -46,7 +46,7 @@ const SPEC = {
   25: { intro: 'moving', mix: { jelly: 2, dust: 3, bean: 3, twin: 2, cloud: 1, snail: 2, dasher: 2 }, pats: 'all', nmax: 7, elite: 0.15, move: 1 },
   26: { intro: 'eliteclouds', mix: { jelly: 2, dust: 3, bean: 2, twin: 2, cloud: 3, snail: 2, dasher: 2 }, pats: 'all', nmax: 7, elite: 0.2, eliteOnly: 'cloud', obj: { fence: 3 }, move: 0.4 },
   27: { intro: 'twinswarm', mix: { jelly: 1, dust: 2, bean: 2, twin: 6, cloud: 1, snail: 1, dasher: 5 }, pats: 'all', nmax: 7, elite: 0.15, move: 0.4 },
-  28: { intro: 'traps', mix: { jelly: 2, dust: 3, bean: 3, twin: 2, cloud: 1, snail: 2, dasher: 2 }, pats: 'all', nmax: 8, elite: 0.2, move: 0.4, force: { 0: 't_x3', 1: 't_trap', 2: 't_mix', 3: 't_grow', 4: 't_trap', 5: 't_mix', 6: 't_trap', 7: 't_trap' } },
+  28: { intro: 'traps', mix: { jelly: 2, dust: 3, bean: 3, twin: 2, cloud: 1, snail: 2, dasher: 2 }, pats: 'all', nmax: 8, elite: 0.2, move: 0.4, force: { 0: 't_x3', 2: 't_mix', 3: 't_grow', 5: 't_trap', 7: 'trap' } },
   29: { intro: 'grand', mix: { jelly: 2, dust: 3, bean: 3, twin: 3, cloud: 2, snail: 2, dasher: 3 }, pats: 'all', nmax: 8, elite: 0.25, move: 0.5 },
   30: { intro: 'boss', mix: { jelly: 2, dust: 3, bean: 3, twin: 3, cloud: 1, snail: 2, dasher: 3 }, pats: 'all', nmax: 8, elite: 0.2, move: 0.5, force: { 0: 't_x2', 1: 't_pow' } }
 };
@@ -61,19 +61,34 @@ const ENEMY_PATS = {
 };
 const HAZ = { spinner: 1, roller: 1, fence: 1 };
 
+/* objects besides the centre-blocking hazards (those are placed one per 15 s window, see centreHazards) */
 function objectCounts(L, boss, spec) {
   const c = {
     crate: L >= 2 ? (boss ? 1 : (L < 7 ? 2 : (L < 19 ? 3 : 2))) : 0,
-    spinner: L >= 4 ? (boss ? 1 : (L < 13 ? 1 : (L < 19 ? 2 : 1))) : 0,
-    roller: L >= 11 ? (boss ? 0 : (L < 19 ? 1 : 2)) : 0,
+    spinner: L >= 13 && !boss ? 1 : 0,          // extra lane hazards on top of the centre ones
+    roller: L >= 13 && !boss ? 1 : 0,
     jar: L >= 11 ? (boss ? 0 : 1) : 0,
     syrup: L >= 16 ? (boss ? 0 : 1) : 0,
-    fence: L >= 20 ? (boss ? 0 : 1) : 0,
+    fence: 0,
     ice: L >= 21 ? (boss ? 0 : 1) : 0,
     gift: L === 10 ? 1 : ((L >= 11 && L % 3 === 2 && !boss) ? 1 : 0)
   };
-  Object.assign(c, spec.obj || {});
+  const o = Object.assign({}, spec.obj || {});
+  delete o.spinner; delete o.roller; delete o.fence;      // hazard counts come from the 15 s rule now
+  Object.assign(c, o);
   return c;
+}
+/* which hazard blocks the centre in 15 s window k (seeded variety; the level's new hazard comes first) */
+function centreHazard(L, k, rng, spec) {
+  const types = ['spinner'];
+  if (L >= 11) types.push('roller');
+  if (L >= 20) types.push('fence');
+  let type = types[(k + L) % types.length];
+  if (k === 0 && HAZ[spec.first]) type = spec.first;
+  if (spec.obj && spec.obj.fence >= 3 && k % 2 === 1) type = 'fence';     // the fence level
+  if (type === 'spinner') return { o: 'spinner', x: [165, 180, 195][rng.int(0, 2)] };
+  if (type === 'roller') return { o: 'roller', x: 180 };
+  return { o: 'fence', gap: rng() < 0.5 ? Math.round(rng.range(70, 95)) : Math.round(rng.range(265, 290)) };
 }
 function pickupList(L, boss) {
   const p = [];
@@ -88,9 +103,20 @@ function pickupList(L, boss) {
   return p;
 }
 
+const TRAP_CAP = 0.30;      // biggest share of the expected squad a red gate may take
+const TRI_SHARE = 0.5;      // at most this share of a level's rows are 3-gate rows (from L13)
+const CENTRE_TRAPS = 2;     // from L13: the first two 3-gate trap rows (never row 0) have their trap in the middle lane
+const HAZ_WIN = [0, 15, 12, 10, 10, 10];   // seconds per centre-blocking hazard, by world (the rule is 15 s)
+const VMIN = 0.45;          // smallest '+' gate as a share of A: every row matters, a missed row never ruins the run
+const GROW_EXP = 0.85;      // shape of the squad curve along the level (1 = linear)
+const BEST_MAX = 1.3;       // the perfect path may end at this multiple of the mid squad
+const BOSS_VMIN = 0.9;       // boss run-ins: big gates, so choosing well matters and the squad arrives strong
+const BOSS_PEAK = 1.7;      // boss run-ins are generous: even after a missed row the squad reaches the boss near mid
 /* gate row templates by band (GDD 3.7) */
 function templates(L, A, n, g, rng, x3, ks) {
-  const c = [], v = clamp(Math.round(g * ks), Math.max(2, Math.round(0.3 * A)), Math.round(1.25 * A)), m = Math.max(1, Math.round(A * rng.range(0.5, 1.0)));
+  // traps stay proportionate: a red gate never costs more than TRAP_CAP of the squad expected at that row
+  const cap = Math.max(1, Math.round(TRAP_CAP * n));
+  const c = [], v = clamp(Math.round(g * ks), Math.max(2, Math.round((B.isBoss(L) ? BOSS_VMIN : VMIN) * A)), Math.round(1.25 * A)), m = Math.min(cap, Math.max(1, Math.round(A * rng.range(0.5, 1.0))));
   const half = Math.max(1, Math.round(v / 2));
   if (L <= 3) {
     c.push({ id: 'addbig', toks: ['+' + v, '+1'] });
@@ -106,28 +132,54 @@ function templates(L, A, n, g, rng, x3, ks) {
       c.push({ id: 'grow', toks: ['grow', '+' + Math.round(0.6 * A)] });
     }
   } else {
-    c.push({ id: 't_x2', toks: ['x2', '+' + Math.round(1.5 * v), '-' + A] });
+    c.push({ id: 't_x2', toks: ['x2', '+' + Math.round(1.5 * v), '-' + Math.min(A, cap)] });
     if (x3 < 2) c.push({ id: 't_x3', toks: ['x3', '/2', '+' + Math.max(v, Math.round(0.6 * A))] });
     c.push({ id: 't_pow', toks: ['pop', 'spd', '+' + v] });
     c.push({ id: 't_grow', toks: ['grow', 'grow', '-' + m] });
     c.push({ id: 't_mix', toks: ['+' + v, '-' + m, '+' + half] });
-    c.push({ id: 't_trap', toks: ['+' + v, '/2', '-' + m] });
+    c.push({ id: 't_trap', toks: ['+' + v, rng() < 0.5 ? 'pop' : 'spd', '-' + m] });      // never two traps in one row
     c.push({ id: 'trade', toks: ['+' + v, 'x2'] });
+    // 2-gate rows stay in the mix after L13 (wide gates, calmer decisions between the 3-gate rows)
+    c.push({ id: 'trap', toks: ['+' + v, '-' + m] });
+    c.push({ id: 'addhalf', toks: ['+' + v, '+' + half] });
+    c.push({ id: 'pop', toks: ['pop', '+' + Math.max(2, Math.round(0.8 * v))] });
+    c.push({ id: 'spd', toks: ['spd', '+' + Math.max(2, Math.round(0.8 * v))] });
   }
   return c;
 }
 function chooseRows(L, R, A, mid, seed, spec, ks) {
   const rng = U.rng(seed);
-  const peak = 1.05 * mid, n0 = 3 + (L < 5 ? 0 : (L < 12 ? 1 : (L < 20 ? 2 : 3)));
-  let n = n0, x3 = 0, vn = 3, lastSide = -1, same = 0;
+  const peak = (B.isBoss(L) ? BOSS_PEAK : 1.05) * mid, n0 = 3 + (L < 5 ? 0 : (L < 12 ? 1 : (L < 20 ? 2 : 3)));
+  let n = n0, x3 = 0, vn = 3, lastSide = -1, same = 0, traps = 0, tris = 0, centreTraps = 0, triTraps = 0;
+  const maxTri = Math.ceil(R * TRI_SHARE);
   const used = {}, rows = [], trace = [];
+  // no free ride (from L4): at least 40 % of the rows carry a trap gate
+  const needTraps = L >= 4 ? Math.ceil(0.4 * R - 1e-9) : 0;
+  const isTrap = c => V.isTrapRow(c.toks);
+  // forced rows count towards the quota when they are traps
+  let forcedLeft = 0;
+  for (let i = 0; i < R; i++) if (spec.force && spec.force[i]) forcedLeft++;
   for (let i = 0; i < R; i++) {
-    const target = n0 + (peak - n0) * Math.pow((i + 1) / R, 0.6), g = Math.max(1, target - n);
+    const target = n0 + (peak - n0) * Math.pow((i + 1) / R, GROW_EXP), g = Math.max(1, target - n);
     let cands = templates(L, A, n, g, rng, x3, ks);
     // multipliers only while the squad is still small, grow gates not when already ahead of the curve
     cands = cands.filter(c => !((c.id === 't_x2' || c.id === 'trade' || c.id === 'x2') && n * 2 > target * 1.25 && !(spec.force && spec.force[i] === c.id)) && !((c.id === 'grow' || c.id === 't_grow') && n + 1.4 * A > target * 1.3 && !(spec.force && spec.force[i])));
-    if (spec.force && spec.force[i]) { const f = cands.filter(c => c.id === spec.force[i]); if (f.length) cands = f; }
+    const forced = spec.force && spec.force[i];
+    if (forced) { const f = cands.filter(c => c.id === spec.force[i]); if (f.length) cands = f; forcedLeft--; }
     else if (i === 0 && L >= 4) cands = [{ id: 'addhalf', toks: ['+' + Math.max(A, Math.round(g)), '+' + Math.max(2, Math.round(A / 2))] }];   // the first row is always a friendly boost
+    else {
+      // free slots still to come (forced rows are counted as non-traps: worst case)
+      const freeLeft = R - i - forcedLeft, need = needTraps - traps;
+      const tc = cands.filter(isTrap);
+      if (need > 0 && tc.length && (need >= freeLeft || (i % 2 === 1 && need > 0))) {      // spread the traps, never run out of slots
+        cands = tc;
+        const t3 = tc.filter(c => c.toks.length === 3);
+        if (triTraps < CENTRE_TRAPS && t3.length) cands = t3;      // the first trap rows are 3-gate rows with the trap in the middle
+      }
+      // at most TRI_SHARE of the rows are 3-gate rows
+      const pairs = cands.filter(c => c.toks.length === 2);
+      if (tris >= maxTri && pairs.length) cands = pairs;
+    }
     let best = null, bs = 1e9;
     for (const c of cands) {
       const out = Math.max.apply(null, c.toks.map(tk => { const s = V.gateScore(tk, n, A); return (tk === 'pop' || tk === 'spd') ? n + 0.12 * (target - n) + 0.05 * n : s; }));
@@ -136,12 +188,31 @@ function chooseRows(L, R, A, mid, seed, spec, ks) {
     }
     used[best.id] = (used[best.id] || 0) + 1;
     if (best.id === 't_x3') x3++;
+    if (isTrap(best)) traps++;
+    if (best.toks.length === 3) tris++;
+    if (best.toks.length === 3 && isTrap(best) && i > 0) triTraps++;
     // order: seeded shuffle, best side never the same more than 2 rows in a row (rule 6 allows 3)
     let toks = best.toks.slice(), bi = 0;
-    for (let tries = 0; tries < 30; tries++) {
-      for (let k = toks.length - 1; k > 0; k--) { const j = rng.int(0, k), t = toks[k]; toks[k] = toks[j]; toks[j] = t; }
+    const negs = toks.filter(tk => V.gateInfo(tk).neg), poss = toks.filter(tk => !V.gateInfo(tk).neg);
+    if (toks.length === 3 && negs.length === 1) {
+      // 3-gate trap rows: best gate on one side, trap on the other, the weakest good gate in the middle.
+      // Staying in the middle of the road never pays best (no free ride), and a small steering slip
+      // towards the middle costs a little, not the run.
+      poss.sort((a, b) => V.gateScore(a, vn, A) - V.gateScore(b, vn, A));
+      // ... except for a share of the rows, where the trap itself waits in the middle
+      const mid3 = i > 0 && centreTraps < CENTRE_TRAPS;      // never on the first row: the squad starts in the middle
+      if (mid3) centreTraps++;
+      const left = mid3 ? [poss[1], negs[0], poss[0]] : [poss[1], poss[0], negs[0]], right = mid3 ? [poss[0], negs[0], poss[1]] : [negs[0], poss[0], poss[1]];
+      toks = rng() < 0.5 ? left : right;
       bi = V.bestIndex(toks, vn, A);
-      if (!(bi === lastSide && same >= 2)) break;
+      if (bi === lastSide && same >= 2) { toks = toks === left ? right : left; bi = V.bestIndex(toks, vn, A); }
+    } else {
+      for (let tries = 0; tries < 60; tries++) {
+        for (let k = toks.length - 1; k > 0; k--) { const j = rng.int(0, k), t = toks[k]; toks[k] = toks[j]; toks[j] = t; }
+        bi = V.bestIndex(toks, vn, A);
+        if (bi === lastSide && same >= 2) continue;
+        break;
+      }
     }
     if (bi === lastSide) same++; else { same = 1; lastSide = bi; }
     vn = Math.round(V.gateScore(toks[bi], vn, A)); if (toks[bi] === 'pop' || toks[bi] === 'spd') vn = Math.round(vn / 1.2);
@@ -156,7 +227,7 @@ function chooseRows(L, R, A, mid, seed, spec, ks) {
   return { rows, trace };
 }
 
-function genLevel(L) {
+function genLevel(L, hpsGoal) {
   const spec = SPEC[L], rng = U.rng(L * 7919 + 13);
   const boss = B.isBoss(L), world = B.world(L);
   const T = boss ? 35 + 2 * world : B.runLen(L), s = B.scroll(L), A = B.A(L), mid = B.mid(L);
@@ -172,7 +243,7 @@ function genLevel(L) {
   let rowInfo = null;
   for (let ks = 1; ks >= 0.39; ks -= 0.1) {     // shrink the add values until the best path ends near the squad curve
     rowInfo = chooseRows(L, R, A, mid, L * 3571 + 5, spec, ks);
-    if (rowInfo.trace[R - 1] <= 1.2 * mid + 2) break;
+    if (rowInfo.trace[R - 1] <= (boss ? BOSS_PEAK + 0.2 : BEST_MAX) * mid + 2) break;
   }
   for (let i = 0; i < R; i++) beats.push([gt[i], 'gates', rowInfo.rows[i]]);
   const gateArr = gt.map(x => V.gateArrival(x, s));
@@ -210,8 +281,35 @@ function genLevel(L) {
     if (name === 'syrup') return { o: 'syrup', x: Math.round(rng.range(95, 265)) };
     return { o: name, lane: rng.int(0, 3) };
   };
-  // the newly introduced object first, alone, with a hint
-  if (spec.first) { placeEvent(HAZ[spec.first] ? 0.3 : 0.22, 'obj', objParams(spec.first), { alone: true, hint: spec.first }); counts[spec.first] = Math.max(0, (counts[spec.first] || 1) - 1); }
+  /* place an event with its spawn time inside [t0, t1) (seeded start, first free slot) */
+  function placeIn(t0, t1, kind, p, opts) {
+    opts = opts || {};
+    const lo = Math.max(2.5, t0 + 0.4), hi = Math.min(tEndEv, t1 - 0.4), name = p.o, steps = Math.max(1, Math.floor((hi - lo) / 0.3));
+    const start = rng.int(0, steps);
+    for (let i = 0; i <= steps; i++) {
+      const te = r1(lo + ((start + i) % (steps + 1)) * 0.3), arr = V.objArrival(name, te, s);
+      if (te >= t1 || te < t0) continue;
+      const clash = gateConflict(arr, arr, true, 0) || evArr.some(a => Math.abs(a - arr) < 2.2) || quiet.some(q => te > q[0] - 1.5 && te < q[1] + 1.5);
+      if (clash) continue;
+      evArr.push(arr); hazArr.push({ arr, name });
+      if (opts.alone) quiet.push([te - 2.6, te + 2.6]);
+      if (opts.hint) beats.push([r1(Math.max(0, te - 0.3)), 'hint', { k: opts.hint }]);
+      beats.push([te, kind, p]);
+      return te;
+    }
+    console.warn('L' + L + ': could not place a centre hazard in ' + t0 + '-' + t1);
+    return -1;
+  }
+  // no free ride (from L4): one centre-blocking hazard in every 15 s of the level
+  if (L >= 4) {
+    const win = boss ? Math.min(10, HAZ_WIN[world]) : HAZ_WIN[world];
+    for (let k = 0; k < Math.floor(T / win); k++) {
+      const p = centreHazard(L, k, rng, spec), intro = k === 0 && HAZ[spec.first] && p.o === spec.first;
+      placeIn(win * k, win * k + win, 'obj', p, intro ? { alone: true, hint: spec.first } : null);
+    }
+  }
+  // the newly introduced (non-hazard) object first, alone, with a hint
+  if (spec.first && !HAZ[spec.first]) { placeEvent(0.22, 'obj', objParams(spec.first), { alone: true, hint: spec.first }); counts[spec.first] = Math.max(0, (counts[spec.first] || 1) - 1); }
   if (L === 10 || L === 14 || L === 18 || L === 24) { /* weapon preview gift boxes get a hint too */ }
   const list = [];
   Object.keys(counts).forEach(k => { for (let i = 0; i < counts[k]; i++) list.push(['obj', k]); });
@@ -240,7 +338,10 @@ function genLevel(L) {
   }
 
   /* ---- waves ---- */
-  const target = Math.round(B.density(L) * T / 10);
+  // budget: the level's wave HP (x ramp) must add up to hpsGoal x length (see PP.bal.hpsTarget)
+  const hpm = B.hpMult(L), budget = hpsGoal * T;
+  const weight = (o, tw) => (PT.count(o.p, o.n) + (o.el || 0) * 2) * D.enemyHpUnits(o.e) * hpm * B.ramp(tw, T);
+  const fixedHp = weight({ p: 'line', e: 'jelly', n: 1 }, 1.5) + ((spec.show || spec.showElite) ? weight({ p: 'line', e: spec.show || 'jelly', n: 1, el: spec.showElite ? 1 : 0 }, showT) : 0);
   const pats = spec.pats === 'all' ? ALL_PATS : spec.pats;
   const mixIds = Object.keys(spec.mix);
   const tStart = L <= 3 ? 3.6 : gt[0] + 1.0, tEnd = boss ? T - 1.5 : T - 0.6;
@@ -283,46 +384,68 @@ function genLevel(L) {
     if (spec.elite && L >= 19 && wr() < spec.elite && (!spec.eliteOnly || spec.eliteOnly === e) && e !== 'cloud' || (spec.eliteOnly === 'cloud' && e === 'cloud' && wr() < 0.6)) o.el = 1;
     return o;
   }
+  const SIDE_OK = { jelly: 1, dust: 1, bean: 1, twin: 1, snail: 1, dasher: 1 };
   function compose(k) {
     const wr = U.rng(L * 104729 + 71), out = [];
-    let tw = tStart, total = 1 + ((spec.show || spec.showElite) ? 1 : 0), lastCloud = -99;
+    let tw = tStart, total = fixedHp, lastCloud = -99, sides = 0;
     while (tw <= tEnd) {
       const cres = !boss && tw > T - 10;
       let o = makeWave(tw, wr, cres && wr() < 0.6);
       if (o.e === 'cloud') { if (tw - lastCloud < 9 || (boss && tw > T - 12)) { o = makeWave(tw, wr, false); if (o.e === 'cloud') { o.e = 'jelly'; o.p = 'line'; o.n = 3; delete o.el; } } }
+      // no free ride (from L7): at least one wave comes down the two side lanes only
+      if (L >= 7 && !sides && tw > T * 0.3 && SIDE_OK[o.e]) { o = { p: 'sides', e: o.e, n: Math.min(ENEMY_PATS[o.e].max - (ENEMY_PATS[o.e].max % 2), 4) }; }
       let found = -1;
       for (let tt = tw; tt <= tEnd; tt = r1(tt + 0.2)) { if (waveOk(tt, o)) { found = tt; break; } }
       if (found < 0) break;
       if (o.e === 'cloud') lastCloud = found;
-      const cnt = PT.count(o.p, o.n);
-      out.push([r1(found), 'wave', o]); total += cnt;
+      if (V.isSideWave(o)) sides++;
+      out.push([r1(found), 'wave', o]); total += weight(o, r1(found));
       const span = PT.span(o.p, o.n, s + D.enemies[o.e].speed);
-      tw = found + Math.max(0.8, span * 0.7, cnt * k * (cres ? 0.7 : 1));
+      // every wave "buys" time in proportion to its (un-ramped) HP, so HP per second follows the ramp
+      tw = found + Math.max(0.8, span * 0.7, weight(o, T / 2) / hpsGoal * k * (cres ? 0.7 : 1));
     }
     return { out, total };
   }
-  // binary search the spacing factor so that the enemy count matches density x length / 10
-  let lo = 0.05, hi = 3, res = null;
-  for (let it = 0; it < 28; it++) {
+  // binary search the spacing factor so that the wave HP matches the budget
+  let lo = 0.05, hi = 6, res = null;
+  for (let it = 0; it < 40; it++) {
     const k = (lo + hi) / 2; res = compose(k);
-    if (res.total > target) lo = k; else hi = k;
-    if (Math.abs(res.total - target) <= Math.max(1, target * 0.03)) break;
+    if (res.total > budget) lo = k; else hi = k;
+    if (Math.abs(res.total - budget) <= budget * 0.01) break;
   }
-  // fine-tune n on a few waves to land inside +-10 %
-  let diff = target - res.total;
-  for (const b of res.out) {
-    if (Math.abs(diff) <= Math.max(1, target * 0.04)) break;
-    const o = b[2], ep = ENEMY_PATS[o.e];
-    if (o.p !== 'line' && o.p !== 'stream' && o.p !== 'zigzag') continue;
-    if (diff > 0 && o.n < ep.max) { o.n++; diff--; } else if (diff < 0 && o.n > 2) { o.n--; diff++; }
+  // fine-tune: greedy single +-1 steps on the waves until the budget is hit within 0.5 %
+  const STEP = { line: 1, stream: 1, zigzag: 1, column: 1, cluster: 1, sides: 2 };
+  let total = res.total;
+  for (let it = 0; it < 400 && Math.abs(total - budget) > budget * 0.004; it++) {
+    let best = null, bestErr = Math.abs(total - budget);
+    for (const b of res.out) {
+      const o = b[2], ep = ENEMY_PATS[o.e], st = STEP[o.p];
+      if (!st) continue;
+      for (const dir of [st, -st]) {
+        const n2 = o.n + dir;
+        if (n2 < (o.e === 'cloud' ? 1 : 2) || n2 > ep.max) continue;
+        if (o.p === 'column' && n2 > 4) continue;
+        if (o.p === 'cluster' && (n2 < 3 || n2 > 6)) continue;
+        if (o.p === 'line' && o.x !== undefined && n2 > 3) continue;
+        const o2 = Object.assign({}, o, { n: n2 });
+        if (!waveOk(b[0], o2)) continue;
+        const e2 = Math.abs(total - weight(o, b[0]) + weight(o2, b[0]) - budget);
+        if (e2 < bestErr - 1e-9) { bestErr = e2; best = { b, n2 }; }
+      }
+    }
+    if (!best) break;
+    total += weight(Object.assign({}, best.b[2], { n: best.n2 }), best.b[0]) - weight(best.b[2], best.b[0]);
+    best.b[2].n = best.n2;
   }
+  if (Math.abs(total - budget) > budget * 0.02) console.warn('L' + L + ': wave HP ' + (total / T).toFixed(1) + '/s misses the goal ' + hpsGoal.toFixed(1) + '/s');
   beats.push([1.5, 'wave', { p: 'line', e: 'jelly', n: 1, x: 180 }]);
   res.out.forEach(b => beats.push(b));
   beats.push([T, boss ? 'boss' : 'finish', boss ? { b: L / 6 } : {}]);
   beats.sort((a, b) => a[0] - b[0] || (a[1] === 'hint' ? -1 : 0));
   let enemies = 0;
   beats.forEach(b => { if (b[1] === 'wave') enemies += PT.count(b[2].p, b[2].n); });
-  return { def: { id: L, world, seed: L * 101 + 7, length: T, scroll: s, intro: spec.intro, beats }, enemies, target, trace: rowInfo.trace };
+  const def = { id: L, world, seed: L * 101 + 7, length: T, scroll: s, intro: spec.intro, beats };
+  return { def, enemies, hps: V.hps(def), goal: hpsGoal, trace: rowInfo.trace };
 }
 
 /* ---------------- emit ---------------- */
@@ -333,13 +456,21 @@ let out = '/* Pompom Parade - the 30 level timelines (GDD 4.3).\n' +
   ' *   gates {t: pair|tri, g: [tokens], move: 1}   tokens: +N xN -N /N pop spd grow\n' +
   ' * Edit by hand or re-run the tool; then check with ?validate=1 and ?balance=1. */\n' +
   "(function () {\n  'use strict';\n  var L = window.PP.data.levels = [null];\n";
-const summary = [];
+const summary = [], actual = [0];
 for (let L = 1; L <= 30; L++) {
-  const g = genLevel(L), d = g.def;
+  // sequential targeting: the goal follows PP.bal.hpsTarget but is clamped against what the previous
+  // level really ended up with, so the curve stays monotonic (x1.00-1.20, world openers x0.85-0.95 of L-2)
+  let goal = B.hpsTarget(L);
+  if (L > 1 && !B.isBoss(L)) {
+    if ((L - 1) % 6 === 0) goal = clamp(goal, actual[L - 2] * 0.865, actual[L - 2] * 0.935);
+    else goal = clamp(goal, actual[L - 1] * 1.01, actual[L - 1] * 1.19);
+  }
+  const g = genLevel(L, goal), d = g.def;
+  actual.push(g.hps);
   out += '  L.push({ id: ' + d.id + ', world: ' + d.world + ', seed: ' + d.seed + ', length: ' + d.length + ', scroll: ' + d.scroll + ", intro: '" + d.intro + "', beats: [\n";
   out += d.beats.map(b => '    ' + JSON.stringify(b).replace(/"([a-zA-Z0-9_]+)":/g, '$1:').replace(/"/g, "'")).join(',\n');
   out += '\n  ] });\n';
-  summary.push('L' + L + ' enemies ' + g.enemies + '/' + g.target + ' rows ' + d.beats.filter(b => b[1] === 'gates').length + ' squad(best) ' + g.trace.join('>') + ' mid ' + r1(B.mid(L)));
+  summary.push('L' + L + ' hp/s ' + g.hps.toFixed(1) + '/' + g.goal.toFixed(1) + ' enemies ' + g.enemies + ' (' + (10 * g.enemies / d.length).toFixed(1) + '/10s) rows ' + d.beats.filter(b => b[1] === 'gates').length + ' squad(best) ' + g.trace.join('>') + ' mid ' + r1(B.mid(L)));
 }
 out += '})();\n';
 fs.writeFileSync(path.join(root, 'js/data/levels.js'), out);

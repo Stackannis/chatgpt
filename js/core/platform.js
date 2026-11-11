@@ -7,6 +7,8 @@
   var KEY = 'pompomParade.v1';
   var yt = (typeof ytgame !== 'undefined' && ytgame && ytgame.IN_PLAYABLES_ENV) ? ytgame : null; // eslint-disable-line no-undef
   var P = PP.platform = { isPlayables: !!yt };
+  // URL parameters only exist in the standalone web build outside Playables
+  PP.initParams(!!yt || PP.BUILD === 'playables');
 
   function safe(fn) { try { return fn(); } catch (e) { return undefined; } }
 
@@ -53,7 +55,12 @@
     if (yt) { safe(function () { yt.system.onResume(cb); }); return; }
     document.addEventListener('visibilitychange', function () { if (!document.hidden) cb(); });
   };
-  P.sendScore = function (n) { if (yt) safe(function () { yt.engagement.sendScore({ value: Math.floor(n) }); }); };
+  /* leaderboard score: never from a cheated / debug session (returns true when a score was really sent) */
+  P.sendScore = function (n) {
+    if (PP.cheated || !yt) return false;
+    safe(function () { yt.engagement.sendScore({ value: Math.floor(n) }); });
+    return true;
+  };
   P.logError = function (msg) {
     if (yt) safe(function () { yt.health.logError(); });
     if (window.console) console.error('[PompomParade] ' + msg);

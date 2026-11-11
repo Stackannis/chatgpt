@@ -18,7 +18,7 @@ const URL = 'file://' + path.join(__dirname, '..', 'index.html');
     for (const id of ids) for (const lv of [1, 3, 5]) {
       const prof = PP.econ.expectedProfile(20);
       ids.forEach(w => { prof.weapons[w].own = 1; });
-      prof.weapons[id].lv = lv; prof.equipped = id;
+      prof.toy = lv; prof.equipped = id;      // one shared Toy Level
       PP.headless = true;
       PP.run.start({ level: 20, prof, autoplay: true, tutorial: false, H: 640 });
       let maxShots = 0, maxEn = 0, maxPk = 0;

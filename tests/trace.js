@@ -1,4 +1,4 @@
-/* Trace one headless bot run: node tests/trace.js <level> [expected|noupg] [seedOffset]
+/* Trace one headless run: node tests/trace.js <level> [expected|noupg] [seedOffset] [model=bot|good|avg|sloppy|lazy]
  * Prints pompom losses (time, cause, what was near), gates taken, cards, result. */
 'use strict';
 const { chromium } = require('playwright');
@@ -10,8 +10,8 @@ const URL = 'file://' + path.join(__dirname, '..', 'index.html');
   page.on('pageerror', e => console.log('pageerror: ' + e.message + ' ' + (e.stack || '').split('\n').slice(0, 3).join(' | ')));
   await page.goto(URL + '?mute=1&tutorial=0');
   await page.waitForFunction(() => window.__game && window.__game.ready, null, { timeout: 15000 });
-  const L = parseInt(process.argv[2], 10) || 1, mode = process.argv[3] || 'expected', so = parseInt(process.argv[4], 10) || 0;
-  const out = await page.evaluate(([L, mode, so]) => {
+  const L = parseInt(process.argv[2], 10) || 1, mode = process.argv[3] || 'expected', so = parseInt(process.argv[4], 10) || 0, model = process.argv[5] || '';
+  const out = await page.evaluate(([L, mode, so, model]) => {
     const PP = window.PP, G = PP.G, log = [];
     const prof = mode === 'expected' ? PP.econ.expectedProfile(L) : PP.save.defaults();
     PP.headless = true; PP.headlessEvents = true;
@@ -29,12 +29,15 @@ const URL = 'file://' + path.join(__dirname, '..', 'index.html');
     PP.events.on('pompomLost', onLost); PP.events.on('gatePassed', onGate); PP.events.on('cardChosen', onCard); PP.events.on('bossStart', onBoss); PP.events.on('bossPhase', onPhase);
     const def = PP.data.levels[L];
     PP.run.start({ level: L, prof, autoplay: true, tutorial: false, H: 640, seed: def.seed + so * 1000 });
+    const human = model && PP.humans.PROFILES[model], cr = PP.util.rng((((def.seed + so * 1000) * 3 + 5) >>> 0));
+    if (human) PP.humans.install(human, def.seed + so * 1000 + 17);      // same seeding as PP.humans.run / tests/balance.js
     log.push('start squad ' + PP.squad.n + ' weapon ' + PP.squad.weapon.id + ' lv' + PP.squad.wlv + ' dps ' + Math.round(PP.squad.dps()) + ' hpMult ' + G.hpMult.toFixed(2) + ' upg ' + JSON.stringify(prof.upg));
-    for (let i = 0; i < 60 * 400 && !G.over; i++) { if (G.cards) PP.bot.chooseCard(); PP.run.step(1 / 60); }
+    for (let i = 0; i < 60 * 400 && !G.over; i++) { if (G.cards) { if (human) PP.cards.choose(cr() < 0.5 ? 0 : 1); else PP.bot.chooseCard(); } PP.run.step(1 / 60); }
+    if (human) PP.humans.uninstall();
     PP.headless = false; PP.headlessEvents = false;
     log.push('RESULT ' + JSON.stringify(G.result) + ' popped ' + G.popped + ' dps ' + Math.round(PP.squad.dps()));
     return log;
-  }, [L, mode, so]);
+  }, [L, mode, so, model]);
   console.log(out.join('\n'));
   await browser.close();
 })();

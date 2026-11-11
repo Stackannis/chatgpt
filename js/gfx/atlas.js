@@ -105,9 +105,11 @@
 
   /* ================= HUD sprites ================= */
   var def = S.def, defc = S.defc, body = H.body, pe = H.pe, pr = H.pr, dot = H.dot, rr = H.rr;
-  defc('h_pause', 22, 22, function (g) {
-    body(g, pe(0, 0, 18.5, 18.5), '#FFFFFF', { lw: 2.2, shade: '#F3E3EE', hl: [-7, -9, 6, 3] });
-    g.fillStyle = '#FF7AA8'; rr(g, -7.5, -8, 5.4, 16, 2.4); g.fill(); rr(g, 2.1, -8, 5.4, 16, 2.4); g.fill();
+  /* painted at 50.8 u (r 23 + 2.4 outline) so that it stays crisp when the HUD draws it at >= 44 CSS px
+   * on small screens (PP.hud.layout); also used by the DOM side-bar pause button */
+  defc('h_pause', 27, 27, function (g) {
+    body(g, pe(0, 0, 23, 23), '#FFFFFF', { lw: 2.4, shade: '#F3E3EE', hl: [-8.7, -11.2, 7.5, 3.7] });
+    g.fillStyle = '#FF7AA8'; rr(g, -9.3, -10, 6.7, 20, 3); g.fill(); rr(g, 2.6, -10, 6.7, 20, 3); g.fill();
   });
   def('h_bar', 208, 18, 4, 9, function (g) {
     rr(g, -2, -7, 204, 14, 7); g.fillStyle = 'rgba(74,59,82,0.55)'; g.fill();
@@ -172,7 +174,7 @@
   ico('i_w_wand', function (g) {
     H.line(g, -14, 16, 2, -2, 7.5); H.line(g, -14, 16, 2, -2, 3.5, '#FF8FB6');
     g.strokeStyle = OL; g.lineWidth = 7; g.beginPath(); g.arc(8, -8, 8.5, 0, TAU); g.stroke();
-    g.strokeStyle = '#5FE3FF'; g.lineWidth = 3.2; g.beginPath(); g.arc(8, -8, 8.5, 0, TAU); g.stroke();
+    g.strokeStyle = '#2FC8F0'; g.lineWidth = 3.2; g.beginPath(); g.arc(8, -8, 8.5, 0, TAU); g.stroke();
     g.fillStyle = 'rgba(170,240,255,0.6)'; g.beginPath(); g.arc(8, -8, 6.8, 0, TAU); g.fill();
     g.save(); g.translate(-9, -11); bubbleI(g, 5); g.restore(); g.save(); g.translate(15, 10); bubbleI(g, 3.6); g.restore();
   });
@@ -201,8 +203,8 @@
     body(g, function (c) {
       c.beginPath(); c.moveTo(-17, 8); c.quadraticCurveTo(-18, -14, 6, -17); c.quadraticCurveTo(14, -17, 14, -11);
       c.quadraticCurveTo(13, -6, 6, -6); c.quadraticCurveTo(-6, -5, -6, 8); c.quadraticCurveTo(-6, 15, -11.5, 15); c.quadraticCurveTo(-17, 15, -17, 8); c.closePath();
-    }, '#D9A066', { lw: 2.4, shade: '#B97E48' });
-    dot(g, -11, 3, 2, '#7A4A2E'); dot(g, -9, -7, 2, '#7A4A2E'); dot(g, 0, -11.5, 2, '#7A4A2E'); dot(g, 8, -11.5, 1.7, '#7A4A2E');
+    }, '#8A4F1F', { lw: 2.4, shade: '#6E3C14' });   // same dark cookie as the p_cookie projectile
+    dot(g, -11, 3, 2, '#FFF1D6'); dot(g, -9, -7, 1.8, '#57300F'); dot(g, 0, -11.5, 2, '#FFF1D6'); dot(g, 8, -11.5, 1.6, '#57300F');
     g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.arc(4, 6, 12, -0.3, 1.2); g.stroke();
     g.beginPath(); g.moveTo(9.5, 19); g.lineTo(8, 16.4); g.lineTo(11.5, 16); g.closePath(); g.fillStyle = '#fff'; g.fill();
   });

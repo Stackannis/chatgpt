@@ -10,13 +10,13 @@
 
   SV.defaults = function () {
     var d = {
-      v: 1, unlocked: 1, levels: {}, buttons: 0,
+      v: 2, unlocked: 1, levels: {}, buttons: 0,
       upg: { power: 0, rate: 0, buddy: 0, shield: 0, luck: 0, magnet: 0 },
-      weapons: {}, equipped: 'wand',
+      weapons: {}, equipped: 'wand', toy: 1,            // toy: the shared Toy Level (1-5) of every weapon
       settings: { music: 1, sfx: 1, vib: 1, shake: 1, sens: 1, lang: 'auto' },
       hints: {}, endlessBest: 0, fails: {}, stats: { pops: 0, plays: 0 }, ended: 0
     };
-    for (var i = 0; i < WEAPONS.length; i++) d.weapons[WEAPONS[i]] = { own: i === 0 ? 1 : 0, lv: 1 };
+    for (var i = 0; i < WEAPONS.length; i++) d.weapons[WEAPONS[i]] = { own: i === 0 ? 1 : 0 };
     return d;
   };
   function num(v, def, lo, hi) {
@@ -42,12 +42,18 @@
         }
       }
       if (o.upg && typeof o.upg === 'object') for (i = 0; i < UPG.length; i++) d.upg[UPG[i]] = num(o.upg[UPG[i]], 0, 0, UPG_MAX[UPG[i]]);
+      var toy = num(o.toy, 1, 1, 5);
       if (o.weapons && typeof o.weapons === 'object') {
         for (i = 0; i < WEAPONS.length; i++) {
           var w = o.weapons[WEAPONS[i]];
-          if (w && typeof w === 'object') d.weapons[WEAPONS[i]] = { own: (w.own || i === 0) ? 1 : 0, lv: num(w.lv, 1, 1, 5) };
+          if (w && typeof w === 'object') {
+            d.weapons[WEAPONS[i]] = { own: (w.own || i === 0) ? 1 : 0 };
+            // v1 saves had one level per weapon: the shared Toy Level starts at the highest owned one
+            if ((w.own || i === 0) && num(w.lv, 1, 1, 5) > toy) toy = num(w.lv, 1, 1, 5);
+          }
         }
       }
+      d.toy = toy;
       if (typeof o.equipped === 'string' && d.weapons[o.equipped] && d.weapons[o.equipped].own) d.equipped = o.equipped;
       if (o.settings && typeof o.settings === 'object') {
         var s = o.settings;

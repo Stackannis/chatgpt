@@ -45,7 +45,7 @@
         if (p.x < 40) p.x = 40; else if (p.x > 320) p.x = 320;
         if (can && d2 < pr * pr) { collect(p); pool.killAt(i); continue; }
       }
-      if (p.y > G.H + 30) pool.killAt(i);
+      if (p.y > G.bot + 30) pool.killAt(i);
     }
   };
   PK.draw = function () {

@@ -11,6 +11,8 @@
   for (var ci = 0; ci < 12; ci++) clouds.push({ on: false, x: 0, y: 0, r: 36, t: 0, tick: 0, dps: 0 });
   var KSPR = ['p_bubble', 'p_sprinkle_0', 'p_gumball', 'p_star', 'p_cookie', 'p_confetti', 'p_bubble'];
   var KBASE = [5, 3, 8, 5, 9, 6, 5];
+  var WB = PP.data.weaponById;
+  var STAR_HARD = WB.star.hardMult, TWIN = WB.confetti.twinMult, GUM_BOSS = WB.gumball.bossMult;
   var SPRK = [PP.spr.p_sprinkle_0, PP.spr.p_sprinkle_1, PP.spr.p_sprinkle_2, PP.spr.p_sprinkle_3, PP.spr.p_sprinkle_4];
 
   /* kinds: 0 bubble, 1 sprinkle, 2 gumball, 3 star, 4 cookie, 5 confetti, 6 split bubble */
@@ -30,20 +32,17 @@
   function record(s, uid) { s.hits[s.hn & 7] = uid; s.hn++; }
 
   function retarget(s) {
-    var EN = PP.enemies, a = EN.pool.items, n = EN.pool.n, BS = PP.boss;
+    var EN = PP.enemies, a = EN.pool.items, n = EN.pool.n, top = PP.G.oy;
     var sp = Math.sqrt(s.vx * s.vx + s.vy * s.vy) || 1, hx = s.vx / sp, hy = s.vy / sp;
-    var best = -1, bd = 1e12, j, e, dx, dy, d2, dot, COS2 = 0.671; // cos(35 deg)^2
+    var best = -1, bd = 1e12, j, e, dx, dy, d2, dot, COS2 = 0.8214; // 50 degree cone: cos(25 deg)^2
     for (j = 0; j < n; j++) {
       e = a[j];
-      if (e.dead || e.y + e.r < 0 || wasHit(s, e.uid)) continue;
+      if (e.dead || e.y + e.r < top || wasHit(s, e.uid)) continue;
       dx = e.x - s.x; dy = e.y - s.y; d2 = dx * dx + dy * dy; dot = dx * hx + dy * hy;
       if (dot <= 0 || dot * dot < COS2 * d2) continue;
       if (d2 < bd) { bd = d2; best = j; }
     }
-    if (BS.on && BS.targetable()) {
-      dx = BS.x - s.x; dy = BS.y - s.y; d2 = dx * dx + dy * dy; dot = dx * hx + dy * hy;
-      if (dot > 0 && dot * dot >= COS2 * d2 && d2 < bd) { s.ti = -2; return; }
-    }
+    // stars never home in on a boss: bosses have to be aimed at (the Star Wand's trade-off)
     s.ti = best; s.tu = best >= 0 ? a[best].uid : 0;
   }
   function homing(s, dt) {
@@ -53,7 +52,7 @@
     if (s.ti >= 0) {
       e = EN.pool.items[s.ti];
       if (s.ti < EN.pool.n && e.uid === s.tu && !e.dead) { tx = e.x; ty = e.y; have = true; } else { s.ti = -1; s.tt = 0; }
-    } else if (s.ti === -2) { if (PP.boss.on) { tx = PP.boss.x; ty = PP.boss.y; have = true; } else s.ti = -1; }
+    }
     if (!have) return;
     var cur = Math.atan2(s.vy, s.vx), want = Math.atan2(ty - s.y, tx - s.x), d = want - cur;
     while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
@@ -62,12 +61,12 @@
   }
 
   function splash(s, direct, hitBoss) {
-    var EN = PP.enemies, a = EN.pool.items, n = EN.pool.n, R = s.range, dm = s.dmg * 0.625, j, e, dx, dy, rr;
+    var EN = PP.enemies, a = EN.pool.items, n = EN.pool.n, R = s.range, dm = s.dmg * 0.625, j, e, dx, dy, rr, top = PP.G.oy;
     for (j = 0; j < n; j++) {
       e = a[j];
-      if (e === direct || e.dead || e.y + e.r < 0) continue;
+      if (e === direct || e.dead || e.y + e.r < top) continue;
       dx = e.x - s.x; dy = e.y - s.y; rr = R + e.r;
-      if (dx * dx + dy * dy < rr * rr) EN.damage(e, dm, 1);
+      if (dx * dx + dy * dy < rr * rr) EN.damage(e, (e.def.split || e.def.id === 'mini') ? dm * TWIN : dm, 1);   // confetti loves Twinjellies
     }
     if (!hitBoss && PP.boss.on && PP.boss.hitTest(s.x, s.y, R)) PP.boss.damage(dm, s.x, s.y);
     if (!PP.headless) PP.fx.confetti(s.x, s.y, 4, 150);
@@ -81,7 +80,9 @@
   /* returns true if the shot is used up */
   function hit(s, e) {
     var EN = PP.enemies, k = s.k, mult = 1, shellMult = 1;
-    if (k === 2) { shellMult = 2; if (e.def.obstacle) mult = 2; }
+    if (k === 2) { shellMult = 2; if (e.def.obstacle) mult = 2; }                 // gumballs crack shells and crates
+    else if (k === 3) { shellMult = STAR_HARD; if (e.def.obstacle) mult = STAR_HARD; }   // stars are weak against them
+    else if (k === 5 && (e.def.split || e.def.id === 'mini')) mult = TWIN;
     var ex = e.x, ey = e.y;
     EN.damage(e, s.dmg * mult, shellMult);
     PP.fx.hit(s.x, s.y);
@@ -113,23 +114,23 @@
         if (s.leg === 0) {
           var rg = s.range;
           if (BS.on && BS.targetable()) { var need = s.y0 - (BS.y - BS.ry * 0.3); if (need > rg) rg = need; }   // cookies always reach the boss
-          if (s.y0 - s.y >= rg || s.y < 12) { s.leg = 1; s.vy = 380; s.hn = 0; }
+          if (s.y0 - s.y >= rg || s.y < G.oy + 12) { s.leg = 1; s.vy = 380; s.hn = 0; }
         }
         else { s.vx = U.clamp((SQ.x - s.x) * 4, -220, 220); }
       }
       s.x += s.vx * dt; s.y += s.vy * dt; s.rot += s.vr * dt;
       if (s.k === 2 && s.flag) {
         if ((s.x < 30 + s.r && s.vx < 0) || (s.x > 330 - s.r && s.vx > 0)) { s.vx = -s.vx; s.flag = 0; }
-        else if (s.y < s.r && s.vy < 0) { s.vy = -s.vy; s.flag = 0; s.hn = 0; }
+        else if (s.y < G.oy + s.r && s.vy < 0) { s.vy = -s.vy; s.flag = 0; s.hn = 0; }
       }
-      if (s.life <= 0 || s.y < -24 || s.y > G.H + 24 || s.x < -24 || s.x > 384 || (s.k === 4 && s.leg === 1 && s.y >= G.sy - 8)) { pool.killAt(i); continue; }
+      if (s.life <= 0 || s.y < G.oy - 24 || s.y > G.bot + 24 || s.x < -24 || s.x > 384 || (s.k === 4 && s.leg === 1 && s.y >= G.sy - 8)) { pool.killAt(i); continue; }
       if (hasGrow && s.vy < 0 && GT.absorb(s)) { pool.killAt(i); continue; }
       if (BS.on && BS.hitTest(s.x, s.y, s.r)) {
         if (s.k === 4) {            // the boomerang cookie passes through the boss: one hit per leg
           if (!wasHit(s, -7)) { record(s, -7); BS.damage(s.dmg, s.x, s.y); PP.fx.hit(s.x, s.y); }
           continue;
         }
-        BS.damage(s.dmg, s.x, s.y);
+        BS.damage(s.k === 2 ? s.dmg * GUM_BOSS : s.dmg, s.x, s.y);      // gumballs: x1.5 against bosses
         if (s.k === 5) splash(s, null, true);
         PP.fx.hit(s.x, s.y);
         pool.killAt(i); continue;
@@ -160,7 +161,7 @@
       if (c.tick <= 0) {
         c.tick = 0.25;
         for (j = 0; j < EN.pool.n; j++) {
-          e = ea[j]; if (e.dead || e.y + e.r < 0) continue;
+          e = ea[j]; if (e.dead || e.y + e.r < G.oy) continue;
           dx = e.x - c.x; dy = e.y - c.y; rr = c.r + e.r;
           if (dx * dx + dy * dy < rr * rr) EN.damage(e, c.dps * 0.25, 1);
         }
@@ -178,23 +179,26 @@
   };
   SH.beamTick = function (dmg) {
     var G = PP.G, SQ = PP.squad, EN = PP.enemies, a = EN.pool.items, n = EN.pool.n, BS = PP.boss, GT = PP.gates;
-    var x = SQ.x, half = SH.beamWidth() / 2, i, e, nc = 0, limit = SQ.wlv >= 5 ? 99 : 2 + SQ.pierce;
+    var x = SQ.x, half = SH.beamWidth() / 2, i, e, nc = 0, limit = SQ.wlv >= 5 ? 99 : 2 + SQ.pierce, w = SQ.weapon;
     var blockY = GT.beamBlock(x, half, dmg);   // grow gates absorb the beam
     for (i = 0; i < n && nc < 96; i++) {
       e = a[i];
-      if (e.dead || e.y + e.r < 0 || e.y > G.sy || e.y < blockY) continue;
+      if (e.dead || e.y + e.r < G.oy || e.y > G.sy || e.y < blockY) continue;
       if (Math.abs(e.x - x) < half + e.r) { candI[nc] = i; candY[nc] = e.y; nc++; }
     }
+    // the boss only counts while it is a real target in front of the squad (not entering, rolling away or returning);
+    // everything between the squad and the boss is hit first
     var bossY = -1e9;
-    if (BS.on && Math.abs(BS.x - x) < half + BS.rx && BS.y + BS.ry > 0 && BS.y > blockY) bossY = BS.y + BS.ry * 0.5;
-    var hits = 0, top = blockY > 0 ? blockY : 0, bossDone = bossY < -1e8;
+    if (BS.beamable() && Math.abs(BS.x - x) < half + BS.rx && BS.y > blockY) bossY = BS.y + BS.ry * 0.5;
+    if (bossY > G.sy) bossY = G.sy;
+    var hits = 0, top = blockY > G.oy ? blockY : G.oy, bossDone = bossY < -1e8;
     while (hits < limit) {
       var best = -1, by = -1e9;
       for (i = 0; i < nc; i++) if (candY[i] > by) { by = candY[i]; best = i; }
-      if (!bossDone && bossY >= by) { BS.damage(dmg, x, bossY); top = bossY; break; } // the boss absorbs the beam
+      if (!bossDone && bossY >= by) { BS.damage(dmg * (w.bossMult || 1), x, bossY); top = bossY; break; } // the boss absorbs the beam
       if (best < 0) break;
       e = a[candI[best]]; candY[best] = -2e9;
-      EN.damage(e, dmg, 1.5);
+      EN.damage(e, e.elite ? dmg * (w.eliteMult || 1) : dmg, 1.5);
       if (!PP.headless && (G.tick & 3) === 0) PP.fx.hit(e.x, e.y);
       hits++;
       if (hits >= limit) top = e.y;
@@ -216,7 +220,7 @@
       R.drawR(spr.p_beam, SQ.x - w / 2, top, w, y1 - top);
       R.ctx.globalAlpha = 1;
       R.drawX(spr.p_beamcap, SQ.x, y1, w / 30, w / 30, 0);
-      if (top > 0) R.drawX(spr.p_beamcap, SQ.x, top, w / 24, w / 24, 0);
+      if (top > G.oy) R.drawX(spr.p_beamcap, SQ.x, top, w / 24, w / 24, 0);
     }
     for (i = 0; i < pool.n; i++) {
       s = a[i];
@@ -241,8 +245,8 @@
     var G = PP.G, SQ = PP.squad, a = ep.items, i, s, dx, dy, rr;
     for (i = ep.n - 1; i >= 0; i--) {
       s = a[i]; s.x += s.vx * dt; s.y += s.vy * dt; s.t += dt;
-      if (s.y > G.H + 20 || s.y < -60 || s.x < -20 || s.x > 380) { ep.killAt(i); continue; }
-      dx = s.x - SQ.x; dy = s.y - G.sy; rr = s.r + SQ.R * 0.9;
+      if (s.y > G.bot + 20 || s.y < G.oy - 60 || s.x < -20 || s.x > 380) { ep.killAt(i); continue; }
+      dx = s.x - SQ.x; dy = s.y - G.sy; rr = s.r * 0.85 + SQ.Rh;      // forgiving hitbox for dodgeable attacks
       if (dx * dx + dy * dy < rr * rr) { SQ.hurt(s.cost, 'boss'); ep.killAt(i); }
     }
   };

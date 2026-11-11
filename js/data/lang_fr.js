@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   window.PP.i18n.register('fr', {
+    'toast.portrait': 'Mieux en mode portrait',
     'menu.play': 'JOUER', 'menu.level': 'Niveau {n}', 'menu.map': 'Carte', 'menu.shop': 'Atelier', 'menu.endless': 'Marathon',
     'menu.endless.locked': 'Termine le niveau 30 pour ouvrir le Marathon de la Parade', 'menu.settings': 'Options', 'menu.best': 'Record : {n} m',
     'map.title': 'Carte', 'map.best': 'Record {n} %', 'map.locked': 'Termine d’abord le niveau précédent', 'map.theend': 'FIN ★ Mode sans fin débloqué',
@@ -46,6 +47,11 @@
     'hint.gauntlet': 'Tout le monde est là !', 'hint.elite': 'Les Grognons couronnés sont plus costauds', 'hint.fence': 'Faufile-toi dans le passage qui scintille', 'hint.ice': 'La glace fait glisser',
     'hint.swarm': 'Une nuée arrive !', 'hint.hardmix': 'Reste sur tes gardes', 'hint.moving': 'Ces portes bougent : vise bien !', 'hint.eliteclouds': 'Pluie royale en vue',
     'hint.twinswarm': 'Que de jumeaux !', 'hint.traps': 'Prudence : des pièges partout', 'hint.grand': 'La Grande Parade !',
-    'hint.heart': 'Les cœurs amènent des copains', 'hint.shield': 'La bulle bouclier bloque un choc', 'hint.frenzy': 'Bonbon frénésie : vitesse doublée !', 'hint.magnet': 'L’aimant attire les Boutons'
+    'hint.heart': 'Les cœurs amènent des copains', 'hint.shield': 'La bulle bouclier bloque un choc', 'hint.frenzy': 'Bonbon frénésie : vitesse doublée !', 'hint.magnet': 'L’aimant attire les Boutons',
+    'result.equipped': 'Équipé !', 'result.keep': 'Garder {w}', 'result.lose.far': 'Continue !', 'result.lose.mid': 'Bien essayé !',
+    'result.hint.glove': 'Ton Coup de pouce vient de grandir', 'result.hint.boss': 'Guette l’avertissement qui clignote, puis esquive',
+    'result.hint.hazard': 'Contourne les rayures bonbon', 'result.hint.enemy': 'Éclate-les tôt, avant qu’ils t’atteignent',
+    'map.toboss': 'Aller au boss', 'shop.toy': 'Niveau des jouets', 'shop.toy.desc': 'Renforce tous les jouets', 'shop.best': 'Fort contre',
+    'set.ending': 'La fin', 'set.ending.replay': 'Revoir'
   });
 })();

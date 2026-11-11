@@ -1,4 +1,4 @@
-/* Pompom Parade - Workshop: weapons (level 1-5, equip) and permanent upgrades. Buttons only. */
+/* Pompom Parade - Workshop: toys (one shared Toy Level 1-5, role icons, equip) and permanent upgrades. Buttons only. */
 (function () {
   'use strict';
   var PP = window.PP, UI = PP.ui, h = UI.h;
@@ -24,26 +24,42 @@
         h('div', 'info', [h('div', 'name', '???'), h('div', 'desc', t('shop.locked', { n: w.unlock }))])
       ], { 'data-testid': 'weapon-' + w.id });
     }
-    var info = h('div', 'info');
+    var info = h('div', 'info'), lv = sv.toy || 1;
     info.appendChild(h('div', 'name', t('weapon.' + w.id)));
-    info.appendChild(pips(st.lv, 5));
+    // role: what this toy is best against (icons)
+    if (w.role && w.role.length) {
+      var role = h('div', 'role' + (w.roleCol ? ' stack' : ''), null, { 'data-testid': 'role-' + w.id, title: t('shop.best') });
+      role.appendChild(h('span', 'rl', t('shop.best')));
+      w.role.forEach(function (name) { role.appendChild(UI.icon(name, 20)); });
+      info.appendChild(role);
+    }
     var bars = h('div', 'bars'), labels = ['shop.stat.power', 'shop.stat.speed', 'shop.stat.special'];
     for (var i = 0; i < 3; i++) {
-      var v = w.bars[i] * 20 * (i === 0 ? (0.8 + 0.05 * (st.lv - 1)) : 1);
+      var v = w.bars[i] * 20 * (i === 0 ? (0.8 + 0.05 * (lv - 1)) : 1);
       bars.appendChild(h('span', null, t(labels[i])));
       bars.appendChild(h('span', 'bar', h('i', null, null, { style: 'width:' + Math.min(100, v) + '%' })));
     }
     info.appendChild(bars);
-    info.appendChild(h('div', 'desc', (st.lv >= 3 ? '✔ ' : 'Lv3: ') + t('weapon.' + w.id + '.p3') + ' · ' + (st.lv >= 5 ? '✔ ' : 'Lv5: ') + t('weapon.' + w.id + '.p5')));
+    info.appendChild(h('div', 'desc', (lv >= 3 ? '✔ ' : 'Lv3: ') + t('weapon.' + w.id + '.p3') + ' · ' + (lv >= 5 ? '✔ ' : 'Lv5: ') + t('weapon.' + w.id + '.p5')));
     var acts = h('div', 'acts');
-    acts.appendChild(costBtn(PP.econ.weaponCost(w.id), 'buy-weapon-' + w.id, function () {
-      if (PP.econ.buyWeapon(w.id)) { PP.audio.sfx('buy'); rerender('weapon-' + w.id); }
-    }));
     var eq = sv.equipped === w.id;
     var eb = UI.btn(eq ? t('shop.equipped') : t('shop.equip'), 'equip-' + w.id, function () { PP.econ.equip(w.id); rerender(); }, 'small' + (eq ? ' off' : ' blue'));
     if (eq) eb.disabled = true;
     acts.appendChild(eb);
     return h('div', 'item', [UI.icon('i_w_' + w.id, 46), info, acts], { 'data-testid': 'weapon-' + w.id });
+  }
+  /* the shared Toy Level (1-5): one upgrade for every toy, Lv3 / Lv5 perks apply to the equipped one */
+  function toyItem(rerender) {
+    var t = PP.t, sv = PP.save.data, lv = sv.toy || 1;
+    var info = h('div', 'info');
+    info.appendChild(h('div', 'name', t('shop.toy') + '  ' + t('shop.lv', { n: lv })));
+    info.appendChild(pips(lv, 5));
+    info.appendChild(h('div', 'desc', t('shop.toy.desc') + '  +' + ((lv - 1) * 10) + '%' + (lv < 5 ? ' → +' + (lv * 10) + '%' : '')));
+    var acts = h('div', 'acts');
+    acts.appendChild(costBtn(PP.econ.toyCost(), 'buy-toy', function () {
+      if (PP.econ.buyToy()) { PP.audio.sfx('buy'); rerender('toy-level'); }
+    }));
+    return h('div', 'item toy', [UI.icon('i_w_' + sv.equipped, 46), info, acts], { 'data-testid': 'toy-level' });
   }
   function upgradeItem(u, rerender) {
     var t = PP.t, sv = PP.save.data, lv = sv.upg[u.id];
@@ -80,7 +96,7 @@
       tabs.appendChild(UI.btn(t('shop.weapons'), 'tab-weapons', function () { tab = 'weapons'; scrollPos = 0; rerender(); }, 'small tab' + (tab === 'weapons' ? ' sel' : '')));
       tabs.appendChild(UI.btn(t('shop.upgrades'), 'tab-upgrades', function () { tab = 'upgrades'; scrollPos = 0; rerender(); }, 'small tab' + (tab === 'upgrades' ? ' sel' : '')));
       el.appendChild(tabs);
-      if (tab === 'weapons') PP.data.weapons.forEach(function (w) { list.appendChild(weaponItem(w, rerender)); });
+      if (tab === 'weapons') { list.appendChild(toyItem(rerender)); PP.data.weapons.forEach(function (w) { list.appendChild(weaponItem(w, rerender)); }); }
       else PP.data.upgrades.forEach(function (u) { list.appendChild(upgradeItem(u, rerender)); });
       el.appendChild(list);
       setTimeout(function () { if (list.isConnected) list.scrollTop = scrollPos; }, 0);

@@ -45,11 +45,11 @@
   GM.ready = function () {
     GM.isReady = true;
     PP.ui.applySettings();
-    PP.debug.applyParams();
+    if (PP.debug) PP.debug.applyParams();        // standalone web build only (js/debug is not shipped in Playables)
     GM.goto('menu');
     PP.platform.gameReady();                     // main menu is interactive
     PP.events.emit('ready', {});
-    PP.debug.afterReady();
+    if (PP.debug) PP.debug.afterReady();
   };
 
   function nextLevel() { return Math.min(30, PP.save.data.unlocked); }
@@ -70,10 +70,13 @@
     }
     if (name === 'ending') {
       PP.run.stop(); PP.ui.hint(null);
+      if (GM.paused) { GM.paused = false; PP.audio.resume(); }
       GM.screen = 'ending';
       PP.ending.start(function () {
-        if (GM.lastView && GM.lastView.res.level === 30 && GM.lastView.res.win) { ensureDemo(); GM.screen = 'win'; PP.ui.show('win', { res: GM.lastView.res, out: GM.lastView.out }); }
-        else GM.goto('map');
+        // the ending only counts as seen once it has finished or been skipped
+        if (!PP.save.data.ended) { PP.save.data.ended = 1; PP.save.flush(); }
+        if (!params.replay && GM.lastView && GM.lastView.res.level === 30 && GM.lastView.res.win) { ensureDemo(); GM.screen = 'win'; PP.ui.show('win', { res: GM.lastView.res, out: GM.lastView.out }); }
+        else GM.goto(params.back || 'map', params.back === 'settings' ? { from: 'menu' } : null);
       });
       return;
     }
@@ -97,6 +100,7 @@
     if (d.wlv) o.wlv = d.wlv;
     if (PP.params.tutorial === '0') o.tutorial = false;
     if (extra) for (var k in extra) if (extra.hasOwnProperty(k)) o[k] = extra[k];
+    if (o.god || o.autoplay || o.squad || o.weapon || o.wlv || o.seed !== undefined || o.prof || o.H) PP.cheat('run override');
     return o;
   }
   function begin(o) {
@@ -114,7 +118,11 @@
     opts = opts || {};
     n = U.clamp(Math.floor(n) || 1, 1, 30);
     if (!GM.isReady) return false;
-    if (n > PP.save.data.unlocked && !opts.force && !PP.debugSession) return false;
+    if (n > PP.save.data.unlocked) {
+      if (!opts.force && !PP.debugSession) return false;
+      PP.cheat('locked level');
+    }
+    if (opts.toBoss && !PP.econ.canSkipToBoss(n)) opts = { force: opts.force };   // "Go to boss" only after 3 fails on a boss level
     var o = runOpts(opts); o.level = n;
     GM.lastStart = { level: n, opts: opts };
     begin(o);
@@ -123,7 +131,10 @@
   GM.startEndless = function (opts) {
     opts = opts || {};
     if (!GM.isReady) return false;
-    if (!PP.save.endlessUnlocked() && !opts.force && !PP.debugSession) return false;
+    if (!PP.save.endlessUnlocked()) {
+      if (!opts.force && !PP.debugSession) return false;
+      PP.cheat('locked endless');
+    }
     var o = runOpts(opts); o.endless = true;
     GM.lastStart = { endless: true, opts: opts };
     begin(o);
@@ -143,6 +154,7 @@
   /* ---- pause: stops simulation, input, audio (suspend) and rendering; never auto-resumes ---- */
   GM.pause = function () {
     if (GM.paused || (GM.screen !== 'play' && GM.screen !== 'cards')) return false;
+    if (PP.G.over) return false;                 // the run is settled: the result / ending screen is on its way and cannot be interrupted
     GM.paused = true;
     PP.input.reset();
     PP.audio.pause();
@@ -172,9 +184,10 @@
   };
 
   /* ---- run callbacks ---- */
-  GM.onCards = function () { GM.screen = 'cards'; PP.audio.sfx('card'); PP.ui.show('cards'); };
+  GM.onCards = function () { PP.input.reset(); GM.screen = 'cards'; PP.audio.sfx('card'); PP.ui.show('cards'); };
   GM.chooseCard = function (i) {
     if (!PP.G.cards) return false;
+    PP.input.reset();                            // drags made behind the card overlay are never replayed
     PP.cards.choose(i);
     PP.tut.done('cards');
     PP.save.write();
@@ -192,7 +205,7 @@
     if (res.win) {
       PP.audio.sfx('win'); PP.fx.vibrate([30, 40, 30]);
       PP.fx.confetti(180, PP.G.sy - 120, 40, 380);
-      if (res.level === 30 && out.firstClear) GM.pending = { name: 'ending', t: 1.2 };
+      if (res.mode === 'level' && res.level === 30 && !PP.save.data.ended) GM.pending = { name: 'ending', t: 1.2 };
       else GM.pending = { name: 'win', t: 0.7 };
     } else {
       PP.audio.sfx('lose');
@@ -217,7 +230,7 @@
     if (GM.hidden || GM.busy) return;
     if (GM.screen === 'boot') { bootFrame(delta); return; }
     if (GM.paused) return;
-    if (GM.screen === 'ending') { PP.ending.frame(delta); PP.debug.frame(); return; }
+    if (GM.screen === 'ending') { PP.ending.frame(delta); if (PP.debug) PP.debug.frame(); return; }
     var G = PP.G, L = PP.loop;
     if (!G.on) return;
     if (G.mode === 'demo') {
@@ -226,7 +239,7 @@
       GM.noteT -= delta;
       if (GM.noteT <= 0) { GM.noteT = 0.5; PP.fx.note(PP.squad.x + (Math.random() - 0.5) * 60, G.sy - 30); }
     } else if (!G.over) {
-      if (G.cards) { if (G.autoplay) { PP.bot.chooseCard(); PP.ui.hide(); GM.screen = 'play'; } }
+      if (G.cards) { if (G.autoplay && PP.bot) { PP.bot.chooseCard(); PP.ui.hide(); GM.screen = 'play'; } }
       else L.advance(delta, PP.run.step);
     }
     PP.fx.update(delta);
@@ -241,8 +254,11 @@
         else { GM.screen = p.name; PP.ui.show(p.name, { res: GM.lastView.res, out: GM.lastView.out }); }
       }
     }
-    PP.debug.frame();
+    if (PP.debug) PP.debug.frame();
   };
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', GM.boot); else GM.boot();
+  /* debug scripts (web build only) are injected first, then the game boots */
+  PP.loadDebug(function () {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', GM.boot); else GM.boot();
+  });
 })();

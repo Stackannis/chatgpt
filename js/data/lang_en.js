@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   window.PP.i18n.register('en', {
+    'toast.portrait': 'Best in portrait',
     'menu.play': 'PLAY', 'menu.level': 'Level {n}', 'menu.map': 'Map', 'menu.shop': 'Workshop', 'menu.endless': 'Marathon',
     'menu.endless.locked': 'Clear level 30 to unlock the Parade Marathon', 'menu.settings': 'Settings', 'menu.best': 'Best: {n} m',
     'map.title': 'Parade Map', 'map.best': 'Best {n}%', 'map.locked': 'Clear the previous level first', 'map.theend': 'THE END ★ Endless unlocked',
@@ -46,6 +47,11 @@
     'hint.gauntlet': 'Everyone is here!', 'hint.elite': 'Crowned Grumblies are tougher', 'hint.fence': 'Slip through the sparkling gap', 'hint.ice': 'Ice makes you slide',
     'hint.swarm': 'Here comes a swarm!', 'hint.hardmix': 'Stay on your toes', 'hint.moving': 'These gates slide: time it!', 'hint.eliteclouds': 'Royal rain incoming',
     'hint.twinswarm': 'So many twins!', 'hint.traps': 'Careful: traps everywhere', 'hint.grand': 'The Grand Parade!',
-    'hint.heart': 'Hearts bring new buddies', 'hint.shield': 'A bubble shield blocks one bump', 'hint.frenzy': 'Frenzy candy: double speed!', 'hint.magnet': 'Magnets pull Buttons in'
+    'hint.heart': 'Hearts bring new buddies', 'hint.shield': 'A bubble shield blocks one bump', 'hint.frenzy': 'Frenzy candy: double speed!', 'hint.magnet': 'Magnets pull Buttons in',
+    'result.equipped': 'Equipped!', 'result.keep': 'Keep {w}', 'result.lose.far': 'Keep going!', 'result.lose.mid': 'Nice try!',
+    'result.hint.glove': 'Your Helping Hand just grew', 'result.hint.boss': 'Watch the flashing warning, then dodge',
+    'result.hint.hazard': 'Steer around the candy stripes', 'result.hint.enemy': 'Pop them early, before they reach you',
+    'map.toboss': 'Go to boss', 'shop.toy': 'Toy Level', 'shop.toy.desc': 'Makes every toy stronger', 'shop.best': 'Best against',
+    'set.ending': 'The ending', 'set.ending.replay': 'Replay'
   });
 })();

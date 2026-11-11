@@ -32,7 +32,10 @@
 
   function decide() {
     var G = PP.G, SQ = PP.squad, EN = PP.enemies, GT = PP.gates, OB = PP.obst, BS = PP.boss, ES = PP.eshots, PK = PP.pickups;
-    var sy = G.sy, R = SQ.R, i, k, e, x, t;
+    // The bot dodges what a player SEES: hazards at their full visual size against the visible squad radius R.
+    // The real collisions are more forgiving (85 % shapes vs. the small hitbox SQ.Rh), and that difference is
+    // exactly the slack an imperfect (late, noisy) human needs.
+    var sy = G.sy, R = SQ.R, Rh = R, top = G.oy, i, k, e, x, t;
     // ---- gate rows within 260 u override the path choice ----
     var row = null;
     for (i = 0; i < GT.rows.length; i++) { var r = GT.rows[i]; if (r.on && !r.passed && r.y > sy - 260 && (!row || r.y > row.y)) row = r; }
@@ -49,7 +52,7 @@
     var a = EN.pool.items, n = EN.pool.n;
     for (k = 0; k < n; k++) {
       e = a[k];
-      if (e.dead || e.y < -30 || e.y > sy + 30) continue;
+      if (e.dead || e.y < top - 30 || e.y > sy + 30) continue;
       var ai = e.def.ai, vy = G.scroll + e.own, vx = 0;
       if (ai === 'shot') { vy = e.vy; vx = e.vx; }
       else if (ai === 'cloud' && e.st === 1) vy = 0;
@@ -65,9 +68,9 @@
         var unkillable = ai === 'shot' ? e.hp > 1 || t < 0.25 : ttk > (t - 0.15) * 0.8;
         danger(ex - R - e.r - 5, ex + R + e.r + 5, unkillable ? -100 : -4 * e.bump);
       }
-      if (ai !== 'shot' && e.y > 0) {
+      if (ai !== 'shot' && e.y > top) {
         // HP-density column: worth standing under (closer targets matter more)
-        var w = (e.def.grumbly ? 1 : 0.6) * (0.45 + 0.55 * e.y / sy) * (e.elite ? 1.6 : 1);
+        var w = (e.def.grumbly ? 1 : 0.6) * (0.45 + 0.55 * (e.y - top) / 530) * (e.elite ? 1.6 : 1);
         var i0 = Math.ceil((e.x - aim - e.r - X0) / DX), i1 = Math.floor((e.x + aim + e.r - X0) / DX);
         if (i0 < 0) i0 = 0; if (i1 > N - 1) i1 = N - 1;
         for (i = i0; i <= i1; i++) sc[i] += w;
@@ -78,20 +81,20 @@
     for (k = 0; k < ES.pool.n; k++) {
       var s = es[k];
       if (s.vy <= 0) continue;
-      t = (sy - s.y - R) / s.vy;
-      if (t < LOOK && t > -0.2) { x = s.x + s.vx * (t > 0 ? t : 0); danger(x - R - s.r - 7, x + R + s.r + 7, -100); }
+      t = (sy - s.y - Rh) / s.vy;
+      if (t < LOOK && t > -0.2) { x = s.x + s.vx * (t > 0 ? t : 0); danger(x - Rh - s.r - 7, x + Rh + s.r + 7, -100); }
     }
     // ---- hazards ----
     for (k = 0; k < OB.list.length; k++) {
       var o = OB.list[k];
       if (!o.on) continue;
-      if (o.type === 'spinner') { if (o.y > sy - 75 - R - G.scroll * LOOK && o.y < sy + 70 + R) danger(o.x - 55 - R - 6, o.x + 55 + R + 6, -100); }
+      if (o.type === 'spinner') { if (o.y > sy - 75 - Rh - G.scroll * LOOK && o.y < sy + 70 + Rh) danger(o.x - 55 - Rh - 6, o.x + 55 + Rh + 6, -100); }
       else if (o.type === 'roller') {
-        t = (o.st === 0 ? 1 - o.t : 0) + (sy - o.y - 26 - R) / (G.scroll + 160);
-        if (t < LOOK + 0.5 && o.y < sy + 40) danger(o.x - 26 - R - 7, o.x + 26 + R + 7, -100);
+        t = (o.st === 0 ? 1 - o.t : 0) + (sy - o.y - 26 - Rh) / (G.scroll + 160);
+        if (t < LOOK + 0.5 && o.y < sy + 40) danger(o.x - 26 - Rh - 7, o.x + 26 + Rh + 7, -100);
       } else if (o.type === 'fence') {
         t = (sy - o.y) / G.scroll;
-        if (t > -0.25 && t < 2.4) dangerOutside(o.gap - 55 + R * 0.6 + 5, o.gap + 55 - R * 0.6 - 5, t < LOOK ? -100 : -40);
+        if (t > -0.25 && t < 2.4) dangerOutside(o.gap - 55 + Rh * 0.6 + 5, o.gap + 55 - Rh * 0.6 - 5, t < LOOK ? -100 : -40);
       } else if (o.type === 'syrup') {
         t = (sy - o.y) / (G.scroll + o.vy);
         if (t > -0.5 && t < 1.0) danger(o.x - 60, o.x + 60, -1.5);
@@ -105,10 +108,10 @@
         var rp = BS.rip[k];
         if (!rp.on) continue;
         t = (rp.st === 0 ? rp.t : 0) + (sy - rp.y) / 150;
-        if (t > -0.2 && t < 2.6) dangerOutside(rp.gapX - rp.gapW / 2 + R * 0.5 + 6, rp.gapX + rp.gapW / 2 - R * 0.5 - 6, t < LOOK ? -100 : -35);
+        if (t > -0.2 && t < 2.6) dangerOutside(rp.gapX - rp.gapW / 2 + Rh * 0.5 + 6, rp.gapX + rp.gapW / 2 - Rh * 0.5 - 6, t < LOOK ? -100 : -35);
       }
-      if (BS.st === 'roll' && BS.y < sy + 40) danger(BS.x - 44 - R, BS.x + 44 + R, -100);
-      if (BS.clone.on && BS.clone.st === 2) danger(BS.clone.x - 32 - R, BS.clone.x + 32 + R, -100);
+      if (BS.st === 'roll' && BS.y < sy + 40) danger(BS.x - 44 - Rh, BS.x + 44 + Rh, -100);
+      if (BS.clone.on && BS.clone.st === 2) danger(BS.clone.x - 32 - Rh, BS.clone.x + 32 + Rh, -100);
       if (BS.targetable()) {
         // lead the target: aim where the boss will be when the shots arrive
         var bv = (BS.x - BOT.bx) / 0.1; BOT.bvx = BOT.bvx * 0.5 + (Math.abs(bv) < 400 ? bv : 0) * 0.5;
@@ -125,7 +128,7 @@
     // ---- grow gates: stand under them to raise the number ----
     for (k = 0; k < GT.rows.length; k++) {
       var gr = GT.rows[k];
-      if (!gr.on || gr.passed || !gr.hasGrow || gr.y < 0) continue;
+      if (!gr.on || gr.passed || !gr.hasGrow || gr.y < top) continue;
       for (i = 0; i < gr.n; i++) { var gg = gr.g[i]; if (gg.type === 'grow' && gg.v < gg.max) { var c0 = Math.ceil((gg.x0 + 12 - X0) / DX), c1 = Math.floor((gg.x1 - 12 - X0) / DX); for (var q = c0; q <= c1; q++) if (q >= 0 && q < N) sc[q] += 2.2; break; } }
     }
     // ---- pickups ----

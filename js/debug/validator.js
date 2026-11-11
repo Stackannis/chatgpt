@@ -3,7 +3,7 @@
 (function () {
   'use strict';
   var PP = window.PP, B = PP.bal, D = PP.data;
-  var V = PP.validator = { DIST: 570, MIN_DIST: 530 };
+  var V = PP.validator = { DIST: 570, MIN_DIST: 530, HAZ_AFTER: 2.0 };
   var OBJ_INTRO = { crate: 2, spinner: 4, gift: 10, roller: 11, jar: 11, syrup: 16, fence: 20, ice: 21 };
   var PICK_INTRO = { button: 1, stack: 2, heart: 3, shield: 7, frenzy: 8, magnet: 11 };
   var HAZ = { spinner: 1, roller: 1, fence: 1 };
@@ -29,7 +29,8 @@
   V.conflict = function (a0, a1, ga, s, hazard, halfH) {
     var before = 160 / s + 0.15 + (halfH || 0) / s;
     if (hazard && before < 1.5 + (halfH || 0) / s) before = 1.5 + (halfH || 0) / s;
-    return a1 > ga - before && a0 < ga + 0.2 + (halfH || 0) / s;
+    // a hazard right behind a gate row would punish the gate choice: leave 2 s to get out of its way
+    return a1 > ga - before && a0 < ga + (hazard ? V.HAZ_AFTER : 0.2) + (halfH || 0) / s;
   };
   V.gateInfo = function (tok) {
     if (tok === 'pop' || tok === 'spd' || tok === 'grow') return { type: tok, val: 0, neg: false };
@@ -56,12 +57,39 @@
     return b;
   };
 
+  /* ---- "no free ride" rules (FIX_PLAN_R1, from L4) ---- */
+  /* a hazard that blocks the centre of the road (x 150-210): a squad idling there gets hit.
+   * spinner: its 110 u bar spans the band; roller at x = 180: its collision band (20 + squad hitbox) spans it;
+   * fence: the gap lies completely to one side. */
+  V.centreBlocking = function (p) {
+    if (!p) return false;
+    var x = p.x !== undefined ? p.x : (p.lane !== undefined ? PP.util.laneX(p.lane) : 180);
+    if (p.o === 'spinner') return Math.abs(x - 180) <= 25;
+    if (p.o === 'roller') return Math.abs(x - 180) <= 1;
+    if (p.o === 'fence') { var g = p.gap !== undefined ? p.gap : 180; return g <= 95 || g >= 265; }
+    return false;
+  };
+  V.isTrapRow = function (toks) { for (var i = 0; i < toks.length; i++) if (V.gateInfo(toks[i]).neg) return true; return false; };
+  /* a wave that enters through the two side lanes only */
+  V.isSideWave = function (p) { return p.p === 'sides' || (p.p === 'column' && (p.lane === 0 || p.lane === 3)); };
+  /* wave HP per second of a level (the same measure as review/gameplay/curve.js) */
+  V.hps = function (def) {
+    var hp = 0, L = def.id;
+    for (var i = 0; i < def.beats.length; i++) {
+      var b = def.beats[i]; if (b[1] !== 'wave') continue;
+      var p = b[2];
+      hp += (PP.patterns.count(p.p, p.n) + (p.el || 0) * 2) * D.enemyHpUnits(p.e) * B.hpMult(L) * B.ramp(b[0], def.length);
+    }
+    return hp / def.length;
+  };
+  V.HPS_TOL = 0.04;      // a level's wave HP per second must be within 4 % of PP.bal.hpsTarget
+
   V.checkLevel = function (def, errors, warnings) {
     var L = def.id, s = def.scroll, beats = def.beats, i, j, b, p;
     function err(m) { errors.push('L' + L + ': ' + m); }
     function warn(m) { warnings.push('L' + L + ': ' + m); }
     var boss = B.isBoss(L), A = B.A(L);
-    var info = { id: L, enemies: 0, target: 0, rows: 0, x3: 0, objs: 0, picks: 0 };
+    var info = { id: L, enemies: 0, target: 0, rows: 0, x3: 0, objs: 0, picks: 0, traps: 0, sides: 0, centre: [], hps: 0 };
     // sizes
     if (def.world !== B.world(L)) err('world mismatch');
     var wantLen = boss ? 35 + 2 * def.world : B.runLen(L);
@@ -83,6 +111,7 @@
         if (p.lane !== undefined && (p.lane < 0 || p.lane > 3)) err('bad lane');
         if (p.x !== undefined && (p.x < 42 || p.x > 318)) err('bad x');
         info.enemies += PP.patterns.count(p.p, p.n);
+        if (V.isSideWave(p)) info.sides++;
       } else if (b[1] === 'gates') {
         var toks = p.g;
         if (!toks || (toks.length !== 2 && toks.length !== 3)) { err('bad gate row'); continue; }
@@ -112,10 +141,12 @@
         else { sameSide = 1; lastSide = best; }
         n = Math.round(V.gateScore(toks[best], n, A)); if (toks[best] === 'pop' || toks[best] === 'spd') n = Math.round(n / 1.2);
         gates.push(b[0]); info.rows++;
+        if (V.isTrapRow(toks)) info.traps++;
       } else if (b[1] === 'obj') {
         if (OBJ_INTRO[p.o] === undefined) err('unknown object ' + p.o);
         else if (OBJ_INTRO[p.o] > L) err(p.o + ' used before its intro level');
         info.objs++;
+        if (V.centreBlocking(p)) info.centre.push(b[0]);
       } else if (b[1] === 'pick') {
         if (PICK_INTRO[p.k] === undefined) err('unknown pickup ' + p.k);
         else if (PICK_INTRO[p.k] > L) err(p.k + ' used before its intro level');
@@ -140,9 +171,19 @@
         if (V.conflict(a0, a1, V.gateArrival(gates[j], s), s, haz, hh)) err('rule 5: ' + (p.e || p.o) + ' at t=' + b[0] + ' too close to the gate row at t=' + gates[j]);
       }
     }
-    // count rule
-    info.target = Math.round(B.density(L) * def.length / 10);
-    if (Math.abs(info.enemies - info.target) > Math.max(1, info.target * 0.1) + 0.5) err('enemy count ' + info.enemies + ' vs target ' + info.target + ' (+-10%)');
+    // budget rule: the level's wave HP per second follows the smooth target curve
+    info.hps = V.hps(def); info.target = B.hpsTarget(L);
+    if (Math.abs(info.hps - info.target) > info.target * V.HPS_TOL) err('wave HP/s ' + info.hps.toFixed(1) + ' vs target ' + info.target.toFixed(1) + ' (+-' + Math.round(V.HPS_TOL * 100) + '%)');
+    // no free ride (from L4): a centre-blocking hazard in every 15 s, >= 40 % trap rows, side-lane waves from L7
+    if (L >= 4) {
+      for (var k = 0; k < Math.floor(def.length / 15); k++) {
+        var got = false;
+        for (j = 0; j < info.centre.length; j++) if (info.centre[j] >= 15 * k && info.centre[j] < 15 * k + 15) got = true;
+        if (!got) err('no centre-blocking hazard between t=' + (15 * k) + ' and t=' + (15 * k + 15));
+      }
+      if (info.rows && info.traps / info.rows < 0.4 - 1e-9) err('trap rows ' + info.traps + '/' + info.rows + ' < 40%');
+    }
+    if (L >= 7 && info.sides < 1) err('no wave entering through the side lanes only');
     if (gates.length && gates[0] < 3) warn('first gate row very early');
     return info;
   };
@@ -157,6 +198,16 @@
       if (seeds[def.seed]) errors.push('L' + L + ': duplicate seed ' + def.seed);
       seeds[def.seed] = 1;
       levels.push(V.checkLevel(def, errors, warnings));
+    }
+    // smooth curve: normal levels x1.00-1.20 of the previous normal level, world openers x0.85-0.95 of L-2
+    if (levels.length === 30) {
+      for (L = 2; L <= 30; L++) {
+        if (B.isBoss(L)) continue;
+        var first = (L - 1) % 6 === 0, ref = levels[(first ? L - 2 : L - 1) - 1], k = levels[L - 1].hps / ref.hps;
+        if (first ? (k < 0.85 || k > 0.95) : (k < 1.0 || k > 1.2)) errors.push('L' + L + ': wave HP/s is x' + k.toFixed(3) + ' of L' + ref.id + (first ? ' (world opener: 0.85-0.95)' : ' (1.00-1.20)'));
+      }
+      for (L = 1; L <= 30; L++) { var a = B.ADJ[L]; if (a !== undefined && (a < 0.92 || a > 1.08)) errors.push('L' + L + ': per-level correction ' + a + ' outside +-8%'); }
+      if (B.G_KNOTS.length > 4) errors.push('g(L) has more than 4 knots');
     }
     return { ok: errors.length === 0, errors: errors, warnings: warnings, levels: levels };
   };

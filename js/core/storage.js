@@ -5,7 +5,7 @@
   var PP = window.PP;
   var mem = '';
   PP.storage = {
-    persistent: !PP.noPersist,
+    isPersistent: function () { return !PP.noPersist; },
     load: function () {
       if (PP.noPersist) return Promise.resolve(mem);
       return PP.platform.loadData().then(function (s) { return s || mem; }, function () { return mem; });

@@ -3,8 +3,46 @@
 (function () {
   'use strict';
   var PP = window.PP;
-  var HUD = PP.hud = { marks: new Float32Array(12), nMarks: 0, bossMark: -1, PAUSE: { x: 8, y: 48, w: 46, h: 46 } };
-  var BX = 66, BY = 62, BW = 200;
+  var HUD = PP.hud = {
+    marks: new Float32Array(12), nMarks: 0, bossMark: -1, PAUSE: { x: 8, y: 48, w: 46, h: 46 },
+    top: 0,                    // safe-area inset above the HUD row, in logical units (set by HUD.layout)
+    side: false,               // true: pause button + counters are DOM elements in the side bars (see PP.ui.sideHud)
+    px: 31, py: 71, pk: 0.87,  // canvas pause icon: centre and blit scale (drawn at >= 44 CSS px)
+    domOn: false, lastBtn: -1, lastDist: -1
+  };
+  var BX = 66, BY0 = 62, BW = 200, PAUSE_D = 50.8;   // PAUSE_D = native diameter of the h_pause sprite
+
+  /* called by the renderer on every resize: safe-area shift, pause icon size (never below 44 CSS px), side-bar mode */
+  HUD.layout = function () {
+    var R = PP.R, p = HUD.PAUSE;
+    HUD.top = R.hudTop || 0;
+    HUD.side = !!R.sideHud;
+    var d = Math.max(40, 44 / R.scale), hw = Math.max(46, d + 2);
+    HUD.pk = d / PAUSE_D;
+    HUD.px = 9 + d / 2; HUD.py = 71 + HUD.top;
+    p.x = HUD.px - hw / 2; p.y = HUD.py - hw / 2; p.w = hw; p.h = hw;
+    if (!HUD.side) HUD.hideDom();
+  };
+  /* side-bar HUD: visible only while playing; texts are touched only when a value changes */
+  HUD.hideDom = function () {
+    if (!HUD.domOn) return;
+    HUD.domOn = false;
+    PP.ui.root.classList.remove('inplay');
+  };
+  HUD.sync = function () {
+    var G = PP.G, UI = PP.ui;
+    var show = HUD.side && !UI.cur && PP.game.screen === 'play';
+    if (!show) { if (HUD.domOn) HUD.hideDom(); return; }
+    var s = UI.sideHud();
+    if (!HUD.domOn) { HUD.domOn = true; HUD.lastBtn = HUD.lastDist = -2; UI.root.classList.add('inplay'); }
+    if (G.buttonsRun !== HUD.lastBtn) { HUD.lastBtn = G.buttonsRun; s.count.textContent = PP.i18n.fmt(G.buttonsRun); }
+    var d = G.mode === 'endless' ? Math.floor(G.dist / 10) : -1;
+    if (d !== HUD.lastDist) {
+      if ((d < 0) !== (HUD.lastDist < 0)) s.distPill.style.display = d < 0 ? 'none' : '';
+      HUD.lastDist = d;
+      if (d >= 0) s.dist.textContent = PP.i18n.fmt(d) + ' m';
+    }
+  };
 
   /* precompute the gate marks of the level's progress bar */
   HUD.onStart = function () {
@@ -28,13 +66,13 @@
   HUD.draw = function () {
     var G = PP.G, R = PP.R, spr = PP.spr, AT = PP.atlas, SQ = PP.squad, BS = PP.boss, ctx = R.ctx, i;
     if (!G.on || G.mode === 'demo') return;
-    var k = R.rs;
+    var k = R.rs, BY = BY0 + HUD.top, side = HUD.side;
     ctx.setTransform(k, 0, 0, k, 0, 0);   // the HUD does not shake
     ctx.globalAlpha = 1;
     // --- squad badge (count + star ticks) ---
     if (SQ.n > 0 && G.state !== 'bridge') {
-      var bx = SQ.x, by = G.sy - SQ.VR - 24;
-      if (by < 110) by = 110;
+      var bx = SQ.x, by = G.sy + (G.viewY || 0) - SQ.VR - 24;
+      if (by < 110 + HUD.top) by = 110 + HUD.top;
       R.draw(spr.h_badge, bx, by);
       AT.drawNum(SQ.n, bx, by, 0, 0, 0.5, 1, SQ.n > 30 ? AT.TIMES : -1, -1);
       if (G.mode === 'level') {
@@ -43,10 +81,13 @@
       }
       if (SQ.frenzy > 0 && (SQ.frenzy > 1 || ((G.t * 8) | 0) % 2)) R.drawS(spr.k_frenzy, bx - 38, by, 0.8);
       if (SQ.magnet > 0 && (SQ.magnet > 1 || ((G.t * 8) | 0) % 2)) R.drawS(spr.k_magnet, bx + 38, by, 0.8);
-      if (G.helping > 0 && G.t < 2.5) { R.drawS(spr.i_glove, bx - 20, by - 34, 0.6); AT.drawNum(G.helping, bx + 6, by - 34, 1, 1, 0.5, 1, AT.PLUS, -1); }
+      if (G.helping > 0 && G.t < 2.5) {       // Helping Hand: glove, +pompoms and one little star per tier (1-4)
+        R.drawS(spr.i_glove, bx - 20, by - 34, 0.6); AT.drawNum(G.helping, bx + 6, by - 34, 1, 1, 0.5, 1, AT.PLUS, -1);
+        for (var hp = 0; hp < G.helpTier; hp++) R.drawS(spr.h_star_on, bx - 20 + (hp - (G.helpTier - 1) / 2) * 8, by - 48, 0.6);
+      }
     }
     // --- top row ---
-    R.draw(spr.h_pause, 31, 71);
+    if (!side) R.drawS(spr.h_pause, HUD.px, HUD.py, HUD.pk);
     var bossBar = BS.on && G.state !== 'bossintro';
     if (bossBar) {
       R.draw(spr.h_bar, BX, BY);
@@ -58,7 +99,7 @@
       for (i = 0; i < HUD.nMarks; i++) if (HUD.marks[i] <= 1) R.draw(spr.h_gate, BX + HUD.marks[i] * BW, BY);
       if (HUD.bossMark >= 0) R.draw(spr.h_bossico, BX + HUD.bossMark * BW, BY); else R.drawS(spr.i_flag, BX + BW - 1, BY - 3, 0.42);
       R.drawS(spr.pom_pip_0, BX + G.progress * BW, BY + 3, 0.55);
-    } else {
+    } else if (!side) {
       // endless: distance in metres
       R.drawS(spr.i_flag, BX + 54, BY, 0.5);
       AT.drawNum(Math.floor(G.dist / 10), BX + 70, BY, 1, 0, 0, 1);
@@ -70,9 +111,12 @@
       else R.draw(spr.h_tick, BX + BW - 2, BY + 15);
     }
     // Buttons counter (top right)
-    var len = AT.num(G.buttonsRun, -1, -1), w = AT.width(AT.buf, len, 1, 1);
-    AT.draw(AT.buf, len, 352, BY, 1, 1, 1, 1);
-    R.drawS(spr.k_button, 352 - w - 12, BY, 1.15);
+    if (!side) {
+      var len = AT.num(G.buttonsRun, -1, -1), w = AT.width(AT.buf, len, 1, 1);
+      AT.draw(AT.buf, len, 352, BY, 1, 1, 1, 1);
+      R.drawS(spr.k_button, 352 - w - 12, BY, 1.15);
+    }
+    HUD.sync();
     // --- banners ---
     if (G.banner > 0) {
       var p = 1.5 - G.banner, sc = p < 0.2 ? p / 0.2 * 1.15 : (p < 0.3 ? 1.15 - (p - 0.2) : 1.05);
@@ -91,5 +135,6 @@
     if (PP.debug && PP.debug.hitbox) PP.debug.drawHitboxes();
   };
 
-  HUD.hitPause = function (x, y) { var p = HUD.PAUSE; return x >= p.x - 4 && x <= p.x + p.w + 6 && y >= p.y - 6 && y <= p.y + p.h + 6; };
+  /* canvas pause button hit test (logical coordinates); never hits while the DOM side-bar button is in use */
+  HUD.hitPause = function (x, y) { var p = HUD.PAUSE; return !HUD.side && x >= p.x - 4 && x <= p.x + p.w + 6 && y >= p.y - 6 && y <= p.y + p.h + 6; };
 })();

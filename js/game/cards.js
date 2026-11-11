@@ -14,7 +14,7 @@
       if (G.cardT >= 45) { G.cardT = 0; CD.offer(); }
       return;
     }
-    if (G.L < 5 || G.meterTotal <= 0 || G.meterIdx >= THRESH.length) return;
+    if (G.L < 5 || G.toBoss || G.meterTotal <= 0 || G.meterIdx >= THRESH.length) return;
     if (G.meter >= THRESH[G.meterIdx] * G.meterTotal) { G.meterIdx++; CD.offer(); }
   };
   CD.meterFrac = function () {

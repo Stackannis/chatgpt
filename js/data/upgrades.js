@@ -3,9 +3,9 @@
   'use strict';
   var PP = window.PP;
   PP.data.upgrades = [
-    { id: 'power', max: 15, base: 60, growth: 1.45, per: 6, unit: '%', icon: 'i_up_power' },
-    { id: 'rate', max: 12, base: 80, growth: 1.5, per: 4, unit: '%', icon: 'i_up_rate' },
-    { id: 'buddy', max: 6, base: 100, growth: 1.8, per: 1, unit: '', icon: 'i_up_buddy' },
+    { id: 'power', max: 15, base: 40, growth: 1.30, per: 6, unit: '%', icon: 'i_up_power' },
+    { id: 'rate', max: 12, base: 50, growth: 1.35, per: 4, unit: '%', icon: 'i_up_rate' },
+    { id: 'buddy', max: 6, base: 80, growth: 1.6, per: 1, unit: '', icon: 'i_up_buddy' },
     { id: 'shield', max: 3, base: 300, growth: 2.5, per: 1, unit: '', icon: 'i_up_shield' },
     { id: 'luck', max: 5, base: 150, growth: 1.6, per: 10, unit: '%', icon: 'i_up_luck' },
     { id: 'magnet', max: 4, base: 80, growth: 1.6, per: 25, unit: '%', icon: 'i_up_magnet' }

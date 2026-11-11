@@ -27,6 +27,7 @@
     var shell = def.shell ? def.shell * G.hpMult * rmp : 0;
     e.def = def; e.x = x; e.y = y; e.r = def.r; e.bump = def.bump; e.own = def.speed; e.elite = !!elite; e.sc = def.scale || 1;
     if (elite) { hp *= 3; shell *= 3; e.own *= 0.9; e.bump *= 2; e.r *= 1.4; e.sc *= 1.4; }
+    if (G.bumpK > 1 && !def.fixedHp) e.bump = Math.round(e.bump * G.bumpK);      // Endless only
     e.hp = e.maxHp = hp; e.shell = e.maxShell = shell;
     e.flash = -1; e.t = 0; e.st = 0; e.tm = 0; e.tm2 = 0; e.bx = x; e.vx = 0; e.vy = 0; e.dead = 0; e.kb = 0; e.dmgAcc = 0; e.dmgT = 0; e.gift = null;
     e.dark = false; e.uid = EN.uid++; e.ph = (e.uid * 1.7) % TAU;
@@ -35,7 +36,7 @@
   };
 
   EN.damage = function (e, dmg, shellMult) {
-    if (e.dead) return;
+    if (e.dead || PP.G.state === 'lost') return;      // a loss is final: shots still in the air do nothing
     if (e.flash < -0.12) e.flash = 0.06;      // 60 ms white flash, at most ~5 per second
     if (e.shell > 0) {
       e.shell -= dmg * (shellMult || 1);
@@ -68,8 +69,7 @@
         if (G.L >= 3) PK.spawn(rng.pick(opts), e.x, e.y, true);
       }
       if (def.id === 'gift' && e.gift) {
-        var prof = G.prof, own = prof.weapons[e.gift];
-        PP.squad.setWeapon(e.gift, own && own.own ? own.lv : 1);
+        PP.squad.setWeapon(e.gift, PP.squad.wlv);       // the shared Toy Level applies to the surprise toy too
         G.giftWeapon = e.gift;
         PP.fx.pickup(e.x, e.y, 'gift');
         PP.events.emit('giftOpened', { weapon: e.gift });
@@ -86,7 +86,7 @@
 
   /* pop everything (boss defeated / finish line): Grumblies cheer up */
   EN.popAll = function () {
-    for (var i = 0; i < pool.n; i++) { var e = pool.items[i]; if (!e.dead) { e.dead = 1; if (e.y > -20) PP.fx.pop(e.x, e.y, e.r, FXK[e.def.id], false); } }
+    for (var i = 0; i < pool.n; i++) { var e = pool.items[i]; if (!e.dead) { e.dead = 1; if (e.y > -20 && e.y < PP.G.bot) PP.fx.pop(e.x, e.y, e.r, FXK[e.def.id], false); } }
   };
   EN.removeShots = function () {
     for (var i = 0; i < pool.n; i++) { var e = pool.items[i]; if (e.def.ai === 'shot' && !e.dead) { e.dead = 1; PP.fx.hit(e.x, e.y); } }
@@ -95,6 +95,7 @@
   EN.update = function (dt) {
     var G = PP.G, SQ = PP.squad, sc = G.scroll, a = pool.items, i, e, ai, dx, dy, rr, k;
     var canHit = G.state === 'run' || G.state === 'boss' || G.state === 'bossintro';
+    var oy = G.oy, tele = PP.bal.telegraph(Math.round(G.L)), dashTele = (G.L >= 13 && G.L < 19) ? 1.0 : tele;   // Donut Dasher: 1.0 s in W3
     for (i = pool.n - 1; i >= 0; i--) {
       e = a[i];
       if (e.dead) { pool.killAt(i); continue; }
@@ -108,7 +109,7 @@
         e.x = U.clamp(e.bx + 40 * Math.sin(TAU * 1.4 * e.t + e.ph), 30 + e.r, 330 - e.r);
       } else if (ai === 'hop') {
         e.y += (sc + e.own) * dt;
-        if (e.y > 0) {
+        if (e.y > oy) {
           e.tm += dt;
           if (e.st === 0 && e.tm >= 1.0) e.st = 1;
           if (e.st === 1 && e.tm >= 1.3) {
@@ -122,10 +123,10 @@
         e.y += (sc + e.own) * dt;
         if (e.vx) { e.x = U.approach(e.x, e.bx, 110 * dt); if (e.x === e.bx) e.vx = 0; }
       } else if (ai === 'cloud') {
-        if (e.st === 0) { e.y += (sc + e.own) * dt; if (e.y >= 150) { e.y = 150; e.st = 1; e.tm = 0; e.tm2 = 1.2; } }
+        if (e.st === 0) { e.y += (sc + e.own) * dt; if (e.y >= 150 + oy) { e.y = 150 + oy; e.st = 1; e.tm = 0; e.tm2 = 1.2; } }
         else if (e.st === 1) {
           e.tm += dt; e.tm2 -= dt;
-          e.dark = e.tm2 <= 0.4;
+          e.dark = e.tm2 <= tele;                 // the cloud darkens before every raindrop (telegraph)
           if (e.tm2 <= 0) {
             e.tm2 = 1.8; e.dark = false;
             var ddx = SQ.x - e.x, ddy = G.sy - (e.y + 16), dl = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
@@ -137,7 +138,7 @@
       } else if (ai === 'dash') {
         if (e.st === 0) {
           e.y += (sc + e.own) * dt;
-          if (e.y >= 170) { e.st = 1; e.tm = 0.8; PP.obst.telegraph(e.x - e.r - 8, e.r * 2 + 16, 0.8, 0); PP.audio.sfx('warn'); }
+          if (e.y >= 170 + oy) { e.st = 1; e.tm = dashTele; PP.obst.telegraph(e.x - e.r - 8, e.r * 2 + 16, dashTele, 0); PP.audio.sfx('warn'); }
         } else if (e.st === 1) { e.tm -= dt; if (e.tm <= 0) e.st = 2; }
         else e.y += (sc + 420) * dt;
       } else if (ai === 'shot') { e.x += e.vx * dt; e.y += e.vy * dt; }
@@ -145,9 +146,9 @@
       // (ai === 'orb' is positioned by the boss)
 
       if (e.dmgAcc > 0) { e.dmgT -= dt; if (e.dmgT <= 0) { PP.fx.dmg(e.x, e.y - e.r - 4, e.dmgAcc); e.dmgAcc = 0; e.dmgT = 0.2; } }
-      if (e.y > G.H + 50 || e.x < -60 || e.x > 420 || e.y < -700) { pool.killAt(i); continue; }
+      if (e.y > G.bot + 50 || e.x < -60 || e.x > 420 || e.y < oy - 700) { pool.killAt(i); continue; }
       if (canHit) {
-        dx = e.x - SQ.x; dy = e.y - G.sy; rr = e.r * 0.85 + SQ.R;
+        dx = e.x - SQ.x; dy = e.y - G.sy; rr = e.r * 0.85 + ((ai === 'shot' || (ai === 'dash' && e.st === 2)) ? SQ.Rh : SQ.R);   // raindrops, snowballs, charging Dashers: forgiving hitbox
         if (dx * dx + dy * dy < rr * rr) {
           SQ.hurt(e.bump, 'enemy');
           if (ai !== 'orb') { EN.pop(e, false); pool.killAt(i); }

@@ -6,9 +6,13 @@
   var P = PP.params;
   var WEAPONS = ['wand', 'shaker', 'gumball', 'star', 'cookie', 'confetti', 'beam'];
 
+  /* every mutating hook marks the session as cheated: no persistence (unless ?save=1), no scores, no records */
+  function cheat(why) { PP.cheat(why); }
   function give(o) {
     var sv = PP.save.data, i;
     if (!o) return;
+    cheat('give');
+    if (o.toy !== undefined) sv.toy = U.clamp(Math.floor(o.toy) || 1, 1, 5);
     if (o.buttons !== undefined) sv.buttons = Math.max(0, Math.floor(Number(o.buttons) || 0));
     if (o.unlock === 'all') { sv.unlocked = 30; sv.ended = 1; }
     else if (o.unlock) sv.unlocked = U.clamp(Math.floor(o.unlock), 1, 31);
@@ -34,7 +38,9 @@
       }
     }
     if (P.weapon && PP.data.weaponById[P.weapon]) { d.weapon = P.weapon; sv.weapons[P.weapon].own = 1; sv.equipped = P.weapon; }
-    if (P.wlv) { d.wlv = U.clamp(parseInt(P.wlv, 10) || 1, 1, 5); if (d.weapon) sv.weapons[d.weapon].lv = d.wlv; else sv.weapons[sv.equipped].lv = d.wlv; }
+    if (P.wlv) { d.wlv = U.clamp(parseInt(P.wlv, 10) || 1, 1, 5); sv.toy = d.wlv; }      // wlv = the shared Toy Level
+    if (P.fails && P.level) sv.fails[U.clamp(parseInt(P.level, 10) || 1, 1, 30)] = U.clamp(parseInt(P.fails, 10) || 0, 0, 99);
+    if (P.model && PP.humans && PP.humans.PROFILES[P.model]) d.model = P.model;                // ?autoplay=1&model=good|avg|lazy|sloppy
     if (P.god === '1') d.god = true;
     if (P.autoplay === '1') d.autoplay = true;
     if (P.seed !== undefined) d.seed = (parseInt(P.seed, 10) || 0) >>> 0;
@@ -44,13 +50,23 @@
   };
   function fakeResult(win) {
     var L = U.clamp(parseInt(P.level, 10) || 5, 1, 30);
-    var res = { mode: 'level', level: L, win: win, stars: win ? 3 : 0, progress: win ? 1 : 0.62, endSquad: 14, squadPeak: 18, buttons: 23, time: 61, popped: 40, lucky: 1, score: 0, lost: 4, weapon: 'wand' };
+    var res = { mode: 'level', level: L, win: win, stars: win ? 3 : 0, progress: win ? 1 : (parseFloat(P.progress) || 0.62), endSquad: 14, squadPeak: 18, buttons: 23, time: 61, popped: 40, lucky: 1, score: 0, lost: 4, weapon: 'wand',
+      lostBy: { enemy: 1, hazard: 3, shot: 0, boss: 0, gate: 0 }, cheat: true };
+    if (P.cause && res.lostBy[P.cause] !== undefined) { res.lostBy = { enemy: 0, hazard: 0, shot: 0, boss: 0, gate: 0 }; res.lostBy[P.cause] = 4; }
+    cheat('fake result');
     PP.game.lastView = { res: res, out: PP.econ.settle(res) };
   }
   DBG.afterReady = function () {
     var GM = PP.game;
     if (P.validate === '1') { var rep = PP.validator.run(); DBG.print('validator: ' + (rep.ok ? 'OK' : 'FAILED') + '\n' + rep.errors.concat(rep.warnings).join('\n')); window.__validate = rep; }
-    if (P.balance === '1') { PP.balance.run({ runs: parseInt(P.runs, 10) || 1 }).then(function (r) { window.__balance = r; DBG.print(r.text); if (window.console) console.log(r.text); }); return; }
+    if (P.balance === '1') {
+      DBG.print('balance harness running…');
+      PP.balance.run({ runs: parseInt(P.runs, 10) || 24, models: P.models || 'good,avg,lazy', H: P.H || '600,780', from: parseInt(P.from, 10) || 1, to: parseInt(P.to, 10) || 30 })
+        .then(function (r) { window.__balance = r; DBG.print(r.text); if (window.console) console.log(r.text); });
+      return;
+    }
+    // ?autoplay=1&model=good: watch a simulated human instead of the plain bot
+    PP.events.on('levelStart', function () { if (GM.dbg.model && PP.G.autoplay && !PP.headless) PP.humans.install(PP.humans.PROFILES[GM.dbg.model], PP.G.seed + 17); });
     if (P.screen) {
       if (P.screen === 'win' || P.screen === 'lose') { fakeResult(P.screen === 'win'); GM.goto(P.screen); }
       else if (P.screen === 'ending') { fakeResult(true); GM.lastView.res.level = 30; GM.goto('ending'); }
@@ -85,12 +101,16 @@
   };
   DBG.drawHitboxes = function () {
     var R = PP.R, ctx = R.ctx, G = PP.G, SQ = PP.squad, a = PP.enemies.pool.items, i;
+    ctx.save(); ctx.translate(0, G.viewY || 0);
     ctx.lineWidth = 1; ctx.strokeStyle = '#00E676';
     ctx.beginPath(); ctx.arc(SQ.x, G.sy, SQ.R, 0, 6.283); ctx.stroke();
     ctx.strokeStyle = 'rgba(0,150,255,0.8)'; ctx.beginPath(); ctx.arc(SQ.x, G.sy, SQ.PR, 0, 6.283); ctx.stroke();
     ctx.strokeStyle = '#FF1744';
     for (i = 0; i < PP.enemies.pool.n; i++) { ctx.beginPath(); ctx.arc(a[i].x, a[i].y, a[i].r, 0, 6.283); ctx.stroke(); }
     if (PP.boss.on) { ctx.beginPath(); ctx.ellipse(PP.boss.x, PP.boss.y, PP.boss.rx, PP.boss.ry, 0, 0, 6.283); ctx.stroke(); }
+    // the small hitbox used by hazards and telegraphed attacks
+    ctx.strokeStyle = '#FFD600'; ctx.beginPath(); ctx.arc(SQ.x, G.sy, SQ.Rh, 0, 6.283); ctx.stroke();
+    ctx.restore();
   };
 
   /* ---------------- window.__game ---------------- */
@@ -121,15 +141,17 @@
       if ((screen === 'win' || screen === 'lose') && !PP.game.lastView) fakeResult(screen === 'win');
       PP.game.goto(screen, params);
     },
-    setSpeed: function (k) { PP.loop.speed = U.clamp(Number(k) || 1, 0.25, 8); return PP.loop.speed; },
-    setGod: function (b) { PP.game.dbg.god = !!b; PP.G.god = !!b; },
-    setAutoplay: function (b) { PP.game.dbg.autoplay = !!b; PP.G.autoplay = !!b; if (b && PP.bot) PP.bot.reset(); if (b) PP.G.hold = false; },
-    setSquad: function (n) { PP.squad.setCount(U.clamp(Math.floor(n), 1, 999)); },
+    get cheated() { return PP.cheated; },
+    setSpeed: function (k) { PP.loop.speed = U.clamp(Number(k) || 1, 0.25, 8); if (PP.loop.speed !== 1) cheat('setSpeed'); return PP.loop.speed; },
+    setGod: function (b) { cheat('setGod'); PP.game.dbg.god = !!b; PP.G.god = !!b; if (b) PP.G.cheat = true; },
+    setAutoplay: function (b) { cheat('setAutoplay'); PP.game.dbg.autoplay = !!b; PP.G.autoplay = !!b; if (b && PP.bot) PP.bot.reset(); if (b) { PP.G.hold = false; PP.G.cheat = true; } },
+    setSquad: function (n) { cheat('setSquad'); PP.G.cheat = true; PP.squad.setCount(U.clamp(Math.floor(n), 1, 999)); },
     pause: function () { return PP.game.pause(); },
     resume: function () { return PP.game.resume(); },
     /* deterministic advance while paused (or running): n fixed steps, then one render */
     step: function (frames) {
       var G = PP.G, n = Math.max(1, Math.floor(frames || 1));
+      cheat('step'); G.cheat = true;
       for (var i = 0; i < n && G.on && !G.over; i++) { if (G.cards) break; PP.run.step(PP.loop.DT); }
       if (G.on) { PP.run.draw(); if (G.mode !== 'demo') PP.hud.draw(); }
       return state();
@@ -138,6 +160,7 @@
     skip: function (seconds) {
       var G = PP.G, n = Math.round((seconds || 1) * 60), i = 0;
       if (!G.on || G.mode === 'demo') return state();
+      cheat('skip'); G.cheat = true;
       var wasCards = !!G.cards;
       PP.headless = true; PP.headlessEvents = true;
       try {
@@ -149,16 +172,18 @@
       return state();
     },
     chooseCard: function (i) { return PP.game.chooseCard(i); },
-    forceWin: function () { if (PP.G.on && !PP.G.over && PP.G.mode !== 'demo') PP.run.finish(true); },
-    forceLose: function () { if (PP.G.on && !PP.G.over && PP.G.mode !== 'demo') PP.run.finish(false); },
+    forceWin: function () { if (PP.G.on && !PP.G.over && PP.G.mode !== 'demo') { cheat('forceWin'); PP.G.cheat = true; PP.run.finish(true); } },
+    forceLose: function () { if (PP.G.on && !PP.G.over && PP.G.mode !== 'demo') { cheat('forceLose'); PP.G.cheat = true; PP.run.finish(false); } },
     give: give,
     getSave: function () { return JSON.parse(JSON.stringify(PP.save.data)); },
-    resetSave: function () { return PP.save.reset().then(function () { PP.ui.applySettings(); if (PP.game.isReady) PP.game.goto('menu'); return true; }); },
+    resetSave: function () { cheat('resetSave'); return PP.save.reset().then(function () { PP.ui.applySettings(); if (PP.game.isReady) PP.game.goto('menu'); return true; }); },
     events: PP.events.buf,
     on: function (type, cb) { PP.events.on(type, cb); },
     validateLevels: function () { return PP.validator.run(); },
     runBalance: function (opts) { return PP.balance.run(opts); },
+    balanceTable: function (opts) { return PP.balance.table(opts); },
     simLevel: function (L, o) { return PP.balance.simLevel(L, o); },
+    simHuman: function (L, model, seed, o) { return PP.humans.run(L, (o && o.prof) || PP.econ.expectedProfile(L === 'endless' ? 30 : L), model, seed, o); },
     expectedProfile: function (L) { return PP.econ.expectedProfile(L); }
   };
 })();

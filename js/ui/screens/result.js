@@ -34,7 +34,25 @@
         panel.appendChild(ln);
         if (anim) setTimeout(function () { UI.countUp(ln._v, ln._n, k === 4 ? 900 : 500, '+'); }, 300 + k * 220); else ln._v.textContent = '+' + PP.i18n.fmt(ln._n);
       });
-      if (out.newWeapon) panel.appendChild(h('div', 'newcard', [UI.icon('i_w_' + out.newWeapon, 40), h('div', null, [h('div', null, t('result.newweapon')), h('div', 'muted', t('weapon.' + out.newWeapon))])], { 'data-testid': 'new-weapon' }));
+      if (out.newWeapon) {
+        // the new toy is equipped right away; "Keep <old toy>" puts the previous one back
+        var sv = PP.save.data, eqLine = h('div', 'muted', t('weapon.' + out.newWeapon) + ' · ' + t('result.equipped'), { 'data-testid': 'new-weapon-state' });
+        var card = h('div', 'newcard', [UI.icon('i_w_' + out.newWeapon, 40), h('div', 'grow', [h('div', null, t('result.newweapon')), eqLine])], { 'data-testid': 'new-weapon' });
+        if (out.prevWeapon && out.prevWeapon !== out.newWeapon && sv.weapons[out.prevWeapon] && sv.weapons[out.prevWeapon].own) {
+          var keep = UI.btn(null, 'btn-keep-weapon', function () {
+            var back = sv.equipped === out.newWeapon;
+            PP.econ.equip(back ? out.prevWeapon : out.newWeapon);
+            eqLine.textContent = t('weapon.' + sv.equipped) + ' · ' + t('result.equipped');
+            keepLbl.textContent = t('result.keep', { w: t('weapon.' + (back ? out.newWeapon : out.prevWeapon)) });
+            var ico = UI.icon('i_w_' + (back ? out.newWeapon : out.prevWeapon), 22);
+            keep.replaceChild(ico, keepIco); keepIco = ico;
+          }, 'small keep');
+          var keepIco = UI.icon('i_w_' + out.prevWeapon, 22), keepLbl = h('span', null, t('result.keep', { w: t('weapon.' + out.prevWeapon) }));
+          keep.appendChild(keepIco); keep.appendChild(keepLbl);
+          card.appendChild(keep);
+        }
+        panel.appendChild(card);
+      }
       if (out.newWorld) panel.appendChild(h('div', 'newcard', [UI.icon('i_flag', 34), h('div', null, [h('div', null, t('result.newworld')), h('div', 'muted', t('world.' + out.newWorld))])], { 'data-testid': 'new-world' }));
       var nw = PP.data.nextWeaponAfter(L);
       if (nw) {
@@ -63,8 +81,10 @@
     cls: 'soft',
     render: function (el, p) {
       var t = PP.t, res = p.res, out = p.out, L = res.level, endless = res.mode === 'endless', anim = !p.again;
-      var panel = h('div', 'panel res', null, { 'data-testid': 'lose-panel' });
-      panel.appendChild(h('div', 'title dark', endless ? t('result.endless.title') : t('result.lose.title')));
+      var panel = h('div', 'panel res scroll', null, { 'data-testid': 'lose-panel' });
+      // the title follows the progress: < 40 % "Keep going!", 40-80 % "Nice try!", > 80 % "So close!"
+      var titleKey = res.progress > 0.8 ? 'result.lose.title' : (res.progress >= 0.4 ? 'result.lose.mid' : 'result.lose.far');
+      panel.appendChild(h('div', 'title dark', endless ? t('result.endless.title') : t(titleKey), { 'data-testid': 'lose-title', 'data-title': endless ? 'endless' : titleKey }));
       panel.appendChild(h('div', null, UI.icon('pom_pip_0', 54), { style: 'margin:calc(var(--u)*2) 0' }));
       if (endless) {
         panel.appendChild(h('div', 'pill', t('result.distance', { n: PP.i18n.fmt(res.score) }), { 'data-testid': 'endless-score', style: 'font-size:calc(var(--u)*18)' }));
@@ -76,16 +96,26 @@
       var ln = rline('k_button', t('result.kept'), out.total, 'total', 'reward-total');
       panel.appendChild(ln);
       if (anim) setTimeout(function () { UI.countUp(ln._v, ln._n, 800, '+'); }, 300); else ln._v.textContent = '+' + PP.i18n.fmt(ln._n);
-      // one hint icon: upgrade arrow if something is affordable, otherwise "pick blue gates"
-      if (PP.econ.canAffordAny()) {
+      // one hint, by cause: Helping Hand just grew > an upgrade is affordable > the biggest source of lost pompoms
+      var hint = out.hint || (PP.econ.canAffordAny() ? 'upgrade' : 'gates');
+      if (hint === 'upgrade' && !PP.econ.canAffordAny()) hint = PP.econ.loseHint(res, false);    // spent since (back from the Workshop)
+      var help = endless ? null : UI.helpPill(PP.econ.helping(L), 26);
+      if (hint === 'glove' && help) {
+        panel.appendChild(h('div', 'hintico col', [help, h('span', null, t('result.hint.glove'))], { 'data-testid': 'hint-glove' }));
+        help = null;
+      } else if (hint === 'upgrade') {
         var hb = h('button', 'hintico', [UI.icon('i_arrowup', 30), UI.icon('i_up_power', 30), h('span', null, t('result.hint.upgrade'))], { 'data-testid': 'hint-upgrade', type: 'button' });
         hb.addEventListener('click', function () { PP.game.goto('shop', { from: 'lose', tab: 'upgrades' }); });
         panel.appendChild(hb);
-      } else if (!endless) panel.appendChild(h('div', 'hintico', [UI.icon('i_gateblue', 40), h('span', null, t('result.hint.gates'))], { 'data-testid': 'hint-gates' }));
-      if (!endless && PP.econ.helping(L) > 0) panel.appendChild(h('div', 'pill', [UI.icon('i_glove', 26), h('span', null, '+' + PP.econ.helping(L)), UI.icon('pom_bunny_0', 18)], { 'data-testid': 'helping-hand' }));
+      } else if (hint === 'boss') panel.appendChild(h('div', 'hintico', [h('span', 'pict', [UI.icon('z_lane', 30), UI.icon('h_arrow', 22)]), h('span', null, t('result.hint.boss'))], { 'data-testid': 'hint-boss' }));
+      else if (hint === 'hazard') panel.appendChild(h('div', 'hintico', [h('span', 'pict', [UI.icon('z_roller', 32), UI.icon('h_arrow', 22)]), h('span', null, t('result.hint.hazard'))], { 'data-testid': 'hint-hazard' }));
+      else if (hint === 'enemy') panel.appendChild(h('div', 'hintico', [h('span', 'pict', [UI.icon('p_bubble', 16), UI.icon('e_jelly', 32)]), h('span', null, t('result.hint.enemy'))], { 'data-testid': 'hint-enemy' }));
+      else panel.appendChild(h('div', 'hintico', [UI.icon('i_gateblue', 40), h('span', null, t('result.hint.gates'))], { 'data-testid': 'hint-gates' }));
+      if (help) panel.appendChild(help);
       var retry = UI.btn(t('result.retry'), 'btn-retry', function () { if (endless) PP.game.startEndless(); else PP.game.startLevel(L); }, 'primary');
       retry.setAttribute('data-autofocus', '1');
       panel.appendChild(retry);
+      if (!endless && PP.econ.canSkipToBoss(L)) panel.appendChild(UI.btn(t('map.toboss'), 'btn-toboss', function () { PP.game.startLevel(L, { toBoss: true }); }, 'small gold'));
       var row = h('div', 'btnrow');
       var shop = UI.btn(t('menu.shop'), 'btn-result-shop', function () { PP.game.goto('shop', { from: 'lose' }); }, 'small gold');
       row.appendChild(shop);

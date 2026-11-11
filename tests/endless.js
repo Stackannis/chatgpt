@@ -1,5 +1,5 @@
 /* Endless "Parade Marathon": bot + god mode for >= 10 game minutes (8x speed), sampling entities / heap,
- * then a normal ending to verify the best score is saved. Usage: node tests/endless.js [realSeconds] */
+ * then the run is ended to verify that a debug run never touches the Endless record. Usage: node tests/endless.js [realSeconds] */
 'use strict';
 const { chromium } = require('playwright');
 const path = require('path');
@@ -22,12 +22,13 @@ const URL = 'file://' + path.join(__dirname, '..', 'index.html');
   }
   const bosses = await page.evaluate(() => window.__game.events.filter(e => e.type === 'bossStart').length);
   console.log('game minutes: ' + (last.t / 60).toFixed(1) + ', metres: ' + last.dist + ', mini-boss events in buffer: ' + bosses);
-  // end the run normally and check the best score is saved
+  // end the run: this is a debug session (god + autoplay + speed), so the record must NOT be saved and no
+  // score may be submitted (FIX_PLAN_R1 code-1). The clean-session case is covered by tests/regress.js.
   await page.evaluate(() => { window.__game.setSpeed(1); window.__game.forceLose(); });
   await page.waitForTimeout(1500);
   const end = await page.evaluate(() => ({ screen: window.__game.getState().screen, best: window.__game.getSave().endlessBest, buttons: window.__game.getSave().buttons }));
-  console.log('after run: ' + JSON.stringify(end));
+  console.log('after run: ' + JSON.stringify(end) + (end.best === 0 ? '  (cheated run: record untouched, as required)' : '  (ERROR: a cheated run changed the record)'));
   console.log('errors: ' + errors.length); errors.slice(0, 8).forEach(e => console.log('  ' + e));
   await browser.close();
-  process.exit(errors.length || last.t < 600 || end.best <= 0 ? 1 : 0);
+  process.exit(errors.length || last.t < 600 || end.best !== 0 ? 1 : 0);
 })();

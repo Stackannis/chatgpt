@@ -1,4 +1,16 @@
-/* Pompom Parade - DOM overlay styling. All sizes use --u (CSS px per logical unit, set by the renderer). */
+/* Pompom Parade - DOM overlay styling.
+ * Variables set on #ui by the renderer (R.layoutUi):
+ *   --u   CSS px per UI unit. Portrait: the canvas scale (1 px at 360 x 640). Landscape: min(vw/640, vh/360).
+ *   --cu  CSS px per logical unit of the gameplay canvas; --cl/--ct/--cw/--ch = the canvas column box.
+ *   --sl/--st/--sw/--sh  box of the DOM screens: the column in portrait, the whole viewport in landscape.
+ *   --it/--ir/--ib/--il  safe-area insets intruding into that box; --hud-top = inset over the canvas HUD.
+ * #ui gets .port or .land, .sidehud (pause button + counters in the side bars), .bars3 (wide side bars),
+ * .has-screen (a DOM screen is open) and .inplay (side-bar HUD visible).
+ * Text never goes below 11 CSS px, tap targets never below 44 CSS px. */
+:root {
+  --sat: env(safe-area-inset-top, 0px); --sar: env(safe-area-inset-right, 0px);
+  --sab: env(safe-area-inset-bottom, 0px); --sal: env(safe-area-inset-left, 0px);
+}
 html, body {
   margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
   background-color: #64C672; background-repeat: repeat;
@@ -9,26 +21,40 @@ html, body {
 }
 #stage { position: fixed; left: 0; top: 0; right: 0; bottom: 0; overflow: hidden; }
 #game { position: absolute; display: block; touch-action: none; background: #FFE3EC; }
-#ui {
-  position: absolute; overflow: hidden; pointer-events: none; --u: 1px;
-  font-size: calc(var(--u) * 15); color: #4A3B52; line-height: 1.25; font-weight: bold;
+#sa-probe {
+  position: absolute; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none;
+  padding: var(--sat, 0px) var(--sar, 0px) var(--sab, 0px) var(--sal, 0px);
 }
+#ui {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; pointer-events: none;
+  --u: 1px; --cu: 1px; --cl: 0px; --ct: 0px; --cw: 100%; --ch: 100%; --sl: 0px; --st: 0px; --sw: 100%; --sh: 100%;
+  --it: 0px; --ir: 0px; --ib: 0px; --il: 0px; --hud-top: 0px; --mgap: 0px;
+  --ytop: calc(var(--u) * 52);            /* top zone kept free for the host overlay (HUD starts at y 48) */
+  font-size: max(11px, calc(var(--u) * 15)); color: #4A3B52; line-height: 1.25; font-weight: bold;
+}
+#ui.land { --ytop: calc(var(--u) * 40); }
 #ui * { box-sizing: border-box; }
 .screen {
-  position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: none; pointer-events: auto;
-  flex-direction: column; align-items: center; padding: calc(var(--u) * 52) calc(var(--u) * 16) calc(var(--u) * 14);
+  position: absolute; left: var(--sl); top: var(--st); width: var(--sw); height: var(--sh); display: none; pointer-events: auto;
+  flex-direction: column; align-items: center;
+  padding: calc(var(--ytop) + var(--it)) calc(var(--u) * 16 + var(--ir)) calc(var(--u) * 14 + var(--ib)) calc(var(--u) * 16 + var(--il));
+  scrollbar-width: none;
 }
+.screen::-webkit-scrollbar { display: none; }
 .screen.on { display: flex; }
-.screen.dim { background: rgba(74, 59, 82, 0.5); }
-.screen.soft { background: rgba(255, 240, 246, 0.55); }
+/* overlays tint the whole viewport, also beyond the column (the spread shadow is clipped by #ui) */
+.screen.dim { background: rgba(74, 59, 82, 0.5); box-shadow: 0 0 0 100vmax rgba(74, 59, 82, 0.5); }
+.screen.soft { background: rgba(255, 240, 246, 0.55); box-shadow: 0 0 0 100vmax rgba(255, 240, 246, 0.55); }
 .screen.solid { background: #FFF3F8; }
+/* pause / cards: the title starts below the canvas HUD (y >= 110 logical units of the column) */
+.screen.dim { padding-top: calc(var(--ct) - var(--st) + var(--hud-top) + var(--cu) * 110); }
 .pass { pointer-events: none; }
 .ico { display: inline-block; vertical-align: middle; pointer-events: none; }
 
 /* buttons */
 .btn {
   appearance: none; -webkit-appearance: none; border: calc(var(--u) * 3) solid #4A3B52; cursor: pointer;
-  font: inherit; color: #4A3B52; font-size: calc(var(--u) * 17);
+  font: inherit; color: #4A3B52; font-size: max(12px, calc(var(--u) * 17));
   min-height: max(48px, calc(var(--u) * 50)); padding: calc(var(--u) * 6) calc(var(--u) * 16);
   border-radius: calc(var(--u) * 26); margin: calc(var(--u) * 5) 0;
   background: linear-gradient(#FFFFFF, #FFE9F2); box-shadow: 0 calc(var(--u) * 4) 0 #D9A9C0;
@@ -42,11 +68,11 @@ html, body {
 .btn.primary:active { box-shadow: 0 calc(var(--u) * 1) 0 #C74B7C; }
 .btn.blue { background: linear-gradient(#BDEBFF, #6CCBFF); box-shadow: 0 calc(var(--u) * 4) 0 #3D9EC0; }
 .btn.gold { background: linear-gradient(#FFF1B0, #FFD23F); box-shadow: 0 calc(var(--u) * 4) 0 #D9A21E; }
-.btn.small { font-size: calc(var(--u) * 14); min-height: max(48px, calc(var(--u) * 48)); padding: calc(var(--u) * 4) calc(var(--u) * 12); }
-.btn.round { width: max(48px, calc(var(--u) * 50)); padding: 0; border-radius: 50%; }
+.btn.small { font-size: max(11px, calc(var(--u) * 14)); min-height: max(48px, calc(var(--u) * 48)); padding: calc(var(--u) * 4) calc(var(--u) * 12); }
+.btn.round { width: max(48px, calc(var(--u) * 50)); flex: 0 0 auto; padding: 0; border-radius: 50%; }
 .btn.wide { width: calc(var(--u) * 250); }
 .btn:disabled, .btn.off { filter: grayscale(0.9); opacity: 0.6; cursor: default; }
-.btn .sub { font-size: calc(var(--u) * 12); opacity: 0.9; display: block; }
+.btn .sub { font-size: max(11px, calc(var(--u) * 12)); opacity: 0.9; display: block; }
 .btn .bang {
   position: absolute; right: calc(var(--u) * -6); top: calc(var(--u) * -8); width: calc(var(--u) * 24); height: calc(var(--u) * 24);
   border-radius: 50%; background: #FF5A6E; color: #fff; border: calc(var(--u) * 2.5) solid #4A3B52; font-size: calc(var(--u) * 15);
@@ -58,30 +84,37 @@ html, body {
 .title { font-size: calc(var(--u) * 28); color: #fff; text-align: center; margin: calc(var(--u) * 4) 0 calc(var(--u) * 8);
   text-shadow: 0 calc(var(--u) * 3) 0 #4A3B52, calc(var(--u) * 2) 0 0 #4A3B52, calc(var(--u) * -2) 0 0 #4A3B52, 0 calc(var(--u) * -2) 0 #4A3B52; letter-spacing: 0.02em; }
 .title.dark { color: #FF7AA8; text-shadow: 0 calc(var(--u) * 2) 0 #fff; }
+/* every panel is a scroll container: when the viewport is too small its content scrolls instead of being clipped */
 .panel {
   background: #FFFDFE; border: calc(var(--u) * 3) solid #4A3B52; border-radius: calc(var(--u) * 22);
   padding: calc(var(--u) * 12); width: 100%; box-shadow: 0 calc(var(--u) * 5) 0 rgba(74, 59, 82, 0.25);
+  max-height: 100%; min-height: 0; overflow-x: hidden; overflow-y: auto; touch-action: pan-y; overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch; flex-shrink: 1;
 }
-.muted { opacity: 0.7; font-size: calc(var(--u) * 12); }
+.muted { opacity: 0.7; font-size: max(11px, calc(var(--u) * 12)); }
 .center { text-align: center; }
 
 /* header bar (map / shop) */
 .head { width: 100%; display: flex; align-items: center; gap: calc(var(--u) * 8); margin-bottom: calc(var(--u) * 6); }
 .head .title { margin: 0; flex: 1 1 auto; font-size: calc(var(--u) * 21); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pill { background: #fff; border: calc(var(--u) * 2.5) solid #4A3B52; border-radius: calc(var(--u) * 16); padding: calc(var(--u) * 2) calc(var(--u) * 9);
-  display: inline-flex; align-items: center; gap: calc(var(--u) * 4); font-size: calc(var(--u) * 14); white-space: nowrap; }
+  display: inline-flex; align-items: center; gap: calc(var(--u) * 4); font-size: max(11px, calc(var(--u) * 14)); white-space: nowrap; }
 
 /* menu */
 .menu-logo { margin-top: calc(var(--u) * 6); animation: bob 1.4s ease-in-out infinite alternate; }
 .menu-btns { margin-top: auto; margin-bottom: calc(var(--u) * 18); display: flex; flex-direction: column; align-items: center; }
 .menu-row { display: flex; gap: calc(var(--u) * 10); }
 
+/* scrolling lists. The .scroll class is also what exempts an element from the global touchmove preventDefault
+ * (js/core/input.js); every .screen carries it so that panels and modals inside can scroll by touch. */
+.scroll { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
+.screen > .scroll { width: 100%; flex: 1 1 auto; min-height: 0; }
+
 /* map */
-.scroll { overflow-y: auto; overflow-x: hidden; -webkit-overflow-scrolling: touch; touch-action: pan-y; width: 100%; flex: 1 1 auto; overscroll-behavior: contain; }
 .map-wrap { border: calc(var(--u) * 3) solid #4A3B52; border-radius: calc(var(--u) * 20); background: #fff; }
 .map-inner { position: relative; width: 100%; }
 .world-sec { position: absolute; left: 0; width: 100%; }
-.world-name { position: absolute; left: calc(var(--u) * 8); top: calc(var(--u) * 6); font-size: calc(var(--u) * 13); color: #fff; background: rgba(74, 59, 82, 0.55); padding: calc(var(--u) * 2) calc(var(--u) * 9); border-radius: calc(var(--u) * 10); max-width: 70%; }
+.world-name { position: absolute; left: calc(var(--u) * 8); top: calc(var(--u) * 6); font-size: max(11px, calc(var(--u) * 13)); color: #fff; background: rgba(74, 59, 82, 0.55); padding: calc(var(--u) * 2) calc(var(--u) * 9); border-radius: calc(var(--u) * 10); max-width: 70%; }
 .map-path { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; }
 .node {
   position: absolute; width: calc(var(--u) * 54); height: calc(var(--u) * 54); margin: calc(var(--u) * -27) 0 0 calc(var(--u) * -27);
@@ -94,16 +127,18 @@ html, body {
 .node.done { background: linear-gradient(#D6F5FF, #9BE0FF); }
 .node.cur { animation: bob 0.5s ease-in-out infinite alternate; background: linear-gradient(#FFB3CF, #FF7AA8); color: #fff; }
 .node .stars { position: absolute; bottom: calc(var(--u) * -15); left: 50%; transform: translateX(-50%); white-space: nowrap; display: flex; }
-.node .pct { position: absolute; bottom: calc(var(--u) * -17); left: 50%; transform: translateX(-50%); font-size: calc(var(--u) * 11); background: #fff; border-radius: calc(var(--u) * 8); padding: 0 calc(var(--u) * 5); border: calc(var(--u) * 1.5) solid #4A3B52; color: #4A3B52; }
+.node .pct { position: absolute; bottom: calc(var(--u) * -17); left: 50%; transform: translateX(-50%); font-size: max(11px, calc(var(--u) * 11)); white-space: nowrap; background: #fff; border-radius: calc(var(--u) * 8); padding: 0 calc(var(--u) * 5); border: calc(var(--u) * 1.5) solid #4A3B52; color: #4A3B52; }
 .node .num { position: relative; z-index: 1; }
-.node.boss .num { position: absolute; top: calc(var(--u) * -9); right: calc(var(--u) * -6); background: #fff; border: calc(var(--u) * 2) solid #4A3B52; border-radius: 50%; width: calc(var(--u) * 24); height: calc(var(--u) * 24); font-size: calc(var(--u) * 12); display: flex; align-items: center; justify-content: center; color: #4A3B52; }
+.node.boss .num { position: absolute; top: calc(var(--u) * -9); right: calc(var(--u) * -6); background: #fff; border: calc(var(--u) * 2) solid #4A3B52; border-radius: 50%; width: max(20px, calc(var(--u) * 24)); height: max(20px, calc(var(--u) * 24)); font-size: max(11px, calc(var(--u) * 12)); display: flex; align-items: center; justify-content: center; color: #4A3B52; }
 .node-w { position: absolute; margin: calc(var(--u) * -18) 0 0 0; pointer-events: none; background: #fff; border: calc(var(--u) * 2) solid #4A3B52; border-radius: calc(var(--u) * 12); padding: calc(var(--u) * 1); }
-.banner { background: linear-gradient(#FFF1B0, #FFD23F); border: calc(var(--u) * 3) solid #4A3B52; border-radius: calc(var(--u) * 14); padding: calc(var(--u) * 6) calc(var(--u) * 10); text-align: center; width: 100%; margin-bottom: calc(var(--u) * 6); font-size: calc(var(--u) * 14); }
+.banner { background: linear-gradient(#FFF1B0, #FFD23F); border: calc(var(--u) * 3) solid #4A3B52; border-radius: calc(var(--u) * 14); padding: calc(var(--u) * 6) calc(var(--u) * 10); text-align: center; width: 100%; margin-bottom: calc(var(--u) * 6); font-size: max(11px, calc(var(--u) * 14)); }
 
-/* modal */
-.modal { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: rgba(74, 59, 82, 0.55); display: flex; align-items: center; justify-content: center; padding: calc(var(--u) * 18); pointer-events: auto; z-index: 5; }
+/* modal (level card): covers the whole screen box; its panel scrolls when it does not fit */
+.modal { position: absolute; left: 0; top: 0; width: 100%; height: 100%; background: rgba(74, 59, 82, 0.55); display: flex; align-items: center; justify-content: center;
+  padding: calc(var(--u) * 18 + var(--it)) calc(var(--u) * 18 + var(--ir)) calc(var(--u) * 18 + var(--ib)) calc(var(--u) * 18 + var(--il)); pointer-events: auto; z-index: 5; }
 .modal .panel { max-width: calc(var(--u) * 320); display: flex; flex-direction: column; align-items: center; animation: popin 0.22s ease-out; }
-.close { position: absolute; right: calc(var(--u) * -8); top: calc(var(--u) * -8); }
+.modal .panel > * { flex-shrink: 0; }
+.close { position: absolute; right: calc(var(--u) * 5); top: calc(var(--u) * 5); margin: 0; z-index: 1; }
 .wsel { display: flex; gap: calc(var(--u) * 6); flex-wrap: wrap; justify-content: center; margin: calc(var(--u) * 6) 0; }
 .wbtn { border: calc(var(--u) * 2.5) solid #4A3B52; border-radius: calc(var(--u) * 14); background: #fff; padding: calc(var(--u) * 2); min-width: max(48px, calc(var(--u) * 50)); min-height: max(48px, calc(var(--u) * 50)); cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .wbtn.sel { background: #FFD6E5; box-shadow: 0 0 0 calc(var(--u) * 3) #FF7AA8; }
@@ -119,16 +154,16 @@ html, body {
 .item { display: flex; gap: calc(var(--u) * 8); align-items: center; background: #fff; border: calc(var(--u) * 2.5) solid #4A3B52; border-radius: calc(var(--u) * 16); padding: calc(var(--u) * 7); margin-bottom: calc(var(--u) * 7); }
 .item.locked { background: #EEE8F1; }
 .item .info { flex: 1 1 auto; min-width: 0; }
-.item .name { font-size: calc(var(--u) * 14); overflow-wrap: anywhere; }
-.item .desc { font-size: calc(var(--u) * 11); opacity: 0.75; font-weight: normal; overflow-wrap: anywhere; }
+.item .name { font-size: max(11px, calc(var(--u) * 14)); overflow-wrap: anywhere; }
+.item .desc { font-size: max(11px, calc(var(--u) * 11)); opacity: 0.75; font-weight: normal; overflow-wrap: anywhere; }
 .item .acts { display: flex; flex-direction: column; gap: calc(var(--u) * 4); align-items: stretch; flex: 0 0 auto; }
 .item .acts .btn { margin: 0; min-width: calc(var(--u) * 84); }
 .sil { filter: brightness(0); opacity: 0.3; }
 .pips { display: flex; gap: calc(var(--u) * 2.5); margin: calc(var(--u) * 3) 0; flex-wrap: wrap; }
 .pip { width: calc(var(--u) * 9); height: calc(var(--u) * 9); border-radius: 50%; background: #E3DAE8; border: calc(var(--u) * 1.5) solid #4A3B52; }
 .pip.on { background: #FFD23F; }
-.bars { display: grid; grid-template-columns: auto 1fr; gap: calc(var(--u) * 2) calc(var(--u) * 5); align-items: center; font-size: calc(var(--u) * 10); font-weight: normal; }
-.bar { height: calc(var(--u) * 6); background: #E3DAE8; border-radius: calc(var(--u) * 3); overflow: hidden; min-width: calc(var(--u) * 50); }
+.bars { display: grid; grid-template-columns: auto 1fr; gap: calc(var(--u) * 2) calc(var(--u) * 5); align-items: center; font-size: max(11px, calc(var(--u) * 10)); line-height: 1.1; font-weight: normal; }
+.bar { height: calc(var(--u) * 6); background: #E3DAE8; border-radius: calc(var(--u) * 3); overflow: hidden; min-width: calc(var(--u) * 40); }
 .bar i { display: block; height: 100%; background: #FF7AA8; border-radius: calc(var(--u) * 3); }
 .cost { display: inline-flex; align-items: center; gap: calc(var(--u) * 3); }
 .sparkle { animation: sparkle 0.5s ease-out; }
@@ -136,7 +171,7 @@ html, body {
 /* settings */
 .set-row { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--u) * 8); width: 100%; min-height: max(48px, calc(var(--u) * 50)); border-bottom: calc(var(--u) * 1.5) dashed #E6D5E0; }
 .set-row:last-child { border-bottom: none; }
-.set-row .lbl { flex: 1 1 auto; font-size: calc(var(--u) * 14); overflow-wrap: anywhere; }
+.set-row .lbl { flex: 1 1 auto; font-size: max(11px, calc(var(--u) * 14)); overflow-wrap: anywhere; }
 .toggle { min-width: calc(var(--u) * 76); margin: calc(var(--u) * 2) 0; }
 .toggle.on { background: linear-gradient(#C8F5DC, #7CE38B); box-shadow: 0 calc(var(--u) * 4) 0 #4FAE5F; }
 .seg { display: flex; gap: calc(var(--u) * 3); }
@@ -144,7 +179,11 @@ html, body {
 .seg .btn.sel { background: linear-gradient(#FFB3CF, #FF7AA8); color: #fff; }
 
 /* cards */
-.cards { display: flex; gap: calc(var(--u) * 14); justify-content: center; margin-top: calc(var(--u) * 150); position: relative; }
+.cards { display: flex; gap: calc(var(--u) * 14); justify-content: center; margin-top: calc(var(--u) * 96); position: relative; flex: 0 0 auto; }
+/* pause: one column in portrait, buttons left / toggles right in landscape */
+.pause-panel { max-width: calc(var(--u) * 300); margin-top: calc(var(--u) * 20); display: flex; flex-direction: column; align-items: center; flex: 0 1 auto; }
+.pause-acts { display: flex; flex-direction: column; align-items: center; flex: 0 0 auto; }
+.pause-sets { width: 100%; flex: 0 0 auto; }
 .card {
   width: calc(var(--u) * 140); height: calc(var(--u) * 180); border-radius: calc(var(--u) * 22); border: calc(var(--u) * 4) solid #4A3B52;
   background: linear-gradient(#FFFFFF, #FFE9F2); box-shadow: 0 calc(var(--u) * 7) 0 rgba(74, 59, 82, 0.4); cursor: pointer; font: inherit; color: #4A3B52;
@@ -153,33 +192,172 @@ html, body {
 .card.sel, .card:focus-visible { outline: none; box-shadow: 0 calc(var(--u) * 7) 0 rgba(74, 59, 82, 0.4), 0 0 0 calc(var(--u) * 5) #FFD23F; }
 .card:active { transform: scale(0.96); }
 .card .big { font-size: calc(var(--u) * 30); color: #FF5A8A; }
-.card .nm { font-size: calc(var(--u) * 13); text-align: center; overflow-wrap: anywhere; }
+.card .nm { font-size: max(11px, calc(var(--u) * 13)); text-align: center; overflow-wrap: anywhere; }
 .hand { position: absolute; left: 50%; bottom: calc(var(--u) * -44); margin-left: calc(var(--u) * -20); animation: handmove 1.4s ease-in-out infinite alternate; pointer-events: none; }
 
 /* results */
 .res { margin-top: calc(var(--u) * 14); display: flex; flex-direction: column; align-items: center; max-width: calc(var(--u) * 320); max-height: 100%; overflow-y: auto; touch-action: pan-y; flex: 0 1 auto; }
 .res .title { margin: 0 0 calc(var(--u) * 2); }
 .res .btn.primary { min-height: max(52px, calc(var(--u) * 54)); margin: calc(var(--u) * 4) 0; }
-.rline { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: calc(var(--u) * 8); font-size: calc(var(--u) * 14); padding: calc(var(--u) * 2) calc(var(--u) * 4); }
+.screen > .res { flex: 0 1 auto; width: 100%; }
+.res > * { flex-shrink: 0; }
+.rline { display: flex; align-items: center; justify-content: space-between; width: 100%; gap: calc(var(--u) * 8); font-size: max(11px, calc(var(--u) * 14)); padding: calc(var(--u) * 2) calc(var(--u) * 4); }
 .rline .l { display: flex; align-items: center; gap: calc(var(--u) * 6); min-width: 0; overflow-wrap: anywhere; }
 .rline.total { border-top: calc(var(--u) * 2) dashed #E6D5E0; margin-top: calc(var(--u) * 4); padding-top: calc(var(--u) * 6); font-size: calc(var(--u) * 19); }
-.newcard { background: linear-gradient(#FFF1B0, #FFD23F); border: calc(var(--u) * 3) solid #4A3B52; border-radius: calc(var(--u) * 16); padding: calc(var(--u) * 3) calc(var(--u) * 10); display: flex; align-items: center; gap: calc(var(--u) * 8); margin: calc(var(--u) * 3) 0; animation: popin 0.4s ease-out; width: 100%; }
-.strip { width: 100%; margin: calc(var(--u) * 6) 0 calc(var(--u) * 2); font-size: calc(var(--u) * 11); display: flex; align-items: center; gap: calc(var(--u) * 6); }
+.newcard { background: linear-gradient(#FFF1B0, #FFD23F); border: calc(var(--u) * 3) solid #4A3B52; border-radius: calc(var(--u) * 16); padding: calc(var(--u) * 3) calc(var(--u) * 10); display: flex; align-items: center; gap: calc(var(--u) * 8); margin: calc(var(--u) * 2) 0; animation: popin 0.4s ease-out; width: 100%; }
+.strip { width: 100%; margin: calc(var(--u) * 6) 0 calc(var(--u) * 2); font-size: max(11px, calc(var(--u) * 11)); display: flex; align-items: center; gap: calc(var(--u) * 6); }
 .strip .bar { flex: 1 1 auto; height: calc(var(--u) * 9); }
 .strip .bar i { background: #7FC8FF; }
-.hintico { display: flex; align-items: center; gap: calc(var(--u) * 8); margin: calc(var(--u) * 6) 0; font-size: calc(var(--u) * 13); cursor: pointer; background: #FFF7D6; border: calc(var(--u) * 2.5) solid #4A3B52; border-radius: calc(var(--u) * 16); padding: calc(var(--u) * 5) calc(var(--u) * 10); font: inherit; color: inherit; min-height: max(48px, calc(var(--u) * 50)); }
+.hintico { display: flex; align-items: center; gap: calc(var(--u) * 8); margin: calc(var(--u) * 6) 0; font-size: max(11px, calc(var(--u) * 13)); cursor: pointer; background: #FFF7D6; border: calc(var(--u) * 2.5) solid #4A3B52; border-radius: calc(var(--u) * 16); padding: calc(var(--u) * 5) calc(var(--u) * 10); font: inherit; color: inherit; min-height: max(48px, calc(var(--u) * 50)); }
 .btnrow { display: flex; gap: calc(var(--u) * 8); flex-wrap: wrap; justify-content: center; }
+/* portrait screens with less than 620 units of height (3:4 tablets): tighter result panel, so that the richest
+ * win screen (new weapon + new world) still fits without scrolling */
+.port.short .res { margin-top: calc(var(--u) * 4); }
+.port.short .res > .stars3 .ico { width: calc(var(--u) * 40) !important; height: calc(var(--u) * 40) !important; }
+.port.short .res .btn.primary { min-height: max(50px, calc(var(--u) * 50)); margin: calc(var(--u) * 2) 0; }
+.port.short .res .btnrow .btn { margin: calc(var(--u) * 3) 0 calc(var(--u) * 4); }
+.port.short .res .strip { margin: calc(var(--u) * 3) 0 calc(var(--u) * 1); }
+.port.short .res .rline { padding-top: calc(var(--u) * 1.5); padding-bottom: calc(var(--u) * 1.5); }
+/* "Keep <old toy>" inside the new-weapon card, pictogram pairs inside hint rows */
+.newcard > .ico { flex: 0 0 auto; }
+.newcard > div { min-width: 0; overflow-wrap: anywhere; }
+/* (#ui prefix: these must win over the stop-gap rules in css/extra.css, which is loaded later) */
+/* the "New weapon!" title stays on one line; the Keep button (icon above its label) takes the rest of the row */
+#ui .newcard:has(.keep) { gap: calc(var(--u) * 6); padding-left: calc(var(--u) * 8); padding-right: calc(var(--u) * 8); }
+#ui .newcard .grow { flex: 1 1 0; min-width: min-content; overflow-wrap: normal; }
+#ui .newcard .grow > div:first-child { white-space: nowrap; }
+#ui .newcard .btn.keep { flex: 0 1 auto; flex-direction: column; gap: 0; min-width: calc(var(--u) * 72); max-width: none; margin: calc(var(--u) * 2) 0 calc(var(--u) * 5);
+  padding: calc(var(--u) * 3) calc(var(--u) * 8); font-size: max(11px, calc(var(--u) * 12)); line-height: 1.1; }
+#ui .newcard .btn.keep span { overflow-wrap: break-word; min-width: 0; max-width: 100%; }
+.newcard .btn.keep .ico { flex: 0 0 auto; }
+.pict { display: inline-flex; align-items: center; gap: calc(var(--u) * 2); flex: 0 0 auto; }
+.hintico > .ico { flex: 0 0 auto; }
 
 /* in-game hint + toast + ending caption */
-#hint { position: absolute; left: 6%; width: 88%; top: calc(var(--u) * 112); text-align: center; pointer-events: none; display: none; z-index: 3; }
+/* the tutorial hint sits on the gameplay column, right under the canvas HUD; it is hidden while any DOM screen
+ * (pause, cards, results...) is open and comes back when play resumes */
+#hint { position: absolute; left: calc(var(--cl) + var(--cw) * 0.06); width: calc(var(--cw) * 0.88); top: calc(var(--ct) + var(--hud-top) + var(--cu) * 112); text-align: center; pointer-events: none; display: none; z-index: 3; }
 #hint.on { display: block; animation: popin 0.3s ease-out; }
-#hint span { display: inline-block; background: rgba(255, 255, 255, 0.94); border: calc(var(--u) * 2.5) solid #4A3B52; border-radius: calc(var(--u) * 16); padding: calc(var(--u) * 5) calc(var(--u) * 12); font-size: calc(var(--u) * 15); max-width: 100%; }
-#toast { position: absolute; left: 0; width: 100%; bottom: calc(var(--u) * 30); text-align: center; pointer-events: none; display: none; z-index: 6; }
+#ui.has-screen #hint { display: none; }
+#hint span { display: inline-block; background: rgba(255, 255, 255, 0.94); border: calc(var(--u) * 2.5) solid #4A3B52; border-radius: calc(var(--u) * 16); padding: calc(var(--u) * 5) calc(var(--u) * 12); font-size: max(11px, calc(var(--u) * 15)); max-width: 100%; }
+.land #hint { left: calc(var(--cl) + var(--cw) * 0.03); width: calc(var(--cw) * 0.94); }
+.land #hint span { font-size: max(11px, calc(var(--u) * 13)); padding: calc(var(--u) * 4) calc(var(--u) * 9); border-radius: calc(var(--u) * 13); }
+/* toast: a real button, tap to dismiss */
+#toast { position: absolute; left: var(--sl); width: var(--sw); bottom: calc(100% - var(--st) - var(--sh) + var(--ib) + var(--u) * 26); padding: 0 calc(var(--u) * 12 + var(--ir)) 0 calc(var(--u) * 12 + var(--il)); text-align: center; pointer-events: none; display: none; z-index: 6; }
 #toast.on { display: block; animation: popin 0.3s ease-out; }
-#toast span { display: inline-block; background: #4A3B52; color: #fff; border-radius: calc(var(--u) * 14); padding: calc(var(--u) * 5) calc(var(--u) * 12); font-size: calc(var(--u) * 13); }
-.caption { position: absolute; left: 5%; width: 90%; bottom: calc(var(--u) * 70); text-align: center; pointer-events: none; }
-.caption span { display: inline-block; background: rgba(255, 255, 255, 0.95); border: calc(var(--u) * 3) solid #4A3B52; border-radius: calc(var(--u) * 18); padding: calc(var(--u) * 8) calc(var(--u) * 14); font-size: calc(var(--u) * 16); }
-.skip { position: absolute; right: calc(var(--u) * 10); bottom: calc(var(--u) * 10); }
+#toast button { appearance: none; -webkit-appearance: none; border: 0; margin: 0; font: inherit; cursor: pointer; pointer-events: auto; touch-action: manipulation;
+  display: inline-flex; align-items: center; justify-content: center; gap: calc(var(--u) * 8); min-height: 44px; min-width: 44px; max-width: 100%;
+  background: #4A3B52; color: #fff; border-radius: calc(var(--u) * 22); padding: calc(var(--u) * 5) calc(var(--u) * 16); font-size: max(11px, calc(var(--u) * 13)); box-shadow: 0 calc(var(--u) * 3) 0 rgba(0, 0, 0, 0.18); }
+#toast button .x { opacity: 0.7; font-size: max(11px, calc(var(--u) * 12)); }
+/* ending caption + skip */
+.caption { position: absolute; left: calc(var(--cl) - var(--sl) + var(--cw) * 0.05); width: calc(var(--cw) * 0.9); bottom: calc(var(--ib) + var(--u) * 70); text-align: center; pointer-events: none; }
+.caption span { display: inline-block; background: rgba(255, 255, 255, 0.95); border: calc(var(--u) * 3) solid #4A3B52; border-radius: calc(var(--u) * 18); padding: calc(var(--u) * 8) calc(var(--u) * 14); font-size: max(11px, calc(var(--u) * 16)); }
+.skip { position: absolute; right: calc(var(--ir) + var(--u) * 10); bottom: calc(var(--ib) + var(--u) * 10); }
+/* side-bar HUD (landscape, column narrower than 300 CSS px): pause button left of the column, counters right of it */
+#side-l, #side-r { position: absolute; top: calc(var(--it) + var(--u) * 40); display: none; z-index: 2; }
+#side-l { right: calc(100% - var(--cl) + var(--u) * 8); }
+#side-r { left: calc(var(--cl) + var(--cw) + var(--u) * 8); flex-direction: column; align-items: flex-start; gap: calc(var(--u) * 6); pointer-events: none; }
+#ui.sidehud.inplay #side-l, #ui.sidehud.inplay #side-r { display: flex; }
+.hudbtn { appearance: none; -webkit-appearance: none; border: 0; background: none; padding: 0; margin: 0; cursor: pointer; pointer-events: auto; touch-action: manipulation; outline: none;
+  width: max(48px, calc(var(--u) * 48)); height: max(48px, calc(var(--u) * 48)); border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: transform 0.06s; }
+.hudbtn:active { transform: scale(0.92); }
+.hudbtn:focus-visible { box-shadow: 0 0 0 calc(var(--u) * 3) #7FC8FF; }
+.hudbtn canvas { width: 100% !important; height: 100% !important; }
+.hudpill { font-size: max(13px, calc(var(--u) * 16)); padding: calc(var(--u) * 3) calc(var(--u) * 10) calc(var(--u) * 3) calc(var(--u) * 6); box-shadow: 0 calc(var(--u) * 3) 0 rgba(74, 59, 82, 0.25); min-height: calc(var(--u) * 30); }
+
+/* ================= landscape: the DOM UI uses the whole viewport, two columns ================= */
+.land .screen.soft { justify-content: center; }
+.land .title { font-size: calc(var(--u) * 26); }
+.land .head .title { font-size: calc(var(--u) * 21); }
+.land .head .btn { margin: calc(var(--u) * 2) 0 calc(var(--u) * 4); }
+
+/* menu: logo left, buttons right; with wide side bars (.bars3) the parade column stays visible in between */
+.land .screen[data-screen="menu"] { flex-direction: row; align-items: center; justify-content: center; gap: var(--mgap); padding-top: calc(var(--it) + var(--u) * 10); padding-bottom: calc(var(--ib) + var(--u) * 10); }
+.land .menu-logo { flex: 1 1 0; min-width: 0; margin: 0; display: flex; align-items: center; justify-content: center; }
+.land .menu-logo canvas { width: min(calc(var(--u) * 300), 100%) !important; height: auto !important; }
+.land .menu-btns { flex: 1 1 0; min-width: 0; margin: calc(var(--u) * 30) 0 0; }
+.land .menu-btns > * { max-width: min(100%, calc(var(--u) * 270)); }
+.land .menu-btns > .btn.wide { width: 100%; }
+.land .menu-row { display: grid; grid-template-columns: 1fr 1fr; gap: calc(var(--u) * 8); width: 100%; margin-top: calc(var(--u) * 7); }
+.land .menu-row .btn { flex-direction: column; gap: calc(var(--u) * 1); margin: 0; min-width: 0; padding: calc(var(--u) * 5) calc(var(--u) * 6); font-size: max(11px, calc(var(--u) * 13)); line-height: 1.15; min-height: max(48px, calc(var(--u) * 54)); }
+.land .menu-row .btn .lk { display: block; font-size: max(11px, calc(var(--u) * 11)); opacity: 0.85; }
+.land .menu-row .btn .lk .sep { display: none; }
+.land .menu-btns > .pill { margin-top: calc(var(--u) * 8); }
+
+/* map: header as a side column, the winding path on the right */
+.land .screen.on[data-screen="map"] { display: grid; grid-template-columns: minmax(calc(var(--u) * 176), 0.42fr) minmax(0, 1.58fr); grid-template-rows: auto minmax(0, 1fr); column-gap: calc(var(--u) * 12); align-items: start; justify-content: center;
+  padding-top: calc(var(--it) + var(--u) * 10); padding-bottom: calc(var(--ib) + var(--u) * 10); }
+.land .screen[data-screen="map"] > .head { grid-column: 1; grid-row: 1; flex-wrap: wrap; row-gap: calc(var(--u) * 8); margin: calc(var(--ytop) - var(--u) * 10) 0 0; }
+.land .screen[data-screen="map"] > .head .title { flex: 1 1 50%; text-align: left; }
+.land .screen[data-screen="map"] > .banner { grid-column: 1; grid-row: 2; margin-top: calc(var(--u) * 10); }
+.land .screen[data-screen="map"] > .scroll { grid-column: 2; grid-row: 1 / span 2; align-self: stretch; height: 100%; max-width: calc(var(--u) * 560); justify-self: center; }
+
+/* workshop: header and tabs share the first row, items in two columns */
+.land .screen.on[data-screen="shop"] { display: grid; grid-template-columns: repeat(2, minmax(0, calc(var(--u) * 400))); grid-template-rows: auto minmax(0, 1fr); column-gap: calc(var(--u) * 12); justify-content: center; align-items: start; }
+.land .screen[data-screen="shop"] > .scroll { grid-column: 1 / -1; align-self: stretch; height: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: calc(var(--u) * 10); align-content: start; }
+
+/* settings: rows in two columns */
+.land .screen[data-screen="settings"] > * { max-width: calc(var(--u) * 800); }
+.land .screen[data-screen="settings"] > .panel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: calc(var(--u) * 22); align-content: start; flex: 0 1 auto; padding: calc(var(--u) * 7) calc(var(--u) * 14); }
+.land .screen[data-screen="settings"] > .panel > .muted { grid-column: 1 / -1; }
+.land .screen[data-screen="settings"] .set-row { flex-wrap: wrap; justify-content: flex-end; row-gap: 0; border-bottom: calc(var(--u) * 1.5) dashed #E6D5E0; }
+.land .screen[data-screen="settings"] .set-row .lbl { flex: 1 1 calc(var(--u) * 60); }
+.land .screen[data-screen="settings"] .seg .btn { padding: calc(var(--u) * 4) calc(var(--u) * 7); }
+.land .screen[data-screen="settings"] > .panel > .muted { margin-top: calc(var(--u) * 6) !important; }
+
+/* results: stars + reward lines left, rewards / hints / buttons right. The children are a flat list, so the two
+ * columns are grid tracks with dense placement; the right-hand items span several of the small left rows. */
+.land .res { margin-top: 0; width: 100%; max-width: min(100%, calc(var(--u) * 620)); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-auto-flow: row dense; column-gap: calc(var(--u) * 18); align-items: center; justify-items: center; }
+.land .res > * { grid-column: 1; }
+.land .res > .newcard, .land .res > .hintico, .land .res > .btn, .land .res > .btnrow, .land .res > [data-testid="helping-hand"] { grid-column: 2; }
+.land .res > .newcard, .land .res > .hintico { grid-row: span 2; }
+.land .res > .btn, .land .res > .btnrow { grid-row: span 3; }
+/* the lose panel has few left-hand rows: let them span so that both columns fill the same height */
+.land .res[data-testid="lose-panel"] > :not(.title):not(.newcard):not(.hintico):not(.btn):not(.btnrow):not([data-testid="helping-hand"]) { grid-row: span 2; }
+.land .res .btn.primary { min-height: max(52px, calc(var(--u) * 52)); }
+.land .res { padding: calc(var(--u) * 8) calc(var(--u) * 14); }
+.land .res > .stars3 .ico { width: calc(var(--u) * 40) !important; height: calc(var(--u) * 40) !important; }
+.land .res > .stars3 { margin: calc(var(--u) * 2) 0; }
+.land .res > .newcard { margin: calc(var(--u) * 2) 0; }
+.land .res > .btn.primary { margin: calc(var(--u) * 2) 0 calc(var(--u) * 3); }
+.land .res .btnrow .btn { margin: calc(var(--u) * 3) 0 calc(var(--u) * 4); }
+#ui.land .newcard .btn.keep .ico { width: calc(var(--u) * 18) !important; height: calc(var(--u) * 18) !important; }
+#ui.land .newcard .btn.keep { margin: calc(var(--u) * 2) 0 calc(var(--u) * 5); }
+
+/* level card: a wide card. Title rows span the card, stars | thresholds (and best | helping hand) sit side by side,
+ * then the toy row, its name and the play button(s) span the card again. Flat children -> dense grid. */
+.land .modal .panel { max-width: min(100%, calc(var(--u) * 540)); display: grid; grid-template-columns: minmax(0, 0.77fr) minmax(0, 0.23fr) minmax(0, 1fr); grid-auto-flow: row dense;
+  column-gap: 0; row-gap: calc(var(--u) * 3); align-items: center; justify-items: center; }
+/* grid lines at 38.5 % (stars | thresholds: the pair is centred) and 50 % (Play | Go to boss) */
+.land .modal .panel > * { grid-column: 1 / -1; }
+.land .modal .panel > .close { grid-column: auto; }
+.land .modal .panel > .stars3 { grid-column: 1; justify-self: end; margin-right: calc(var(--u) * 8); }
+.land .modal .panel > .stars3 ~ .row { grid-column: 2 / -1; justify-self: start; margin-left: calc(var(--u) * 8); }
+.land .modal .panel > .row ~ .muted { grid-column: 1; justify-self: end; margin-right: calc(var(--u) * 8); }
+.land .modal .panel > [data-testid="helping-hand"] { grid-column: 2 / -1; justify-self: start; margin-left: calc(var(--u) * 8); }
+.land .modal .panel > .wsel ~ :not(.close) { grid-column: 1 / -1; justify-self: center; }
+.land .modal .panel > .wsel { margin: calc(var(--u) * 4) 0 calc(var(--u) * 2); }
+.land .modal .panel > .btn.primary { min-height: max(54px, calc(var(--u) * 54)); margin: calc(var(--u) * 4) 0 calc(var(--u) * 6); }
+/* Play + "Go to boss" side by side (without :has() support they simply stack and the card scrolls) */
+.land .modal .panel:has(> .btn.primary ~ .btn) > .btn.primary { grid-column: 1 / 3; justify-self: end; margin-right: calc(var(--u) * 6); }
+.land .modal .panel:has(> .btn.primary ~ .btn) > .btn.primary ~ .btn { grid-column: 3; justify-self: start; margin-left: calc(var(--u) * 6); }
+
+/* pause: buttons left, toggles right */
+.land .pause-panel { flex-direction: row; align-items: center; max-width: min(100%, calc(var(--u) * 580)); margin-top: calc(var(--u) * 6); gap: calc(var(--u) * 18); }
+.land .pause-acts { flex: 1 1 0; min-width: 0; }
+.land .pause-acts .btn { margin: calc(var(--u) * 4) 0; width: 100%; max-width: calc(var(--u) * 250); }
+.land .pause-acts .btn.primary { min-height: max(54px, calc(var(--u) * 54)); }
+.land .pause-sets { flex: 1 1 0; min-width: 0; width: auto; }
+.land .screen[data-screen="pause"] > .title { margin: 0 0 calc(var(--u) * 2); }
+
+/* cards */
+.land .cards { margin-top: calc(var(--u) * 4); }
+
+/* ending: the caption may be wider than the column and sits at the very bottom, clear of the scene */
+.land .caption { left: 50%; width: min(calc(100% - var(--u) * 230), calc(var(--u) * 480)); transform: translateX(-50%); bottom: calc(var(--ib) + var(--u) * 10); }
+.land .caption span { padding: calc(var(--u) * 6) calc(var(--u) * 14); font-size: max(11px, calc(var(--u) * 15)); }
+
 #dbg { position: absolute; left: calc(var(--u) * 4); bottom: calc(var(--u) * 4); font: calc(var(--u) * 10) monospace; color: #fff; background: rgba(0, 0, 0, 0.55); padding: calc(var(--u) * 3) calc(var(--u) * 5); border-radius: calc(var(--u) * 4); pointer-events: none; white-space: pre; z-index: 9; font-weight: normal; }
 
 @keyframes bob { from { transform: translateY(0); } to { transform: translateY(calc(var(--u) * -5)); } }
@@ -187,3 +365,16 @@ html, body {
 @keyframes starpop { from { transform: scale(0) rotate(-40deg); } to { transform: scale(1) rotate(0); } }
 @keyframes sparkle { 0% { box-shadow: 0 0 0 0 rgba(255, 210, 63, 0.9); } 100% { box-shadow: 0 0 0 calc(var(--u) * 16) rgba(255, 210, 63, 0); } }
 @keyframes handmove { from { transform: translateX(calc(var(--u) * -60)); } to { transform: translateX(calc(var(--u) * 60)); } }
+
+/* round-1 additions: Helping Hand pips, toy roles, Toy Level card, hint pictograms */
+.hpips { display: inline-flex; gap: calc(var(--u) * 2); align-items: center; }
+.hpips .pip { width: calc(var(--u) * 7); height: calc(var(--u) * 7); }
+.pill.help { gap: calc(var(--u) * 4); font-size: max(11px, calc(var(--u) * 13)); flex-wrap: wrap; justify-content: center; white-space: normal; }
+.role { display: flex; align-items: center; gap: calc(var(--u) * 3); margin: calc(var(--u) * 2) 0; min-height: calc(var(--u) * 22); }
+.role .rl { font-size: max(11px, calc(var(--u) * 11)); font-weight: normal; opacity: 0.75; margin-right: calc(var(--u) * 2); }
+.role.stack .ico { margin-left: calc(var(--u) * -9); }
+.role.stack .ico:first-of-type { margin-left: 0; }
+.item.toy { background: linear-gradient(#FFFBE6, #FFF1B0); }
+.hintico .pict { display: inline-flex; align-items: center; gap: calc(var(--u) * 2); flex: 0 0 auto; }
+.hintico .pill.help { border: none; padding: 0; background: none; flex: 0 0 auto; }
+.hintico.col { flex-direction: column; align-items: center; text-align: center; gap: calc(var(--u) * 3); }

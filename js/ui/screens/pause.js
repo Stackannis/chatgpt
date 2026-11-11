@@ -8,16 +8,19 @@
     render: function (el) {
       var t = PP.t, s = PP.save.data.settings;
       function set(k, v) { s[k] = v; PP.save.write(); UI.applySettings(); UI.show('pause'); }
-      el.appendChild(h('div', 'title', t('pause.title')));
-      var p = h('div', 'panel col', null, { style: 'max-width:calc(var(--u)*300);margin-top:calc(var(--u)*20)' });
+      el.appendChild(h('div', 'title', t('pause.title'), { 'data-testid': 'pause-title' }));
+      // one scrollable panel; portrait: buttons above the toggles, landscape: buttons left / toggles right (CSS)
+      var p = h('div', 'panel pause-panel', null, { 'data-testid': 'pause-panel' });
+      var acts = h('div', 'pause-acts'), sets = h('div', 'pause-sets');
       var r = UI.btn(t('pause.resume'), 'btn-resume', function () { PP.game.resume(); }, 'primary wide');
       r.setAttribute('data-autofocus', '1');
-      p.appendChild(r);
-      p.appendChild(UI.btn(t('pause.restart'), 'btn-restart', function () { PP.game.restart(); }, 'wide'));
-      p.appendChild(UI.btn(t('pause.map'), 'btn-pause-map', function () { PP.game.quitToMap(); }, 'wide blue'));
-      p.appendChild(UI.toggleRow('set.music', 'pause-music', !!s.music, function (v) { set('music', v ? 1 : 0); }));
-      p.appendChild(UI.toggleRow('set.sfx', 'pause-sfx', !!s.sfx, function (v) { set('sfx', v ? 1 : 0); }));
-      if (window.navigator && navigator.vibrate) p.appendChild(UI.toggleRow('set.vib', 'pause-vib', !!s.vib, function (v) { set('vib', v ? 1 : 0); }));
+      acts.appendChild(r);
+      acts.appendChild(UI.btn(t('pause.restart'), 'btn-restart', function () { PP.game.restart(); }, 'wide'));
+      acts.appendChild(UI.btn(t('pause.map'), 'btn-pause-map', function () { PP.game.quitToMap(); }, 'wide blue'));
+      sets.appendChild(UI.toggleRow('set.music', 'pause-music', !!s.music, function (v) { set('music', v ? 1 : 0); }));
+      sets.appendChild(UI.toggleRow('set.sfx', 'pause-sfx', !!s.sfx, function (v) { set('sfx', v ? 1 : 0); }));
+      if (window.navigator && navigator.vibrate) sets.appendChild(UI.toggleRow('set.vib', 'pause-vib', !!s.vib, function (v) { set('vib', v ? 1 : 0); }));
+      p.appendChild(acts); p.appendChild(sets);
       el.appendChild(p);
     },
     onKey: function (key) { if (key === 'esc' || key === 'p') { PP.game.resume(); return true; } return false; }
@@ -30,7 +33,7 @@
     render: function (el) {
       var t = PP.t, G = PP.G, cards = G.cards || [];
       sel = 0;
-      el.appendChild(h('div', 'title', t('cards.title')));
+      el.appendChild(h('div', 'title', t('cards.title'), { 'data-testid': 'cards-title' }));
       var box = h('div', 'cards');
       cards.forEach(function (c, i) {
         var val = c.id === 'buddy' ? '+' + PP.cards.buddyGain() : c.val;

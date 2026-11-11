@@ -1,4 +1,6 @@
-/* Pompom Parade - the 5 bosses (GDD 3.9). Telegraphs >= 0.6 s, phases with 1.5 s invulnerability. */
+/* Pompom Parade - the 5 bosses (GDD 3.9). Telegraphs >= 1.0 s in worlds 1-2 and >= 0.8 s afterwards,
+ * phases with 1.5 s invulnerability. Hit costs are x0.6 in world 1 and x0.75 in world 2 (PP.bal.bossCost).
+ * Telegraphed attacks collide with the small squad hitbox SQ.Rh at 85 % of their visual size. */
 (function () {
   'use strict';
   var PP = window.PP, U = PP.util, TAU = Math.PI * 2;
@@ -12,7 +14,19 @@
   };
   var SIZE = [null, [58, 46], [54, 52], [46, 46], [72, 40], [54, 56]];
   var SPR = [null, 'b_wobble', 'b_snail', 'b_donut', 'b_puff', 'b_queen'];
-  BS.HOME = 152;   // resting y (clear of the HUD / safe top margin)
+  /* tunables: Big Wobble's sway period (s); how far (u) a ripple's safe gap opens from the squad */
+  BS.P = {
+    wobblePeriod: 7,            // Big Wobble: seconds per sway
+    ripNear: 75, ripFar: 95,    // ripples: distance of the safe gap from the squad
+    spinFan: 1.2,               // Sir Shellwhirl: seconds between sprinkle fans while spinning
+    rollTele: 2.2, rollCost: 0.2, cloneTele: 1.4,   // Grand Donut: lane warning before the big roll / its clone, cost as a share of mid
+    donutSpeed: 100, donutFan: 4,                   // Grand Donut: roaming speed (u/s), seconds between sprinkle fans
+    snowTele: 2.0               // Thunderpuff / Queen: shimmer before the snow falls
+  };
+  BS.HOME = 152;   // resting y in the design frame (clear of the HUD / safe top margin)
+  function home() { return BS.HOME + PP.G.oy; }
+  /* shortest telegraph: 1.0 s in worlds 1-2, 0.8 s afterwards */
+  function tele() { return PP.bal.telegraph(BS.L); }
   BS.names = [null, 'wobble', 'shellwhirl', 'donut', 'thunderpuff', 'queen'];
 
   BS.clear = function () {
@@ -24,14 +38,18 @@
     var G = PP.G;
     BS.clear();
     BS.on = true; BS.type = type; BS.hp = BS.maxHp = hp; BS.phase = 1; BS.t = 0; BS.inv = 0; BS.st = 'enter'; BS.flash = -1; BS.rot = 0;
-    BS.x = 180; BS.y = -90; BS.rx = SIZE[type][0]; BS.ry = SIZE[type][1]; BS.mini = !!mini; BS.L = Math.min(40, Math.round(G.L));
+    BS.x = 180; BS.y = G.oy - 90; BS.rx = SIZE[type][0]; BS.ry = SIZE[type][1]; BS.mini = !!mini; BS.L = Math.min(40, Math.round(G.L));
     BS.tA = 0; BS.tB = 0; BS.tC = 0; BS.fanT = 0; BS.vx = 140; BS.squash = 0; BS.dmgAcc = 0; BS.dmgT = 0; BS.hitCd = 0;
     BS.sp = type === 5 ? 1.25 : 1; BS.orbT = 0; BS.orbA = 0;
     PP.events.emit('bossStart', { type: type, name: BS.names[type], hp: hp, mini: !!mini });
   };
-  BS.targetable = function () { return BS.on && BS.y > 30 && BS.y < PP.G.sy - 80; };
+  BS.targetable = function () { return BS.on && BS.y > PP.G.oy + 30 && BS.y < PP.G.sy - 80; };
+  /* can the Rainbow Beam reach it? only a boss in front of the squad that is not entering / away / returning */
+  BS.beamable = function () {
+    return BS.on && BS.dying <= 0 && BS.st !== 'away' && BS.st !== 'return' && BS.st !== 'enter' && BS.y < PP.G.sy && BS.y + BS.ry > PP.G.oy;
+  };
   BS.hitTest = function (x, y, r) {
-    if (!BS.on || BS.y < 30 || BS.dying > 0) return false;
+    if (!BS.on || BS.y < PP.G.oy + 30 || BS.dying > 0 || BS.st === 'away') return false;
     var dx = (x - BS.x) / (BS.rx + r), dy = (y - BS.y) / (BS.ry + r);
     return dx * dx + dy * dy < 1;
   };
@@ -67,7 +85,7 @@
   }
 
   BS.damage = function (dmg, x, y) {
-    if (!BS.on || BS.dying > 0) return;
+    if (!BS.on || BS.dying > 0 || PP.G.state === 'lost') return;      // a loss is final
     if (BS.inv > 0 || BS.st === 'enter') { return; }
     if (BS.type === 2 && BS.st === 'spin') { dmg *= 0.1; if ((PP.G.tick & 7) === 0) PP.fx.tink(x, y); }
     BS.hp -= dmg; if (BS.flash < -0.14) BS.flash = 0.06; BS.dmgAcc += dmg;
@@ -90,7 +108,11 @@
     var r = BS.rip[0].on ? BS.rip[1] : BS.rip[0];
     if (r.on) return;
     r.on = true; r.st = 0; r.t = 1.0; r.y = BS.y + BS.ry; r.gapW = gapW; r.hit = false;
-    r.gapX = U.clamp(PP.G.rng.range(80, 280), 30 + gapW / 2, 330 - gapW / 2);
+    // The safe gap opens a short hop away from the squad (ripNear..ripFar u), on the side with more room:
+    // standing still always gets splashed, a small unhurried sidestep is always enough.
+    var sx = PP.squad.x, d = PP.G.rng.range(BS.P.ripNear, BS.P.ripFar);
+    var side = sx < 130 ? 1 : (sx > 230 ? -1 : (PP.G.rng() < 0.5 ? 1 : -1));
+    r.gapX = U.clamp(sx + side * d, 30 + gapW / 2, 330 - gapW / 2);
   }
   function fan(n, arcDeg, speed, f, aimed, offDeg) {
     var G = PP.G, SQ = PP.squad, base = 0;
@@ -104,13 +126,15 @@
   }
   function startSnow() {
     var G = PP.G, sn = BS.snow, sl = U.laneOf(PP.squad.x), a, b, ok, tries = 0;
+    // the snow always falls on the squad's own lane (plus one more), and a neighbouring lane always stays clear:
+    // one calm step sideways during the shimmer is enough, staying put is not
     do {
-      a = G.rng.int(0, 3); b = G.rng.int(0, 3); if (b === a) b = (a + 1 + G.rng.int(0, 2)) % 4;
+      a = sl; b = G.rng.int(0, 3); if (b === a) b = (a + 1 + G.rng.int(0, 2)) % 4;
       ok = false;
-      for (var d = -1; d <= 1; d++) { var l = sl + d; if (l >= 0 && l <= 3 && l !== a && l !== b) ok = true; }
+      for (var d = -1; d <= 1; d += 2) { var l = sl + d; if (l >= 0 && l <= 3 && l !== b) ok = true; }
     } while (!ok && ++tries < 20);
-    sn.st = 1; sn.t = 1.2; sn.l0 = a; sn.l1 = b; sn.tick = 0;
-    PP.obst.telegraph(30 + a * 75, 75, 1.2, 1); PP.obst.telegraph(30 + b * 75, 75, 1.2, 1);
+    sn.st = 1; sn.t = BS.P.snowTele; sn.l0 = a; sn.l1 = b; sn.tick = 0;
+    PP.obst.telegraph(30 + a * 75, 75, BS.P.snowTele, 1); PP.obst.telegraph(30 + b * 75, 75, BS.P.snowTele, 1);
     PP.audio.sfx('warn');
   }
   function updSnow(dt) {
@@ -141,8 +165,8 @@
       if (r.st === 0) { r.t -= dt; r.y = BS.y + BS.ry; if (r.t <= 0) { r.st = 1; PP.audio.sfx('slam'); } }
       else {
         r.y += 150 * dt;
-        if (!r.hit && Math.abs(r.y - G.sy) < 12 + SQ.R * 0.6 && Math.abs(SQ.x - r.gapX) > r.gapW / 2 - SQ.R * 0.5) { r.hit = true; SQ.hurt(cost(0.25), 'boss'); }
-        if (r.y > G.H + 20) r.on = false;
+        if (!r.hit && Math.abs(r.y - G.sy) < 10 + SQ.Rh * 0.6 && Math.abs(SQ.x - r.gapX) > r.gapW / 2 * 1.15 - SQ.Rh * 0.3) { r.hit = true; SQ.hurt(cost(0.25), 'boss'); }
+        if (r.y > G.bot + 20) r.on = false;
       }
     }
   }
@@ -169,7 +193,7 @@
 
   BS.update = function (dt) {
     if (!BS.on) return;
-    var G = PP.G, SQ = PP.squad, sp = BS.sp, p2 = BS.phase >= 2, ds = dt * sp;
+    var G = PP.G, SQ = PP.squad, sp = BS.sp, p2 = BS.phase >= 2, ds = dt * sp, HOME = home(), tg = tele();
     BS.t += dt;
     if (BS.flash > -1) BS.flash -= dt;
     if (BS.hitCd > 0) BS.hitCd -= dt;
@@ -177,16 +201,16 @@
     if (BS.dying > 0) { BS.dying += dt; return; }
     if (BS.st === 'enter') {
       BS.y += 150 * dt;
-      if (BS.y >= BS.HOME) { BS.y = BS.HOME; BS.st = BS.type === 2 ? 'open' : 'roam'; PP.audio.sfx('roar'); }
+      if (BS.y >= HOME) { BS.y = HOME; BS.st = BS.type === 2 ? 'open' : 'roam'; PP.audio.sfx('roar'); }
       return;
     }
     updRipples(dt); updSnow(dt);
     if (BS.inv > 0) { BS.inv -= dt; return; }
     var t = BS.type;
     if (t === 1) {
-      BS.x = 180 + 100 * Math.sin(TAU * BS.t / 5);
+      BS.x = 180 + 100 * Math.sin(TAU * BS.t / BS.P.wobblePeriod);
       var per = p2 ? 3 : 4;
-      BS.tA += dt; BS.squash = BS.tA >= per - 0.6 ? (BS.tA - (per - 0.6)) / 0.6 : 0;
+      BS.tA += dt; BS.squash = BS.tA >= per - tg ? (BS.tA - (per - tg)) / tg : 0;
       if (BS.tA >= per) { BS.tA = 0; BS.squash = 0; slam(p2 ? 4 : 3); }
       BS.tB += dt;
       if (BS.tB >= 7) { BS.tB = -1; ripple(p2 ? 100 : 120); }
@@ -194,7 +218,7 @@
       BS.x = 180 + 60 * Math.sin(BS.t * 0.5);
       BS.tA += dt;
       if (BS.st === 'open') {
-        BS.squash = BS.tA >= (p2 ? 3 : 4) - 0.6 ? 1 : 0;
+        BS.squash = BS.tA >= (p2 ? 3 : 4) - tg ? 1 : 0;
         if (BS.tA >= (p2 ? 3 : 4)) {
           BS.st = 'spin'; BS.tA = 0; BS.fanT = 0.45; BS.tC = 0; BS.squash = 0;
           PP.obst.spawn('syrup', U.laneX(G.rng.int(0, 1)), BS.y + 50, { vy: 55 });
@@ -202,21 +226,24 @@
         }
       } else {
         BS.rot += 14 * dt; BS.fanT -= dt;
-        if (BS.fanT <= 0) { BS.fanT = 1.0; fan(p2 ? 7 : 5, p2 ? 132 : 120, 170, 0.05, false, (BS.tC++ % 2) ? (p2 ? 11 : 15) : 0); }
+        // every second fan is aimed (its middle sprinkle flies at the squad): standing still under him does not work
+        if (BS.fanT <= 0) { BS.fanT = BS.P.spinFan; var odd = BS.tC++ % 2; fan(p2 ? 7 : 5, p2 ? 132 : 120, 170, 0.05, !!odd, 0); }
         if (BS.tA >= (p2 ? 2.5 : 2)) { BS.st = 'open'; BS.tA = 0; BS.rot = 0; }
       }
     } else if (t === 3) {
       if (BS.st === 'roam') {
-        BS.x += BS.vx * dt; BS.rot += BS.vx / 48 * dt; BS.y = BS.HOME;
-        if (BS.x > 282) { BS.x = 282; BS.vx = -140; } else if (BS.x < 78) { BS.x = 78; BS.vx = 140; }
-        BS.tA += dt; if (BS.tA >= 3) { BS.tA = 0; fan(7, 70, 210, 0.04, true, 0); }
+        BS.x += BS.vx * dt; BS.rot += BS.vx / 48 * dt; BS.y = HOME;
+        var dv = BS.P.donutSpeed; BS.vx = BS.vx < 0 ? -dv : dv;
+        if (BS.x > 282) { BS.x = 282; BS.vx = -dv; } else if (BS.x < 78) { BS.x = 78; BS.vx = dv; }
+        // aimed fans have an even number of sprinkles: they bracket the squad, so holding still is safe
+        BS.tA += dt; if (BS.tA >= BS.P.donutFan) { BS.tA = 0; fan(4, 54, 200, 0.04, true, 0); }
         BS.tB += dt;
         if (BS.tB >= 9) {
-          BS.tB = 0; BS.st = 'warn'; BS.tC = 1.0; BS.lane = U.laneOf(SQ.x); BS.hitCd = 0;
-          PP.obst.telegraph(30 + BS.lane * 75, 75, 1.0, 0); PP.audio.sfx('warn');
+          BS.tB = 0; BS.st = 'warn'; BS.tC = BS.P.rollTele; BS.lane = U.laneOf(SQ.x); BS.hitCd = 0;
+          PP.obst.telegraph(30 + BS.lane * 75, 75, BS.P.rollTele, 0); PP.audio.sfx('warn');
           if (p2) {
             var l2 = BS.lane + (G.rng() < 0.5 ? 1 : -1); if (l2 < 0) l2 = 1; if (l2 > 3) l2 = 2;
-            var c = BS.clone; c.on = true; c.st = 0; c.t = 0.5; c.x = U.laneX(l2); c.y = -70; c.hit = false;
+            var c = BS.clone; c.on = true; c.st = 0; c.t = 0.5; c.x = U.laneX(l2); c.y = G.oy - 70; c.hit = false;
           }
         }
       } else if (BS.st === 'warn') {
@@ -224,49 +251,50 @@
         if (BS.tC <= 0) { BS.st = 'roll'; BS.x = U.laneX(BS.lane); PP.audio.sfx('slam'); }
       } else if (BS.st === 'roll') {
         BS.y += 520 * dt; BS.rot += 520 / 48 * dt;
-        if (BS.y > G.H + 70) { BS.st = 'away'; BS.tC = 1.2; }
+        if (BS.y > G.bot + 70) { BS.st = 'away'; BS.tC = 1.2; }
       } else if (BS.st === 'away') {
-        BS.tC -= dt; if (BS.tC <= 0) { BS.st = 'return'; BS.y = -70; }
+        BS.tC -= dt; if (BS.tC <= 0) { BS.st = 'return'; BS.y = G.oy - 70; }
       } else if (BS.st === 'return') {
-        BS.y += 300 * dt; if (BS.y >= BS.HOME) { BS.y = BS.HOME; BS.st = 'roam'; BS.tA = 1.5; }
+        BS.y += 300 * dt; if (BS.y >= HOME) { BS.y = HOME; BS.st = 'roam'; BS.tA = 1.5; }
       }
       if (BS.st === 'roll' && BS.hitCd <= 0) {
-        var dx = BS.x - SQ.x, dy = BS.y - G.sy, rr = 42 + SQ.R * 0.8;
-        if (dx * dx + dy * dy < rr * rr) { BS.hitCd = 1.5; SQ.hurt(cost(0.30), 'boss'); }
+        // what the striped lane telegraphs is what hurts: 85 % of the lane width against the small hitbox
+        var dx = BS.x - SQ.x, dy = BS.y - G.sy;
+        if (Math.abs(dx) < 37.5 * 0.85 + SQ.Rh * 0.6 && Math.abs(dy) < 46 * 0.85 + SQ.Rh) { BS.hitCd = 1.5; SQ.hurt(cost(BS.P.rollCost), 'boss'); }
       }
       var cl = BS.clone;
       if (cl.on) {
-        if (cl.st === 0) { cl.t -= dt; if (cl.t <= 0) { cl.st = 1; cl.t = 1.0; PP.obst.telegraph(cl.x - 37.5, 75, 1.0, 0); } }
+        if (cl.st === 0) { cl.t -= dt; if (cl.t <= 0) { cl.st = 1; cl.t = BS.P.cloneTele; PP.obst.telegraph(cl.x - 37.5, 75, BS.P.cloneTele, 0); } }
         else if (cl.st === 1) { cl.t -= dt; if (cl.t <= 0) cl.st = 2; }
         else {
           cl.y += 520 * dt;
-          var dx2 = cl.x - SQ.x, dy2 = cl.y - G.sy, r2 = 30 + SQ.R * 0.8;
-          if (!cl.hit && dx2 * dx2 + dy2 * dy2 < r2 * r2) { cl.hit = true; SQ.hurt(cost(0.30), 'boss'); }
-          if (cl.y > G.H + 60) cl.on = false;
+          var dx2 = cl.x - SQ.x, dy2 = cl.y - G.sy, r2 = 30 * 0.85 + SQ.Rh;
+          if (!cl.hit && dx2 * dx2 + dy2 * dy2 < r2 * r2) { cl.hit = true; SQ.hurt(cost(BS.P.rollCost), 'boss'); }
+          if (cl.y > G.bot + 60) cl.on = false;
         }
       }
     } else if (t === 4) {
       BS.x = 180 + 60 * Math.sin(BS.t * 0.6);
       BS.tA += dt; if (BS.tA >= 5) { BS.tA = 0; startSnow(); }
-      BS.tB += dt; BS.squash = BS.tB >= 5.4 ? (BS.tB - 5.4) / 0.6 : 0;
+      BS.tB += dt; BS.squash = BS.tB >= 6 - tg ? (BS.tB - (6 - tg)) / tg : 0;
       if (BS.tB >= 6) { BS.tB = 0; BS.squash = 0; hail(); }
     } else if (t === 5) {
       BS.x = 180 + 70 * Math.sin(BS.t * 0.5);
       if (BS.phase === 1) {
         var per5 = 4;
-        BS.tA += ds; BS.squash = BS.tA >= per5 - 0.75 ? (BS.tA - (per5 - 0.75)) / 0.75 : 0;
+        BS.tA += ds; BS.squash = BS.tA >= per5 - 1 ? (BS.tA - (per5 - 1)) : 0;      // 1.0 boss-seconds = 0.8 s at her x1.25 speed
         if (BS.tA >= per5) { BS.tA = 0; BS.squash = 0; slam(5); }
         BS.tB += ds; if (BS.tB >= 7) { BS.tB = -1; ripple(110); }
       } else if (BS.phase === 2) {
         updOrbs(dt);
-        BS.tA += ds; BS.squash = BS.tA >= 3 - 0.75 ? (BS.tA - 2.25) / 0.75 : 0;
-        if (BS.tA >= 3) { BS.tA = 0; BS.squash = 0; fan(9, 84, 210, 0.04, true, 0); }
+        BS.tA += ds; BS.squash = BS.tA >= 2 ? (BS.tA - 2) : 0;
+        if (BS.tA >= 3) { BS.tA = 0; BS.squash = 0; fan(8, 74, 210, 0.04, true, 0); }
       } else {
         BS.tA += ds; if (BS.tA >= 5) { BS.tA = 0; startSnow(); }
         BS.tB += ds;
         if (BS.tB >= 4) {
           BS.tB = 0;
-          var d = PP.enemies.spawn('dasher', U.laneX(U.laneOf(SQ.x)), 170, false, 1);
+          var d = PP.enemies.spawn('dasher', U.laneX(U.laneOf(SQ.x)), 170 + G.oy, false, 1);
           if (d) { d.st = 1; d.tm = 0.9; PP.obst.telegraph(d.x - d.r - 8, d.r * 2 + 16, 0.9, 0); PP.audio.sfx('warn'); }
         }
       }

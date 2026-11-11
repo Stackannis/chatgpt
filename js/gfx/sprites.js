@@ -503,29 +503,44 @@
   });
 
   /* ================= PROJECTILES ================= */
-  defc('p_bubble', 8, 8, function (g) {
-    g.fillStyle = '#fff'; g.beginPath(); g.arc(0, 0, 6.6, 0, TAU); g.fill();
-    dot(g, 0, 0, 5.2, '#5FE3FF'); dot(g, 0.6, 0.8, 3.6, '#A8F2FF'); dot(g, -1.8, -2, 1.5, '#fff');
+  /* Every player projectile has a 1.5 u plum rim at 60% opacity around its white edge, so that it reads on
+   * every road colour (pale bubbles on the pink W1 road, cookies on the caramel W3 road...).
+   * rimDot / rimPath paint the rim first; the opaque shape painted on top leaves exactly RIM_W visible. */
+  var RIM = 'rgba(74,59,82,0.6)', RIM_W = 1.5;
+  S.RIM = RIM; S.RIM_W = RIM_W;
+  function rimDot(g, r) { dot(g, 0, 0, r + RIM_W, RIM); }
+  function rimPath(g, path, extra) { path(g); g.lineWidth = RIM_W * 2 + (extra || 0); g.strokeStyle = RIM; g.stroke(); }
+  defc('p_bubble', 9, 9, function (g) {
+    rimDot(g, 6.4);
+    dot(g, 0, 0, 6.4, '#fff');
+    dot(g, 0, 0, 5.2, '#2FC8F0'); dot(g, 0.6, 0.8, 3.5, '#7FE0F7'); dot(g, -1.8, -2, 1.5, '#fff');
   });
   var SPR_COL = ['#FF7AA8', '#FFD23F', '#7CE38B', '#5FC8FF', '#C29BFF'];
   SPR_COL.forEach(function (c, i) {
-    defc('p_sprinkle_' + i, 4, 7, function (g) {
+    defc('p_sprinkle_' + i, 6, 9, function (g) {
+      rimPath(g, pr(-3.2, -6.2, 6.4, 12.4, 3.2));
       g.fillStyle = '#fff'; rr(g, -3.2, -6.2, 6.4, 12.4, 3.2); g.fill();
       g.fillStyle = c; rr(g, -2, -5, 4, 10, 2); g.fill();
     });
   });
-  defc('p_gumball', 11, 11, function (g) {
+  defc('p_gumball', 12, 12, function (g) {
+    rimDot(g, 9.6);
     dot(g, 0, 0, 9.6, '#fff'); dot(g, 0, 0, 8, '#FF7AA8'); dot(g, 1, 1.4, 5.6, '#FF9DC0'); shine(g, -3, -3.4, 2.6);
   });
-  defc('p_star', 9, 9, function (g) {
+  defc('p_star', 11, 11, function (g) {
+    rimPath(g, starP(0, 0, 8.2, 4, 5), 1.5);
     starP(0, 0, 8.2, 4, 5)(g); g.fillStyle = '#fff'; g.fill(); g.lineWidth = 1.5; g.strokeStyle = '#fff'; g.stroke();
     starP(0, 0, 6.4, 3.1, 5)(g); g.fillStyle = '#FFD23F'; g.fill(); dot(g, -1, -1, 1.2, '#FFF6C8');
   });
-  defc('p_cookie', 12, 12, function (g) {
-    dot(g, 0, 0, 10.6, '#fff'); dot(g, 0, 0, 9, '#D9A066'); dot(g, 1, 1.4, 6.6, '#E8B880');
-    dot(g, -3.5, -2.5, 1.7, '#7A4A2E'); dot(g, 3, -3.5, 1.4, '#7A4A2E'); dot(g, 3.5, 3, 1.7, '#7A4A2E'); dot(g, -2.5, 4, 1.4, '#7A4A2E');
+  /* dark chocolate cookie (#8A4F1F) with a light icing dot: clearly darker than the caramel road of W3 */
+  defc('p_cookie', 13, 13, function (g) {
+    rimDot(g, 10.6);
+    dot(g, 0, 0, 10.6, '#fff'); dot(g, 0, 0, 9, '#8A4F1F'); dot(g, 1, 1.4, 6.6, '#9C5E2A');
+    dot(g, -4.2, -3, 1.6, '#57300F'); dot(g, 3.6, -4, 1.4, '#57300F'); dot(g, 4.2, 3.4, 1.6, '#57300F'); dot(g, -3, 4.6, 1.4, '#57300F');
+    dot(g, 0, 0, 2.7, '#FFF1D6'); dot(g, -0.7, -0.8, 0.9, '#fff');
   });
-  defc('p_confetti', 9, 9, function (g) {
+  defc('p_confetti', 10, 10, function (g) {
+    rimDot(g, 7.6);
     dot(g, 0, 0, 7.6, '#fff');
     var cols = ['#FF7AA8', '#FFD23F', '#7CE38B', '#5FC8FF'];
     for (var i = 0; i < 4; i++) { g.fillStyle = cols[i]; g.beginPath(); g.moveTo(0, 0); g.arc(0, 0, 6.2, i * Math.PI / 2, (i + 1) * Math.PI / 2); g.closePath(); g.fill(); }

@@ -50,6 +50,11 @@
     var G = PP.G, R = PP.R, spr = PP.spr, SQ = PP.squad, i;
     if (!G.on || G.mode !== 'level') return;
     T.time += dt;
+    PP.run.view(true);          // tutorial marks are drawn in world coordinates
+    try { drawMarks(dt); } finally { PP.run.view(false); }
+  };
+  function drawMarks(dt) {
+    var G = PP.G, R = PP.R, spr = PP.spr, SQ = PP.squad, i;
     if (G.hold) {
       var hx = 180 + 78 * Math.sin(T.time * 2.4);
       R.drawX(spr.h_hand, hx, G.sy - 120, 1.2, 1.2, 0);

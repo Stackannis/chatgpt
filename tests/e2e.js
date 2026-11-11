@@ -28,13 +28,14 @@ function watch(page, errors, tag) {
   const browser = await chromium.launch();
   const errors = [];
 
-  /* ---------- phone, touch, persistent save (no debug params) ---------- */
+  /* ---------- phone, touch, persistent save ----------
+   * ?save=1: this flow uses debug hooks (autoplay, give, forceLose), which would otherwise switch the session to
+   * an in-memory save on the spot (FIX_PLAN_R1 code-1); the clean, hook-free session is covered by tests/regress.js */
   const ctx = await browser.newContext({ viewport: { width: 360, height: 640 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2, locale: 'en-US' });
   const page = await ctx.newPage();
   watch(page, errors, 'phone');
-  await page.goto(URL);
+  await page.goto(URL + '?save=1');
   await ready(page);
-  await page.evaluate(() => window.__game.resetSave());
   await page.waitForTimeout(300);
   const cdp = await ctx.newCDPSession(page);
   let s = await st(page);
@@ -118,13 +119,13 @@ function watch(page, errors, tag) {
   await page.tap('[data-testid=buy-upg-power]');
   await page.waitForTimeout(300);
   sv = await page.evaluate(() => window.__game.getSave());
-  check('upgrade purchase: power 1, cost 60', sv.upg.power === 1 && sv.buttons === 440, 'power ' + sv.upg.power + ' buttons ' + sv.buttons);
+  check('upgrade purchase: power 1, cost 40', sv.upg.power === 1 && sv.buttons === 460, 'power ' + sv.upg.power + ' buttons ' + sv.buttons);
   await page.tap('[data-testid=tab-weapons]');
   await page.waitForTimeout(200);
-  await page.tap('[data-testid=buy-weapon-wand]');
+  await page.tap('[data-testid=buy-toy]');
   await page.waitForTimeout(300);
   sv = await page.evaluate(() => window.__game.getSave());
-  check('weapon upgrade: wand lv 2, cost 150', sv.weapons.wand.lv === 2 && sv.buttons === 290, 'lv ' + sv.weapons.wand.lv + ' buttons ' + sv.buttons);
+  check('shared Toy Level upgrade: lv 2, cost 150', sv.toy === 2 && sv.buttons === 310, 'toy ' + sv.toy + ' buttons ' + sv.buttons);
   await page.screenshot({ path: path.join(OUT, 'e2e_shop.png') });
   await page.tap('[data-testid=btn-back]');
   await page.waitForTimeout(300);
@@ -161,11 +162,11 @@ function watch(page, errors, tag) {
   const bytes = before.length;
   await page.reload();
   await ready(page);
+  check('session with ?save=1 is still flagged as a debug session (no scores)', await page.evaluate(() => window.PP.cheated === true && window.PP.noPersist === false), '');
   const after = await page.evaluate(() => JSON.stringify(window.__game.getSave()));
   check('save/load round trip identical', before === after, bytes + ' bytes');
   check('save under 4 KB', bytes < 4096, bytes);
   check('corrupt save does not crash', await page.evaluate(() => { const d = window.PP.save.parse('{"v":99,"buttons":"x","levels":[1,2],"weapons":null,'); const e = window.PP.save.parse('{"v":7,"buttons":12,"unlocked":999,"upg":{"power":99}}'); return d.buttons === 0 && e.buttons === 12 && e.unlocked === 31 && e.upg.power === 15; }), '');
-  await page.evaluate(() => window.__game.resetSave());
   await ctx.close();
 
   /* ---------- cards + keyboard, desktop viewport, mouse ---------- */

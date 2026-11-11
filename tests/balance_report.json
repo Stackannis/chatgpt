@@ -1,946 +1,3319 @@
 {
- "levels": [
+ "runs": 24,
+ "models": [
+  "good",
+  "avg",
+  "lazy"
+ ],
+ "H": [
+  600,
+  780
+ ],
+ "profile": "expected",
+ "rows": [
   {
    "L": 1,
    "boss": false,
-   "M": 1,
-   "Mtable": 1,
    "weapon": "wand",
-   "buddy": 0,
-   "exp": {
-    "win": true,
-    "squad": 11,
-    "stars": 3,
-    "time": 69.6,
-    "peak": 11,
-    "lost": 0,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 0,
+    "rate": 0,
+    "buddy": 0,
+    "shield": 0,
+    "luck": 0,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 11,
-   "noupg": {
-    "win": true,
-    "squad": 11,
-    "stars": 3,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 69.6,
-    "win": true
+   "M": 1,
+   "cells": {
+    "good@600": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 70,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 28,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 70,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 28,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 96,
+     "st": 2.7,
+     "prog": 98,
+     "t": 68,
+     "squad": 7,
+     "lostBy": {
+      "enemy": 46,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 96,
+     "st": 2.7,
+     "prog": 98,
+     "t": 68,
+     "squad": 7,
+     "lostBy": {
+      "enemy": 46,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 70,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 11,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 70,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 11,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 2,
    "boss": false,
-   "M": 1,
-   "Mtable": 1.05,
    "weapon": "wand",
-   "buddy": 0,
-   "exp": {
-    "win": true,
-    "squad": 16,
-    "stars": 3,
-    "time": 71.4,
-    "peak": 16,
-    "lost": 0,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 1,
+    "rate": 0,
+    "buddy": 0,
+    "shield": 0,
+    "luck": 0,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 16,
-   "noupg": {
-    "win": true,
-    "squad": 16,
-    "stars": 3,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 71.4,
-    "win": true
+   "M": 1.06,
+   "cells": {
+    "good@600": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 71,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 36,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 71,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 36,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 100,
+     "st": 2.9,
+     "prog": 100,
+     "t": 71,
+     "squad": 10,
+     "lostBy": {
+      "enemy": 34,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 100,
+     "st": 2.9,
+     "prog": 100,
+     "t": 71,
+     "squad": 10,
+     "lostBy": {
+      "enemy": 34,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 71,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 4,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 71,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 4,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 3,
    "boss": false,
-   "M": 1.06,
-   "Mtable": 1.09,
    "weapon": "wand",
-   "buddy": 0,
-   "exp": {
-    "win": true,
-    "squad": 19,
-    "stars": 3,
-    "time": 72.3,
-    "peak": 19,
-    "lost": 0,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 2,
+    "rate": 1,
+    "buddy": 0,
+    "shield": 0,
+    "luck": 0,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 19,
-   "noupg": {
-    "win": true,
-    "squad": 19,
-    "stars": 3,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 72.3,
-    "win": true
+   "M": 1.16,
+   "cells": {
+    "good@600": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 72,
+     "squad": 17,
+     "lostBy": {
+      "enemy": 33,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 72,
+     "squad": 17,
+     "lostBy": {
+      "enemy": 33,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 100,
+     "st": 2.9,
+     "prog": 100,
+     "t": 72,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 43,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 100,
+     "st": 2.9,
+     "prog": 100,
+     "t": 72,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 43,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 72,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 10,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 100,
+     "st": 3,
+     "prog": 100,
+     "t": 72,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 10,
+      "hazard": 0,
+      "shot": 0,
+      "boss": 0,
+      "gate": 0
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 4,
    "boss": false,
-   "M": 1.16,
-   "Mtable": 1.14,
    "weapon": "shaker",
-   "buddy": 0,
-   "exp": {
-    "win": true,
-    "squad": 27,
-    "stars": 3,
-    "time": 74.2,
-    "peak": 27,
-    "lost": 0,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 3,
+    "rate": 1,
+    "buddy": 0,
+    "shield": 0,
+    "luck": 0,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 27,
-   "noupg": {
-    "win": true,
-    "squad": 27,
-    "stars": 3,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 74.2,
-    "win": true
+   "M": 1.3,
+   "cells": {
+    "good@600": {
+     "w": 88,
+     "st": 2.8,
+     "prog": 93,
+     "t": 69,
+     "squad": 17,
+     "lostBy": {
+      "enemy": 16,
+      "hazard": 73,
+      "shot": 0,
+      "boss": 0,
+      "gate": 29
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 88,
+     "st": 2.8,
+     "prog": 93,
+     "t": 69,
+     "squad": 17,
+     "lostBy": {
+      "enemy": 16,
+      "hazard": 73,
+      "shot": 0,
+      "boss": 0,
+      "gate": 29
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 83,
+     "st": 2.5,
+     "prog": 93,
+     "t": 69,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 13,
+      "hazard": 81,
+      "shot": 0,
+      "boss": 0,
+      "gate": 48
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 83,
+     "st": 2.5,
+     "prog": 93,
+     "t": 69,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 13,
+      "hazard": 81,
+      "shot": 0,
+      "boss": 0,
+      "gate": 48
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 63,
+     "st": 1.8,
+     "prog": 81,
+     "t": 60,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 1,
+      "hazard": 173,
+      "shot": 0,
+      "boss": 0,
+      "gate": 35
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 63,
+     "st": 1.8,
+     "prog": 81,
+     "t": 60,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 1,
+      "hazard": 173,
+      "shot": 0,
+      "boss": 0,
+      "gate": 35
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 5,
    "boss": false,
-   "M": 1.22,
-   "Mtable": 1.18,
    "weapon": "shaker",
-   "buddy": 0,
-   "exp": {
-    "win": true,
-    "squad": 27,
-    "stars": 3,
-    "time": 75.1,
-    "peak": 27,
-    "lost": 0,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 3,
+    "rate": 2,
+    "buddy": 0,
+    "shield": 0,
+    "luck": 0,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 27,
-   "noupg": {
-    "win": true,
-    "squad": 39,
-    "stars": 3,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 75.1,
-    "win": true
+   "M": 1.35,
+   "cells": {
+    "good@600": {
+     "w": 96,
+     "st": 3,
+     "prog": 98,
+     "t": 74,
+     "squad": 23,
+     "lostBy": {
+      "enemy": 7,
+      "hazard": 66,
+      "shot": 0,
+      "boss": 0,
+      "gate": 30
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 96,
+     "st": 3,
+     "prog": 98,
+     "t": 74,
+     "squad": 23,
+     "lostBy": {
+      "enemy": 7,
+      "hazard": 66,
+      "shot": 0,
+      "boss": 0,
+      "gate": 30
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 92,
+     "st": 2.8,
+     "prog": 97,
+     "t": 73,
+     "squad": 18,
+     "lostBy": {
+      "enemy": 7,
+      "hazard": 81,
+      "shot": 0,
+      "boss": 0,
+      "gate": 66
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 92,
+     "st": 2.8,
+     "prog": 97,
+     "t": 73,
+     "squad": 18,
+     "lostBy": {
+      "enemy": 7,
+      "hazard": 81,
+      "shot": 0,
+      "boss": 0,
+      "gate": 66
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 79,
+     "st": 1.7,
+     "prog": 93,
+     "t": 70,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 3,
+      "hazard": 150,
+      "shot": 0,
+      "boss": 0,
+      "gate": 106
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 79,
+     "st": 1.7,
+     "prog": 93,
+     "t": 70,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 3,
+      "hazard": 150,
+      "shot": 0,
+      "boss": 0,
+      "gate": 106
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 6,
    "boss": true,
-   "M": 1.22,
-   "Mtable": 1.23,
    "weapon": "shaker",
-   "buddy": 1,
-   "exp": {
-    "win": true,
-    "squad": 19,
-    "stars": 3,
-    "time": 70.4,
-    "peak": 19,
-    "lost": 0,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 4,
+    "rate": 2,
+    "buddy": 1,
+    "shield": 0,
+    "luck": 0,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 19,
-   "noupg": {
-    "win": true,
-    "squad": 17,
-    "stars": 3,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 70.4,
-    "win": true
+   "M": 1.42,
+   "cells": {
+    "good@600": {
+     "w": 92,
+     "st": 2.5,
+     "prog": 99,
+     "t": 79,
+     "squad": 16,
+     "lostBy": {
+      "enemy": 8,
+      "hazard": 90,
+      "shot": 0,
+      "boss": 53,
+      "gate": 27
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 92,
+     "st": 2.5,
+     "prog": 99,
+     "t": 79,
+     "squad": 16,
+     "lostBy": {
+      "enemy": 8,
+      "hazard": 90,
+      "shot": 0,
+      "boss": 53,
+      "gate": 27
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 50,
+     "st": 2,
+     "prog": 92,
+     "t": 89,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 16,
+      "hazard": 69,
+      "shot": 0,
+      "boss": 145,
+      "gate": 63
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 50,
+     "st": 2,
+     "prog": 92,
+     "t": 89,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 16,
+      "hazard": 69,
+      "shot": 0,
+      "boss": 145,
+      "gate": 63
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 38,
+     "st": 2.1,
+     "prog": 82,
+     "t": 71,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 0,
+      "hazard": 141,
+      "shot": 0,
+      "boss": 103,
+      "gate": 55
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 38,
+     "st": 2.1,
+     "prog": 82,
+     "t": 71,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 0,
+      "hazard": 141,
+      "shot": 0,
+      "boss": 103,
+      "gate": 55
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 7,
    "boss": false,
-   "M": 1.33,
-   "Mtable": 1.27,
    "weapon": "gumball",
-   "buddy": 1,
-   "exp": {
-    "win": true,
-    "squad": 28,
-    "stars": 3,
-    "time": 77.8,
-    "peak": 28,
-    "lost": 2,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 4,
+    "rate": 3,
+    "buddy": 1,
+    "shield": 0,
+    "luck": 0,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 28,
-   "noupg": {
-    "win": true,
-    "squad": 11,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 77.8,
-    "win": true
+   "M": 1.56,
+   "cells": {
+    "good@600": {
+     "w": 100,
+     "st": 2.4,
+     "prog": 100,
+     "t": 78,
+     "squad": 19,
+     "lostBy": {
+      "enemy": 27,
+      "hazard": 87,
+      "shot": 0,
+      "boss": 0,
+      "gate": 68
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 100,
+     "st": 2.4,
+     "prog": 100,
+     "t": 78,
+     "squad": 19,
+     "lostBy": {
+      "enemy": 27,
+      "hazard": 87,
+      "shot": 0,
+      "boss": 0,
+      "gate": 68
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 96,
+     "st": 1.8,
+     "prog": 98,
+     "t": 76,
+     "squad": 14,
+     "lostBy": {
+      "enemy": 40,
+      "hazard": 114,
+      "shot": 0,
+      "boss": 0,
+      "gate": 119
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 96,
+     "st": 1.8,
+     "prog": 98,
+     "t": 76,
+     "squad": 14,
+     "lostBy": {
+      "enemy": 40,
+      "hazard": 114,
+      "shot": 0,
+      "boss": 0,
+      "gate": 119
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 83,
+     "st": 2.3,
+     "prog": 95,
+     "t": 74,
+     "squad": 16,
+     "lostBy": {
+      "enemy": 14,
+      "hazard": 185,
+      "shot": 0,
+      "boss": 0,
+      "gate": 99
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 83,
+     "st": 2.3,
+     "prog": 95,
+     "t": 74,
+     "squad": 16,
+     "lostBy": {
+      "enemy": 14,
+      "hazard": 185,
+      "shot": 0,
+      "boss": 0,
+      "gate": 99
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 8,
    "boss": false,
-   "M": 1.4,
-   "Mtable": 1.32,
    "weapon": "gumball",
-   "buddy": 1,
-   "exp": {
-    "win": true,
-    "squad": 43,
-    "stars": 3,
-    "time": 79.7,
-    "peak": 43,
-    "lost": 0,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 5,
+    "rate": 3,
+    "buddy": 1,
+    "shield": 0,
+    "luck": 0,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 43,
-   "noupg": {
-    "win": true,
-    "squad": 27,
-    "stars": 3,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 79.7,
-    "win": true
+   "M": 1.63,
+   "cells": {
+    "good@600": {
+     "w": 100,
+     "st": 2.3,
+     "prog": 100,
+     "t": 80,
+     "squad": 19,
+     "lostBy": {
+      "enemy": 55,
+      "hazard": 69,
+      "shot": 0,
+      "boss": 0,
+      "gate": 110
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 100,
+     "st": 2.3,
+     "prog": 100,
+     "t": 80,
+     "squad": 19,
+     "lostBy": {
+      "enemy": 55,
+      "hazard": 69,
+      "shot": 0,
+      "boss": 0,
+      "gate": 110
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 83,
+     "st": 1.7,
+     "prog": 95,
+     "t": 76,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 64,
+      "hazard": 118,
+      "shot": 0,
+      "boss": 0,
+      "gate": 173
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 83,
+     "st": 1.7,
+     "prog": 95,
+     "t": 76,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 64,
+      "hazard": 118,
+      "shot": 0,
+      "boss": 0,
+      "gate": 173
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 67,
+     "st": 1.2,
+     "prog": 93,
+     "t": 74,
+     "squad": 8,
+     "lostBy": {
+      "enemy": 14,
+      "hazard": 274,
+      "shot": 0,
+      "boss": 0,
+      "gate": 169
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 67,
+     "st": 1.2,
+     "prog": 93,
+     "t": 74,
+     "squad": 8,
+     "lostBy": {
+      "enemy": 14,
+      "hazard": 274,
+      "shot": 0,
+      "boss": 0,
+      "gate": 169
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 9,
    "boss": false,
-   "M": 1.4,
-   "Mtable": 1.36,
    "weapon": "gumball",
-   "buddy": 1,
-   "exp": {
-    "win": true,
-    "squad": 28,
-    "stars": 3,
-    "time": 80.6,
-    "peak": 29,
-    "lost": 1,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 5,
+    "rate": 4,
+    "buddy": 1,
+    "shield": 0,
+    "luck": 0,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 28,
-   "noupg": {
-    "win": true,
-    "squad": 26,
-    "stars": 3,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 80.6,
-    "win": true
+   "M": 1.69,
+   "cells": {
+    "good@600": {
+     "w": 100,
+     "st": 2.7,
+     "prog": 100,
+     "t": 81,
+     "squad": 25,
+     "lostBy": {
+      "enemy": 58,
+      "hazard": 135,
+      "shot": 0,
+      "boss": 0,
+      "gate": 65
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 100,
+     "st": 2.7,
+     "prog": 100,
+     "t": 81,
+     "squad": 25,
+     "lostBy": {
+      "enemy": 58,
+      "hazard": 135,
+      "shot": 0,
+      "boss": 0,
+      "gate": 65
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 54,
+     "st": 2.2,
+     "prog": 87,
+     "t": 70,
+     "squad": 18,
+     "lostBy": {
+      "enemy": 70,
+      "hazard": 156,
+      "shot": 0,
+      "boss": 0,
+      "gate": 166
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 54,
+     "st": 2.2,
+     "prog": 87,
+     "t": 70,
+     "squad": 18,
+     "lostBy": {
+      "enemy": 70,
+      "hazard": 156,
+      "shot": 0,
+      "boss": 0,
+      "gate": 166
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 50,
+     "st": 1.5,
+     "prog": 72,
+     "t": 58,
+     "squad": 11,
+     "lostBy": {
+      "enemy": 23,
+      "hazard": 279,
+      "shot": 0,
+      "boss": 0,
+      "gate": 128
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 50,
+     "st": 1.5,
+     "prog": 72,
+     "t": 58,
+     "squad": 11,
+     "lostBy": {
+      "enemy": 23,
+      "hazard": 279,
+      "shot": 0,
+      "boss": 0,
+      "gate": 128
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 10,
    "boss": false,
-   "M": 1.45,
-   "Mtable": 1.41,
    "weapon": "gumball",
-   "buddy": 1,
-   "exp": {
-    "win": true,
-    "squad": 21,
-    "stars": 2,
-    "time": 82.5,
-    "peak": 21,
-    "lost": 5,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 5,
+    "rate": 4,
+    "buddy": 1,
+    "shield": 0,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 21,
-   "noupg": {
-    "win": true,
-    "squad": 9,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 82.5,
-    "win": true
+   "M": 1.69,
+   "cells": {
+    "good@600": {
+     "w": 83,
+     "st": 2,
+     "prog": 94,
+     "t": 77,
+     "squad": 20,
+     "lostBy": {
+      "enemy": 34,
+      "hazard": 146,
+      "shot": 0,
+      "boss": 0,
+      "gate": 80
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 83,
+     "st": 2,
+     "prog": 94,
+     "t": 77,
+     "squad": 20,
+     "lostBy": {
+      "enemy": 34,
+      "hazard": 146,
+      "shot": 0,
+      "boss": 0,
+      "gate": 80
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 50,
+     "st": 1.4,
+     "prog": 84,
+     "t": 69,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 62,
+      "hazard": 155,
+      "shot": 0,
+      "boss": 0,
+      "gate": 150
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 50,
+     "st": 1.4,
+     "prog": 84,
+     "t": 69,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 62,
+      "hazard": 155,
+      "shot": 0,
+      "boss": 0,
+      "gate": 150
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 21,
+     "st": 1.4,
+     "prog": 71,
+     "t": 58,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 24,
+      "hazard": 271,
+      "shot": 0,
+      "boss": 0,
+      "gate": 120
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 21,
+     "st": 1.4,
+     "prog": 71,
+     "t": 58,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 24,
+      "hazard": 271,
+      "shot": 0,
+      "boss": 0,
+      "gate": 120
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 11,
    "boss": false,
-   "M": 1.45,
-   "Mtable": 1.45,
    "weapon": "star",
-   "buddy": 1,
-   "exp": {
-    "win": true,
-    "squad": 25,
-    "stars": 3,
-    "time": 83.4,
-    "peak": 25,
-    "lost": 0,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 5,
+    "rate": 4,
+    "buddy": 2,
+    "shield": 0,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 25,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 65
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 83.4,
-    "win": true
+   "M": 1.39,
+   "cells": {
+    "good@600": {
+     "w": 92,
+     "st": 2.2,
+     "prog": 97,
+     "t": 81,
+     "squad": 21,
+     "lostBy": {
+      "enemy": 33,
+      "hazard": 86,
+      "shot": 0,
+      "boss": 0,
+      "gate": 65
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 92,
+     "st": 2.2,
+     "prog": 97,
+     "t": 81,
+     "squad": 21,
+     "lostBy": {
+      "enemy": 33,
+      "hazard": 86,
+      "shot": 0,
+      "boss": 0,
+      "gate": 65
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 75,
+     "st": 1.6,
+     "prog": 91,
+     "t": 75,
+     "squad": 15,
+     "lostBy": {
+      "enemy": 39,
+      "hazard": 128,
+      "shot": 0,
+      "boss": 0,
+      "gate": 127
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 75,
+     "st": 1.6,
+     "prog": 91,
+     "t": 75,
+     "squad": 15,
+     "lostBy": {
+      "enemy": 39,
+      "hazard": 128,
+      "shot": 0,
+      "boss": 0,
+      "gate": 127
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 38,
+     "st": 1.4,
+     "prog": 74,
+     "t": 62,
+     "squad": 14,
+     "lostBy": {
+      "enemy": 15,
+      "hazard": 269,
+      "shot": 0,
+      "boss": 0,
+      "gate": 107
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 38,
+     "st": 1.4,
+     "prog": 74,
+     "t": 62,
+     "squad": 14,
+     "lostBy": {
+      "enemy": 15,
+      "hazard": 269,
+      "shot": 0,
+      "boss": 0,
+      "gate": 107
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 12,
    "boss": true,
-   "M": 1.45,
-   "Mtable": 1.5,
    "weapon": "star",
-   "buddy": 2,
-   "exp": {
-    "win": true,
-    "squad": 22,
-    "stars": 2,
-    "time": 77.8,
-    "peak": 27,
-    "lost": 8,
-    "progress": 100
+   "toy": 1,
+   "upg": {
+    "power": 6,
+    "rate": 4,
+    "buddy": 2,
+    "shield": 0,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 22,
-   "noupg": {
-    "win": true,
-    "squad": 5,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 77.8,
-    "win": true
+   "M": 1.45,
+   "cells": {
+    "good@600": {
+     "w": 83,
+     "st": 2.4,
+     "prog": 93,
+     "t": 73,
+     "squad": 30,
+     "lostBy": {
+      "enemy": 0,
+      "hazard": 59,
+      "shot": 0,
+      "boss": 71,
+      "gate": 85
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 83,
+     "st": 2.4,
+     "prog": 93,
+     "t": 73,
+     "squad": 30,
+     "lostBy": {
+      "enemy": 0,
+      "hazard": 59,
+      "shot": 0,
+      "boss": 71,
+      "gate": 85
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 54,
+     "st": 1.5,
+     "prog": 81,
+     "t": 90,
+     "squad": 14,
+     "lostBy": {
+      "enemy": 6,
+      "hazard": 71,
+      "shot": 0,
+      "boss": 159,
+      "gate": 163
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 54,
+     "st": 1.5,
+     "prog": 81,
+     "t": 90,
+     "squad": 14,
+     "lostBy": {
+      "enemy": 6,
+      "hazard": 71,
+      "shot": 0,
+      "boss": 159,
+      "gate": 163
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 58,
+     "st": 2,
+     "prog": 85,
+     "t": 76,
+     "squad": 21,
+     "lostBy": {
+      "enemy": 0,
+      "hazard": 138,
+      "shot": 0,
+      "boss": 117,
+      "gate": 139
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 58,
+     "st": 2,
+     "prog": 85,
+     "t": 76,
+     "squad": 21,
+     "lostBy": {
+      "enemy": 0,
+      "hazard": 138,
+      "shot": 0,
+      "boss": 117,
+      "gate": 139
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 13,
    "boss": false,
-   "M": 1.45,
-   "Mtable": 1.54,
    "weapon": "star",
-   "buddy": 2,
-   "exp": {
-    "win": true,
-    "squad": 48,
-    "stars": 3,
-    "time": 86.2,
-    "peak": 48,
-    "lost": 0,
-    "progress": 100
+   "toy": 2,
+   "upg": {
+    "power": 6,
+    "rate": 4,
+    "buddy": 2,
+    "shield": 0,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 48,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 72
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 86.2,
-    "win": true
+   "M": 1.6,
+   "cells": {
+    "good@600": {
+     "w": 75,
+     "st": 2.4,
+     "prog": 83,
+     "t": 72,
+     "squad": 29,
+     "lostBy": {
+      "enemy": 18,
+      "hazard": 166,
+      "shot": 0,
+      "boss": 0,
+      "gate": 74
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 75,
+     "st": 2.4,
+     "prog": 83,
+     "t": 72,
+     "squad": 29,
+     "lostBy": {
+      "enemy": 18,
+      "hazard": 166,
+      "shot": 0,
+      "boss": 0,
+      "gate": 74
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 67,
+     "st": 2.1,
+     "prog": 75,
+     "t": 65,
+     "squad": 27,
+     "lostBy": {
+      "enemy": 27,
+      "hazard": 137,
+      "shot": 0,
+      "boss": 0,
+      "gate": 72
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 67,
+     "st": 2.1,
+     "prog": 75,
+     "t": 65,
+     "squad": 27,
+     "lostBy": {
+      "enemy": 27,
+      "hazard": 137,
+      "shot": 0,
+      "boss": 0,
+      "gate": 72
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 4,
+     "st": 1,
+     "prog": 50,
+     "t": 43,
+     "squad": 10,
+     "lostBy": {
+      "enemy": 3,
+      "hazard": 272,
+      "shot": 0,
+      "boss": 0,
+      "gate": 172
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 4,
+     "st": 1,
+     "prog": 50,
+     "t": 43,
+     "squad": 10,
+     "lostBy": {
+      "enemy": 3,
+      "hazard": 272,
+      "shot": 0,
+      "boss": 0,
+      "gate": 172
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 14,
    "boss": false,
-   "M": 1.45,
-   "Mtable": 1.59,
    "weapon": "star",
-   "buddy": 2,
-   "exp": {
-    "win": true,
-    "squad": 28,
-    "stars": 2,
-    "time": 88.1,
-    "peak": 28,
-    "lost": 6,
-    "progress": 100
+   "toy": 2,
+   "upg": {
+    "power": 6,
+    "rate": 4,
+    "buddy": 2,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 28,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 23
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 88.1,
-    "win": true
+   "M": 1.6,
+   "cells": {
+    "good@600": {
+     "w": 88,
+     "st": 2.1,
+     "prog": 97,
+     "t": 85,
+     "squad": 27,
+     "lostBy": {
+      "enemy": 41,
+      "hazard": 106,
+      "shot": 0,
+      "boss": 0,
+      "gate": 157
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 88,
+     "st": 2.1,
+     "prog": 97,
+     "t": 85,
+     "squad": 27,
+     "lostBy": {
+      "enemy": 41,
+      "hazard": 106,
+      "shot": 0,
+      "boss": 0,
+      "gate": 157
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 75,
+     "st": 1.9,
+     "prog": 94,
+     "t": 83,
+     "squad": 23,
+     "lostBy": {
+      "enemy": 65,
+      "hazard": 168,
+      "shot": 0,
+      "boss": 0,
+      "gate": 134
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 75,
+     "st": 1.9,
+     "prog": 94,
+     "t": 83,
+     "squad": 23,
+     "lostBy": {
+      "enemy": 65,
+      "hazard": 168,
+      "shot": 0,
+      "boss": 0,
+      "gate": 134
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 0,
+     "st": 0,
+     "prog": 53,
+     "t": 47,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 33,
+      "hazard": 253,
+      "shot": 0,
+      "boss": 0,
+      "gate": 193
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 0,
+     "st": 0,
+     "prog": 53,
+     "t": 47,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 33,
+      "hazard": 253,
+      "shot": 0,
+      "boss": 0,
+      "gate": 193
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 15,
    "boss": false,
-   "M": 1.6,
-   "Mtable": 1.63,
    "weapon": "cookie",
-   "buddy": 2,
-   "exp": {
-    "win": true,
-    "squad": 27,
-    "stars": 2,
-    "time": 89.1,
-    "peak": 30,
-    "lost": 11,
-    "progress": 100
+   "toy": 2,
+   "upg": {
+    "power": 6,
+    "rate": 5,
+    "buddy": 2,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 27,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 76
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 89.1,
-    "win": true
+   "M": 2.23,
+   "cells": {
+    "good@600": {
+     "w": 88,
+     "st": 1.8,
+     "prog": 95,
+     "t": 85,
+     "squad": 26,
+     "lostBy": {
+      "enemy": 47,
+      "hazard": 197,
+      "shot": 0,
+      "boss": 0,
+      "gate": 169
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 88,
+     "st": 1.8,
+     "prog": 95,
+     "t": 85,
+     "squad": 26,
+     "lostBy": {
+      "enemy": 47,
+      "hazard": 197,
+      "shot": 0,
+      "boss": 0,
+      "gate": 169
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 63,
+     "st": 1.9,
+     "prog": 83,
+     "t": 74,
+     "squad": 27,
+     "lostBy": {
+      "enemy": 65,
+      "hazard": 182,
+      "shot": 0,
+      "boss": 0,
+      "gate": 164
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 63,
+     "st": 1.9,
+     "prog": 83,
+     "t": 74,
+     "squad": 27,
+     "lostBy": {
+      "enemy": 65,
+      "hazard": 182,
+      "shot": 0,
+      "boss": 0,
+      "gate": 164
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 0,
+     "st": 0,
+     "prog": 48,
+     "t": 43,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 29,
+      "hazard": 189,
+      "shot": 0,
+      "boss": 0,
+      "gate": 152
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 0,
+     "st": 0,
+     "prog": 48,
+     "t": 43,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 29,
+      "hazard": 189,
+      "shot": 0,
+      "boss": 0,
+      "gate": 152
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 16,
    "boss": false,
-   "M": 1.76,
-   "Mtable": 1.67,
    "weapon": "cookie",
-   "buddy": 2,
-   "exp": {
-    "win": true,
-    "squad": 21,
-    "stars": 1,
-    "time": 90.9,
-    "peak": 30,
-    "lost": 26,
-    "progress": 100
+   "toy": 2,
+   "upg": {
+    "power": 7,
+    "rate": 5,
+    "buddy": 2,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 1,
-   "avgSquad": 21,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 38
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 90.9,
-    "win": true
+   "M": 2.32,
+   "cells": {
+    "good@600": {
+     "w": 71,
+     "st": 1.5,
+     "prog": 89,
+     "t": 81,
+     "squad": 22,
+     "lostBy": {
+      "enemy": 100,
+      "hazard": 102,
+      "shot": 0,
+      "boss": 0,
+      "gate": 233
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 71,
+     "st": 1.5,
+     "prog": 89,
+     "t": 81,
+     "squad": 22,
+     "lostBy": {
+      "enemy": 100,
+      "hazard": 102,
+      "shot": 0,
+      "boss": 0,
+      "gate": 233
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 50,
+     "st": 1.3,
+     "prog": 82,
+     "t": 74,
+     "squad": 17,
+     "lostBy": {
+      "enemy": 173,
+      "hazard": 159,
+      "shot": 0,
+      "boss": 0,
+      "gate": 159
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 50,
+     "st": 1.3,
+     "prog": 82,
+     "t": 74,
+     "squad": 17,
+     "lostBy": {
+      "enemy": 173,
+      "hazard": 159,
+      "shot": 0,
+      "boss": 0,
+      "gate": 159
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 0,
+     "st": 0,
+     "prog": 46,
+     "t": 42,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 16,
+      "hazard": 172,
+      "shot": 0,
+      "boss": 0,
+      "gate": 158
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 0,
+     "st": 0,
+     "prog": 46,
+     "t": 42,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 16,
+      "hazard": 172,
+      "shot": 0,
+      "boss": 0,
+      "gate": 158
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 17,
    "boss": false,
-   "M": 1.76,
-   "Mtable": 1.72,
    "weapon": "cookie",
-   "buddy": 2,
-   "exp": {
-    "win": true,
-    "squad": 30,
-    "stars": 2,
-    "time": 91.9,
-    "peak": 30,
-    "lost": 11,
-    "progress": 100
+   "toy": 2,
+   "upg": {
+    "power": 7,
+    "rate": 5,
+    "buddy": 3,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 30,
-   "noupg": {
-    "win": true,
-    "squad": 15,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 91.9,
-    "win": true
+   "M": 2.32,
+   "cells": {
+    "good@600": {
+     "w": 83,
+     "st": 1.8,
+     "prog": 92,
+     "t": 85,
+     "squad": 26,
+     "lostBy": {
+      "enemy": 78,
+      "hazard": 88,
+      "shot": 0,
+      "boss": 0,
+      "gate": 145
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 83,
+     "st": 1.8,
+     "prog": 92,
+     "t": 85,
+     "squad": 26,
+     "lostBy": {
+      "enemy": 78,
+      "hazard": 88,
+      "shot": 0,
+      "boss": 0,
+      "gate": 145
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 54,
+     "st": 1.4,
+     "prog": 71,
+     "t": 65,
+     "squad": 19,
+     "lostBy": {
+      "enemy": 87,
+      "hazard": 130,
+      "shot": 0,
+      "boss": 0,
+      "gate": 144
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 54,
+     "st": 1.4,
+     "prog": 71,
+     "t": 65,
+     "squad": 19,
+     "lostBy": {
+      "enemy": 87,
+      "hazard": 130,
+      "shot": 0,
+      "boss": 0,
+      "gate": 144
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 17,
+     "st": 1,
+     "prog": 67,
+     "t": 61,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 23,
+      "hazard": 249,
+      "shot": 0,
+      "boss": 0,
+      "gate": 255
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 17,
+     "st": 1,
+     "prog": 67,
+     "t": 61,
+     "squad": 9,
+     "lostBy": {
+      "enemy": 23,
+      "hazard": 249,
+      "shot": 0,
+      "boss": 0,
+      "gate": 255
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 18,
    "boss": true,
-   "M": 1.84,
-   "Mtable": 1.77,
    "weapon": "cookie",
-   "buddy": 2,
-   "exp": {
-    "win": true,
-    "squad": 26,
-    "stars": 2,
-    "time": 83.7,
-    "peak": 35,
-    "lost": 11,
-    "progress": 100
+   "toy": 2,
+   "upg": {
+    "power": 7,
+    "rate": 6,
+    "buddy": 3,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 26,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 73
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 83.7,
-    "win": true
+   "M": 2.4,
+   "cells": {
+    "good@600": {
+     "w": 88,
+     "st": 2,
+     "prog": 96,
+     "t": 112,
+     "squad": 34,
+     "lostBy": {
+      "enemy": 67,
+      "hazard": 32,
+      "shot": 0,
+      "boss": 373,
+      "gate": 18
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 88,
+     "st": 2,
+     "prog": 96,
+     "t": 112,
+     "squad": 34,
+     "lostBy": {
+      "enemy": 67,
+      "hazard": 32,
+      "shot": 0,
+      "boss": 373,
+      "gate": 18
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 21,
+     "st": 1.8,
+     "prog": 67,
+     "t": 86,
+     "squad": 35,
+     "lostBy": {
+      "enemy": 74,
+      "hazard": 67,
+      "shot": 0,
+      "boss": 346,
+      "gate": 42
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 21,
+     "st": 1.8,
+     "prog": 67,
+     "t": 86,
+     "squad": 35,
+     "lostBy": {
+      "enemy": 74,
+      "hazard": 67,
+      "shot": 0,
+      "boss": 346,
+      "gate": 42
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 0,
+     "st": 0,
+     "prog": 42,
+     "t": 44,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 3,
+      "hazard": 91,
+      "shot": 0,
+      "boss": 81,
+      "gate": 192
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 0,
+     "st": 0,
+     "prog": 42,
+     "t": 44,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 3,
+      "hazard": 91,
+      "shot": 0,
+      "boss": 81,
+      "gate": 192
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 19,
    "boss": false,
-   "M": 1.92,
-   "Mtable": 1.81,
    "weapon": "confetti",
-   "buddy": 2,
-   "exp": {
-    "win": true,
-    "squad": 38,
-    "stars": 2,
-    "time": 94.7,
-    "peak": 38,
-    "lost": 5,
-    "progress": 100
+   "toy": 2,
+   "upg": {
+    "power": 8,
+    "rate": 6,
+    "buddy": 3,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 38,
-   "noupg": {
-    "win": true,
-    "squad": 12,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 94.7,
-    "win": true
+   "M": 2.66,
+   "cells": {
+    "good@600": {
+     "w": 83,
+     "st": 1.9,
+     "prog": 94,
+     "t": 89,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 22,
+      "hazard": 82,
+      "shot": 0,
+      "boss": 0,
+      "gate": 221
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 83,
+     "st": 1.9,
+     "prog": 94,
+     "t": 89,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 22,
+      "hazard": 82,
+      "shot": 0,
+      "boss": 0,
+      "gate": 221
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 79,
+     "st": 1.4,
+     "prog": 92,
+     "t": 87,
+     "squad": 21,
+     "lostBy": {
+      "enemy": 58,
+      "hazard": 137,
+      "shot": 0,
+      "boss": 0,
+      "gate": 203
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 79,
+     "st": 1.4,
+     "prog": 92,
+     "t": 87,
+     "squad": 21,
+     "lostBy": {
+      "enemy": 58,
+      "hazard": 137,
+      "shot": 0,
+      "boss": 0,
+      "gate": 203
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 0,
+     "st": 0,
+     "prog": 50,
+     "t": 47,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 24,
+      "hazard": 185,
+      "shot": 0,
+      "boss": 0,
+      "gate": 242
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 0,
+     "st": 0,
+     "prog": 50,
+     "t": 47,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 24,
+      "hazard": 185,
+      "shot": 0,
+      "boss": 0,
+      "gate": 242
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 20,
    "boss": false,
-   "M": 1.99,
-   "Mtable": 1.86,
    "weapon": "confetti",
-   "buddy": 2,
-   "exp": {
-    "win": true,
-    "squad": 25,
-    "stars": 1,
-    "time": 96.6,
-    "peak": 29,
-    "lost": 23,
-    "progress": 100
+   "toy": 3,
+   "upg": {
+    "power": 8,
+    "rate": 6,
+    "buddy": 3,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 1,
-   "avgSquad": 25,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 53
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 96.6,
-    "win": true
+   "M": 2.91,
+   "cells": {
+    "good@600": {
+     "w": 92,
+     "st": 1.9,
+     "prog": 97,
+     "t": 94,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 55,
+      "hazard": 138,
+      "shot": 0,
+      "boss": 0,
+      "gate": 197
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 92,
+     "st": 1.9,
+     "prog": 97,
+     "t": 94,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 55,
+      "hazard": 138,
+      "shot": 0,
+      "boss": 0,
+      "gate": 197
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 54,
+     "st": 1.5,
+     "prog": 79,
+     "t": 77,
+     "squad": 23,
+     "lostBy": {
+      "enemy": 67,
+      "hazard": 184,
+      "shot": 0,
+      "boss": 0,
+      "gate": 194
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 54,
+     "st": 1.5,
+     "prog": 79,
+     "t": 77,
+     "squad": 23,
+     "lostBy": {
+      "enemy": 67,
+      "hazard": 184,
+      "shot": 0,
+      "boss": 0,
+      "gate": 194
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 13,
+     "st": 1,
+     "prog": 59,
+     "t": 57,
+     "squad": 10,
+     "lostBy": {
+      "enemy": 25,
+      "hazard": 259,
+      "shot": 0,
+      "boss": 0,
+      "gate": 269
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 13,
+     "st": 1,
+     "prog": 59,
+     "t": 57,
+     "squad": 10,
+     "lostBy": {
+      "enemy": 25,
+      "hazard": 259,
+      "shot": 0,
+      "boss": 0,
+      "gate": 269
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 21,
    "boss": false,
-   "M": 1.99,
-   "Mtable": 1.9,
    "weapon": "confetti",
-   "buddy": 3,
-   "exp": {
-    "win": true,
-    "squad": 44,
-    "stars": 3,
-    "time": 97.6,
-    "peak": 44,
-    "lost": 5,
-    "progress": 100
+   "toy": 3,
+   "upg": {
+    "power": 8,
+    "rate": 7,
+    "buddy": 3,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 44,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 94
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 97.6,
-    "win": true
+   "M": 3,
+   "cells": {
+    "good@600": {
+     "w": 96,
+     "st": 2.2,
+     "prog": 99,
+     "t": 96,
+     "squad": 39,
+     "lostBy": {
+      "enemy": 56,
+      "hazard": 188,
+      "shot": 0,
+      "boss": 0,
+      "gate": 168
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 96,
+     "st": 2.2,
+     "prog": 99,
+     "t": 96,
+     "squad": 39,
+     "lostBy": {
+      "enemy": 56,
+      "hazard": 188,
+      "shot": 0,
+      "boss": 0,
+      "gate": 168
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 75,
+     "st": 1.9,
+     "prog": 95,
+     "t": 92,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 36,
+      "hazard": 224,
+      "shot": 0,
+      "boss": 0,
+      "gate": 201
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 75,
+     "st": 1.9,
+     "prog": 95,
+     "t": 92,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 36,
+      "hazard": 224,
+      "shot": 0,
+      "boss": 0,
+      "gate": 201
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 25,
+     "st": 1,
+     "prog": 71,
+     "t": 69,
+     "squad": 11,
+     "lostBy": {
+      "enemy": 6,
+      "hazard": 323,
+      "shot": 0,
+      "boss": 0,
+      "gate": 355
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 25,
+     "st": 1,
+     "prog": 71,
+     "t": 69,
+     "squad": 11,
+     "lostBy": {
+      "enemy": 6,
+      "hazard": 323,
+      "shot": 0,
+      "boss": 0,
+      "gate": 355
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 22,
    "boss": false,
-   "M": 1.99,
-   "Mtable": 1.94,
    "weapon": "confetti",
-   "buddy": 3,
-   "exp": {
-    "win": true,
-    "squad": 35,
-    "stars": 2,
-    "time": 99.5,
-    "peak": 40,
-    "lost": 25,
-    "progress": 100
+   "toy": 3,
+   "upg": {
+    "power": 9,
+    "rate": 7,
+    "buddy": 3,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 35,
-   "noupg": {
-    "win": true,
-    "squad": 10,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 99.5,
-    "win": true
+   "M": 3.12,
+   "cells": {
+    "good@600": {
+     "w": 83,
+     "st": 1.6,
+     "prog": 92,
+     "t": 91,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 115,
+      "hazard": 142,
+      "shot": 0,
+      "boss": 0,
+      "gate": 164
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 83,
+     "st": 1.6,
+     "prog": 92,
+     "t": 91,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 115,
+      "hazard": 142,
+      "shot": 0,
+      "boss": 0,
+      "gate": 164
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 71,
+     "st": 1.1,
+     "prog": 86,
+     "t": 85,
+     "squad": 22,
+     "lostBy": {
+      "enemy": 87,
+      "hazard": 223,
+      "shot": 0,
+      "boss": 0,
+      "gate": 148
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 71,
+     "st": 1.1,
+     "prog": 86,
+     "t": 85,
+     "squad": 22,
+     "lostBy": {
+      "enemy": 87,
+      "hazard": 223,
+      "shot": 0,
+      "boss": 0,
+      "gate": 148
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 0,
+     "st": 0,
+     "prog": 46,
+     "t": 46,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 17,
+      "hazard": 264,
+      "shot": 0,
+      "boss": 0,
+      "gate": 225
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 0,
+     "st": 0,
+     "prog": 46,
+     "t": 46,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 17,
+      "hazard": 264,
+      "shot": 0,
+      "boss": 0,
+      "gate": 225
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 23,
    "boss": false,
-   "M": 2.08,
-   "Mtable": 1.99,
    "weapon": "confetti",
-   "buddy": 3,
-   "exp": {
-    "win": true,
-    "squad": 47,
-    "stars": 3,
-    "time": 100.4,
-    "peak": 47,
-    "lost": 9,
-    "progress": 100
+   "toy": 3,
+   "upg": {
+    "power": 9,
+    "rate": 7,
+    "buddy": 4,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 47,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 89
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 100.4,
-    "win": true
+   "M": 3.12,
+   "cells": {
+    "good@600": {
+     "w": 83,
+     "st": 2,
+     "prog": 88,
+     "t": 88,
+     "squad": 36,
+     "lostBy": {
+      "enemy": 54,
+      "hazard": 233,
+      "shot": 0,
+      "boss": 0,
+      "gate": 165
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 83,
+     "st": 2,
+     "prog": 88,
+     "t": 88,
+     "squad": 36,
+     "lostBy": {
+      "enemy": 54,
+      "hazard": 233,
+      "shot": 0,
+      "boss": 0,
+      "gate": 165
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 58,
+     "st": 1.5,
+     "prog": 75,
+     "t": 76,
+     "squad": 30,
+     "lostBy": {
+      "enemy": 67,
+      "hazard": 215,
+      "shot": 0,
+      "boss": 0,
+      "gate": 215
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 58,
+     "st": 1.5,
+     "prog": 75,
+     "t": 76,
+     "squad": 30,
+     "lostBy": {
+      "enemy": 67,
+      "hazard": 215,
+      "shot": 0,
+      "boss": 0,
+      "gate": 215
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 33,
+     "st": 1,
+     "prog": 79,
+     "t": 79,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 45,
+      "hazard": 430,
+      "shot": 0,
+      "boss": 0,
+      "gate": 402
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 33,
+     "st": 1,
+     "prog": 79,
+     "t": 79,
+     "squad": 13,
+     "lostBy": {
+      "enemy": 45,
+      "hazard": 430,
+      "shot": 0,
+      "boss": 0,
+      "gate": 402
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 24,
    "boss": true,
-   "M": 2.15,
-   "Mtable": 2.04,
    "weapon": "confetti",
-   "buddy": 3,
-   "exp": {
-    "win": true,
-    "squad": 44,
-    "stars": 2,
-    "time": 85.7,
-    "peak": 52,
-    "lost": 13,
-    "progress": 100
+   "toy": 3,
+   "upg": {
+    "power": 9,
+    "rate": 8,
+    "buddy": 4,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 44,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 86
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 85.7,
-    "win": true
+   "M": 3.22,
+   "cells": {
+    "good@600": {
+     "w": 83,
+     "st": 2.2,
+     "prog": 97,
+     "t": 80,
+     "squad": 48,
+     "lostBy": {
+      "enemy": 75,
+      "hazard": 47,
+      "shot": 0,
+      "boss": 114,
+      "gate": 95
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 83,
+     "st": 2.2,
+     "prog": 97,
+     "t": 80,
+     "squad": 48,
+     "lostBy": {
+      "enemy": 75,
+      "hazard": 47,
+      "shot": 0,
+      "boss": 114,
+      "gate": 95
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 38,
+     "st": 1.9,
+     "prog": 77,
+     "t": 75,
+     "squad": 38,
+     "lostBy": {
+      "enemy": 108,
+      "hazard": 49,
+      "shot": 0,
+      "boss": 303,
+      "gate": 111
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 38,
+     "st": 1.9,
+     "prog": 77,
+     "t": 75,
+     "squad": 38,
+     "lostBy": {
+      "enemy": 108,
+      "hazard": 49,
+      "shot": 0,
+      "boss": 303,
+      "gate": 111
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 0,
+     "st": 0,
+     "prog": 42,
+     "t": 36,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 17,
+      "hazard": 74,
+      "shot": 0,
+      "boss": 104,
+      "gate": 263
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 0,
+     "st": 0,
+     "prog": 42,
+     "t": 36,
+     "squad": 0,
+     "lostBy": {
+      "enemy": 17,
+      "hazard": 74,
+      "shot": 0,
+      "boss": 104,
+      "gate": 263
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 25,
    "boss": false,
-   "M": 2.24,
-   "Mtable": 2.08,
    "weapon": "beam",
-   "buddy": 3,
-   "exp": {
-    "win": true,
-    "squad": 35,
-    "stars": 2,
-    "time": 103.3,
-    "peak": 37,
-    "lost": 21,
-    "progress": 100
+   "toy": 3,
+   "upg": {
+    "power": 9,
+    "rate": 8,
+    "buddy": 4,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 35,
-   "noupg": {
-    "win": true,
-    "squad": 18,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 103.3,
-    "win": true
+   "M": 3.42,
+   "cells": {
+    "good@600": {
+     "w": 100,
+     "st": 2.1,
+     "prog": 100,
+     "t": 103,
+     "squad": 42,
+     "lostBy": {
+      "enemy": 86,
+      "hazard": 280,
+      "shot": 0,
+      "boss": 0,
+      "gate": 233
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 100,
+     "st": 2.1,
+     "prog": 100,
+     "t": 103,
+     "squad": 42,
+     "lostBy": {
+      "enemy": 86,
+      "hazard": 280,
+      "shot": 0,
+      "boss": 0,
+      "gate": 233
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 63,
+     "st": 1.7,
+     "prog": 87,
+     "t": 90,
+     "squad": 35,
+     "lostBy": {
+      "enemy": 105,
+      "hazard": 281,
+      "shot": 0,
+      "boss": 0,
+      "gate": 286
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 63,
+     "st": 1.7,
+     "prog": 87,
+     "t": 90,
+     "squad": 35,
+     "lostBy": {
+      "enemy": 105,
+      "hazard": 281,
+      "shot": 0,
+      "boss": 0,
+      "gate": 286
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 4,
+     "st": 1,
+     "prog": 45,
+     "t": 46,
+     "squad": 10,
+     "lostBy": {
+      "enemy": 36,
+      "hazard": 251,
+      "shot": 0,
+      "boss": 0,
+      "gate": 285
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 4,
+     "st": 1,
+     "prog": 45,
+     "t": 46,
+     "squad": 10,
+     "lostBy": {
+      "enemy": 36,
+      "hazard": 251,
+      "shot": 0,
+      "boss": 0,
+      "gate": 285
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 26,
    "boss": false,
-   "M": 2.24,
-   "Mtable": 2.13,
    "weapon": "beam",
-   "buddy": 3,
-   "exp": {
-    "win": true,
-    "squad": 43,
-    "stars": 2,
-    "time": 105.2,
-    "peak": 48,
-    "lost": 18,
-    "progress": 100
+   "toy": 3,
+   "upg": {
+    "power": 10,
+    "rate": 8,
+    "buddy": 4,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 43,
-   "noupg": {
-    "win": true,
-    "squad": 12,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 105.2,
-    "win": true
+   "M": 3.55,
+   "cells": {
+    "good@600": {
+     "w": 88,
+     "st": 1.7,
+     "prog": 97,
+     "t": 102,
+     "squad": 37,
+     "lostBy": {
+      "enemy": 86,
+      "hazard": 272,
+      "shot": 0,
+      "boss": 0,
+      "gate": 267
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 88,
+     "st": 1.7,
+     "prog": 97,
+     "t": 102,
+     "squad": 37,
+     "lostBy": {
+      "enemy": 86,
+      "hazard": 272,
+      "shot": 0,
+      "boss": 0,
+      "gate": 267
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 71,
+     "st": 1.4,
+     "prog": 92,
+     "t": 97,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 87,
+      "hazard": 313,
+      "shot": 0,
+      "boss": 0,
+      "gate": 305
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 71,
+     "st": 1.4,
+     "prog": 92,
+     "t": 97,
+     "squad": 31,
+     "lostBy": {
+      "enemy": 87,
+      "hazard": 313,
+      "shot": 0,
+      "boss": 0,
+      "gate": 305
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 8,
+     "st": 1,
+     "prog": 61,
+     "t": 64,
+     "squad": 16,
+     "lostBy": {
+      "enemy": 56,
+      "hazard": 394,
+      "shot": 0,
+      "boss": 0,
+      "gate": 359
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 8,
+     "st": 1,
+     "prog": 61,
+     "t": 64,
+     "squad": 16,
+     "lostBy": {
+      "enemy": 56,
+      "hazard": 394,
+      "shot": 0,
+      "boss": 0,
+      "gate": 359
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 27,
    "boss": false,
-   "M": 2.45,
-   "Mtable": 2.17,
    "weapon": "beam",
-   "buddy": 3,
-   "exp": {
-    "win": true,
-    "squad": 53,
-    "stars": 2,
-    "time": 106.2,
-    "peak": 53,
-    "lost": 9,
-    "progress": 100
+   "toy": 4,
+   "upg": {
+    "power": 10,
+    "rate": 8,
+    "buddy": 4,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 2,
-   "avgSquad": 53,
-   "noupg": {
-    "win": true,
-    "squad": 29,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 106.2,
-    "win": true
+   "M": 3.84,
+   "cells": {
+    "good@600": {
+     "w": 92,
+     "st": 2.1,
+     "prog": 95,
+     "t": 101,
+     "squad": 47,
+     "lostBy": {
+      "enemy": 85,
+      "hazard": 239,
+      "shot": 0,
+      "boss": 0,
+      "gate": 131
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 92,
+     "st": 2.1,
+     "prog": 95,
+     "t": 101,
+     "squad": 47,
+     "lostBy": {
+      "enemy": 85,
+      "hazard": 239,
+      "shot": 0,
+      "boss": 0,
+      "gate": 131
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 67,
+     "st": 1.6,
+     "prog": 89,
+     "t": 94,
+     "squad": 35,
+     "lostBy": {
+      "enemy": 85,
+      "hazard": 261,
+      "shot": 0,
+      "boss": 0,
+      "gate": 272
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 67,
+     "st": 1.6,
+     "prog": 89,
+     "t": 94,
+     "squad": 35,
+     "lostBy": {
+      "enemy": 85,
+      "hazard": 261,
+      "shot": 0,
+      "boss": 0,
+      "gate": 272
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 13,
+     "st": 1,
+     "prog": 48,
+     "t": 51,
+     "squad": 22,
+     "lostBy": {
+      "enemy": 62,
+      "hazard": 278,
+      "shot": 0,
+      "boss": 0,
+      "gate": 283
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 13,
+     "st": 1,
+     "prog": 48,
+     "t": 51,
+     "squad": 22,
+     "lostBy": {
+      "enemy": 62,
+      "hazard": 278,
+      "shot": 0,
+      "boss": 0,
+      "gate": 283
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 28,
    "boss": false,
-   "M": 2.56,
-   "Mtable": 2.22,
    "weapon": "beam",
-   "buddy": 3,
-   "exp": {
-    "win": true,
-    "squad": 82,
-    "stars": 3,
-    "time": 108.1,
-    "peak": 82,
-    "lost": 3,
-    "progress": 100
+   "toy": 4,
+   "upg": {
+    "power": 10,
+    "rate": 8,
+    "buddy": 4,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 3,
-   "avgSquad": 82,
-   "noupg": {
-    "win": true,
-    "squad": 13,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 108.1,
-    "win": true
+   "M": 3.84,
+   "cells": {
+    "good@600": {
+     "w": 67,
+     "st": 2.3,
+     "prog": 81,
+     "t": 88,
+     "squad": 56,
+     "lostBy": {
+      "enemy": 86,
+      "hazard": 235,
+      "shot": 0,
+      "boss": 0,
+      "gate": 278
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 67,
+     "st": 2.3,
+     "prog": 81,
+     "t": 88,
+     "squad": 56,
+     "lostBy": {
+      "enemy": 86,
+      "hazard": 235,
+      "shot": 0,
+      "boss": 0,
+      "gate": 278
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 46,
+     "st": 1.9,
+     "prog": 64,
+     "t": 70,
+     "squad": 45,
+     "lostBy": {
+      "enemy": 68,
+      "hazard": 179,
+      "shot": 0,
+      "boss": 0,
+      "gate": 313
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 46,
+     "st": 1.9,
+     "prog": 64,
+     "t": 70,
+     "squad": 45,
+     "lostBy": {
+      "enemy": 68,
+      "hazard": 179,
+      "shot": 0,
+      "boss": 0,
+      "gate": 313
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 4,
+     "st": 1,
+     "prog": 43,
+     "t": 47,
+     "squad": 17,
+     "lostBy": {
+      "enemy": 59,
+      "hazard": 292,
+      "shot": 0,
+      "boss": 0,
+      "gate": 343
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 4,
+     "st": 1,
+     "prog": 43,
+     "t": 47,
+     "squad": 17,
+     "lostBy": {
+      "enemy": 59,
+      "hazard": 292,
+      "shot": 0,
+      "boss": 0,
+      "gate": 343
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 29,
    "boss": false,
-   "M": 2.56,
-   "Mtable": 2.26,
    "weapon": "beam",
-   "buddy": 3,
-   "exp": {
-    "win": true,
-    "squad": 34,
-    "stars": 1,
-    "time": 109.1,
-    "peak": 40,
-    "lost": 25,
-    "progress": 100
+   "toy": 4,
+   "upg": {
+    "power": 10,
+    "rate": 8,
+    "buddy": 5,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 1,
-   "avgSquad": 34,
-   "noupg": {
-    "win": true,
-    "squad": 15,
-    "stars": 1,
-    "progress": 100
-   },
-   "noupgRate": 1,
-   "god": {
-    "time": 109.1,
-    "win": true
+   "M": 3.84,
+   "cells": {
+    "good@600": {
+     "w": 92,
+     "st": 1.5,
+     "prog": 96,
+     "t": 105,
+     "squad": 30,
+     "lostBy": {
+      "enemy": 146,
+      "hazard": 281,
+      "shot": 0,
+      "boss": 0,
+      "gate": 427
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 92,
+     "st": 1.5,
+     "prog": 96,
+     "t": 105,
+     "squad": 30,
+     "lostBy": {
+      "enemy": 146,
+      "hazard": 281,
+      "shot": 0,
+      "boss": 0,
+      "gate": 427
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 54,
+     "st": 1.3,
+     "prog": 81,
+     "t": 88,
+     "squad": 33,
+     "lostBy": {
+      "enemy": 119,
+      "hazard": 280,
+      "shot": 0,
+      "boss": 0,
+      "gate": 348
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 54,
+     "st": 1.3,
+     "prog": 81,
+     "t": 88,
+     "squad": 33,
+     "lostBy": {
+      "enemy": 119,
+      "hazard": 280,
+      "shot": 0,
+      "boss": 0,
+      "gate": 348
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 17,
+     "st": 1,
+     "prog": 64,
+     "t": 70,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 108,
+      "hazard": 396,
+      "shot": 0,
+      "boss": 0,
+      "gate": 553
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 17,
+     "st": 1,
+     "prog": 64,
+     "t": 70,
+     "squad": 12,
+     "lostBy": {
+      "enemy": 108,
+      "hazard": 396,
+      "shot": 0,
+      "boss": 0,
+      "gate": 553
+     },
+     "runs": 24
+    }
    }
   },
   {
    "L": 30,
    "boss": true,
-   "M": 2.56,
-   "Mtable": 2.3,
    "weapon": "beam",
-   "buddy": 4,
-   "exp": {
-    "win": true,
-    "squad": 35,
-    "stars": 1,
-    "time": 110.1,
-    "peak": 59,
-    "lost": 25,
-    "progress": 100
+   "toy": 4,
+   "upg": {
+    "power": 11,
+    "rate": 8,
+    "buddy": 5,
+    "shield": 1,
+    "luck": 1,
+    "magnet": 0
    },
-   "winRate": 1,
-   "avgStars": 1,
-   "avgSquad": 35,
-   "noupg": {
-    "win": false,
-    "squad": 0,
-    "stars": 0,
-    "progress": 75
-   },
-   "noupgRate": 0,
-   "god": {
-    "time": 110.1,
-    "win": true
+   "M": 3.99,
+   "cells": {
+    "good@600": {
+     "w": 71,
+     "st": 2.2,
+     "prog": 95,
+     "t": 78,
+     "squad": 59,
+     "lostBy": {
+      "enemy": 57,
+      "hazard": 61,
+      "shot": 0,
+      "boss": 222,
+      "gate": 196
+     },
+     "runs": 24
+    },
+    "good@780": {
+     "w": 71,
+     "st": 2.2,
+     "prog": 95,
+     "t": 78,
+     "squad": 59,
+     "lostBy": {
+      "enemy": 57,
+      "hazard": 61,
+      "shot": 0,
+      "boss": 222,
+      "gate": 196
+     },
+     "runs": 24
+    },
+    "avg@600": {
+     "w": 50,
+     "st": 2,
+     "prog": 89,
+     "t": 81,
+     "squad": 47,
+     "lostBy": {
+      "enemy": 43,
+      "hazard": 56,
+      "shot": 0,
+      "boss": 520,
+      "gate": 86
+     },
+     "runs": 24
+    },
+    "avg@780": {
+     "w": 50,
+     "st": 2,
+     "prog": 89,
+     "t": 81,
+     "squad": 47,
+     "lostBy": {
+      "enemy": 43,
+      "hazard": 56,
+      "shot": 0,
+      "boss": 520,
+      "gate": 86
+     },
+     "runs": 24
+    },
+    "lazy@600": {
+     "w": 13,
+     "st": 2,
+     "prog": 77,
+     "t": 71,
+     "squad": 41,
+     "lostBy": {
+      "enemy": 64,
+      "hazard": 179,
+      "shot": 0,
+      "boss": 362,
+      "gate": 273
+     },
+     "runs": 24
+    },
+    "lazy@780": {
+     "w": 13,
+     "st": 2,
+     "prog": 77,
+     "t": 71,
+     "squad": 41,
+     "lostBy": {
+      "enemy": 64,
+      "hazard": 179,
+      "shot": 0,
+      "boss": 362,
+      "gate": 273
+     },
+     "runs": 24
+    }
    }
   }
  ],
- "targets": {
-  "a_expectedWinsAll": true,
-  "a_wins": 30,
-  "a_twoStarShare": 0.8666666666666667,
-  "a_ok": true,
-  "b_noupgClears1to10": 10,
-  "b_noupgFails19to30": 5,
-  "b_ok": true,
-  "c_outside60to120": 0,
-  "c_ok": true
- },
- "text": "  L  M(real/table) weapon    exp: win stars squad(peak) time  rate | noupg: win prog rate | god time\n  1  1.00/1.00     wand    WIN    3    11( 11)   70  100% |       WIN 100% 100% |    70\n  2  1.00/1.05     wand    WIN    3    16( 16)   71  100% |       WIN 100% 100% |    71\n  3  1.06/1.09     wand    WIN    3    19( 19)   72  100% |       WIN 100% 100% |    72\n  4  1.16/1.14   shaker    WIN    3    27( 27)   74  100% |       WIN 100% 100% |    74\n  5  1.22/1.18   shaker    WIN    3    27( 27)   75  100% |       WIN 100% 100% |    75\n  6* 1.22/1.23   shaker    WIN    3    19( 19)   70  100% |       WIN 100% 100% |    70\n  7  1.33/1.27  gumball    WIN    3    28( 28)   78  100% |       WIN 100% 100% |    78\n  8  1.40/1.32  gumball    WIN    3    43( 43)   80  100% |       WIN 100% 100% |    80\n  9  1.40/1.36  gumball    WIN    3    28( 29)   81  100% |       WIN 100% 100% |    81\n 10  1.45/1.41  gumball    WIN    2    21( 21)   83  100% |       WIN 100% 100% |    83\n 11  1.45/1.45     star    WIN    3    25( 25)   83  100% |      fail  65%   0% |    83\n 12* 1.45/1.50     star    WIN    2    22( 27)   78  100% |       WIN 100% 100% |    78\n 13  1.45/1.54     star    WIN    3    48( 48)   86  100% |      fail  72%   0% |    86\n 14  1.45/1.59     star    WIN    2    28( 28)   88  100% |      fail  23%   0% |    88\n 15  1.60/1.63   cookie    WIN    2    27( 30)   89  100% |      fail  76%   0% |    89\n 16  1.76/1.67   cookie    WIN    1    21( 30)   91  100% |      fail  38%   0% |    91\n 17  1.76/1.72   cookie    WIN    2    30( 30)   92  100% |       WIN 100% 100% |    92\n 18* 1.84/1.77   cookie    WIN    2    26( 35)   84  100% |      fail  73%   0% |    84\n 19  1.92/1.81 confetti    WIN    2    38( 38)   95  100% |       WIN 100% 100% |    95\n 20  1.99/1.86 confetti    WIN    1    25( 29)   97  100% |      fail  53%   0% |    97\n 21  1.99/1.90 confetti    WIN    3    44( 44)   98  100% |      fail  94%   0% |    98\n 22  1.99/1.94 confetti    WIN    2    35( 40)  100  100% |       WIN 100% 100% |   100\n 23  2.08/1.99 confetti    WIN    3    47( 47)  100  100% |      fail  89%   0% |   100\n 24* 2.15/2.04 confetti    WIN    2    44( 52)   86  100% |      fail  86%   0% |    86\n 25  2.24/2.08     beam    WIN    2    35( 37)  103  100% |       WIN 100% 100% |   103\n 26  2.24/2.13     beam    WIN    2    43( 48)  105  100% |       WIN 100% 100% |   105\n 27  2.45/2.17     beam    WIN    2    53( 53)  106  100% |       WIN 100% 100% |   106\n 28  2.56/2.22     beam    WIN    3    82( 82)  108  100% |       WIN 100% 100% |   108\n 29  2.56/2.26     beam    WIN    1    34( 40)  109  100% |       WIN 100% 100% |   109\n 30* 2.56/2.30     beam    WIN    1    35( 59)  110  100% |      fail  75%   0% |   110\ntargets: (a) expected wins 30/30, >=2 stars on 87% -> OK | (b) no-upgrade clears L1-10: 10, fails in L19-30: 5 -> OK | (c) god runs outside 60-120 s: 0 -> OK"
+ "bad": [
+  "good@600 L4 88% outside 95-100",
+  "good@600 L7 100% < boss L6 92% + 10",
+  "good@600 L7 100% outside 88-98",
+  "good@600 L8 100% outside 88-98",
+  "good@600 L9 100% outside 88-98",
+  "good@600 L10 83% outside 88-98",
+  "good@600 boss L12 83% above a neighbour (92/75)",
+  "good@600 L13 75% < boss L12 83% + 10",
+  "good@600 L13 75% outside 82-94",
+  "good@600 L14 88% is >10 pts easier than L13 75%",
+  "good@600 L15 88% is >10 pts easier than L13 75%",
+  "good@600 L16 71% outside 82-94",
+  "good@600 L17 83% is >10 pts easier than L16 71%",
+  "good@600 L18* 88% outside 65-85",
+  "good@600 boss L18 88% above a neighbour (83/83)",
+  "good@600 L19 83% < boss L18 88% + 10",
+  "good@600 L21 96% outside 78-92",
+  "good@600 L21 96% is >10 pts easier than L19 83%",
+  "good@600 L24* 83% outside 60-80",
+  "good@600 L25 100% outside 72-90",
+  "good@600 L27 92% outside 72-90",
+  "good@600 L28 67% outside 72-90",
+  "good@600 L29 92% outside 72-90",
+  "good@600 L29 92% is >10 pts easier than L28 67%",
+  "good@780 L4 88% outside 95-100",
+  "good@780 L7 100% < boss L6 92% + 10",
+  "good@780 L7 100% outside 88-98",
+  "good@780 L8 100% outside 88-98",
+  "good@780 L9 100% outside 88-98",
+  "good@780 L10 83% outside 88-98",
+  "good@780 boss L12 83% above a neighbour (92/75)",
+  "good@780 L13 75% < boss L12 83% + 10",
+  "good@780 L13 75% outside 82-94",
+  "good@780 L14 88% is >10 pts easier than L13 75%",
+  "good@780 L15 88% is >10 pts easier than L13 75%",
+  "good@780 L16 71% outside 82-94",
+  "good@780 L17 83% is >10 pts easier than L16 71%",
+  "good@780 L18* 88% outside 65-85",
+  "good@780 boss L18 88% above a neighbour (83/83)",
+  "good@780 L19 83% < boss L18 88% + 10",
+  "good@780 L21 96% outside 78-92",
+  "good@780 L21 96% is >10 pts easier than L19 83%",
+  "good@780 L24* 83% outside 60-80",
+  "good@780 L25 100% outside 72-90",
+  "good@780 L27 92% outside 72-90",
+  "good@780 L28 67% outside 72-90",
+  "good@780 L29 92% outside 72-90",
+  "good@780 L29 92% is >10 pts easier than L28 67%",
+  "avg@600 L4 83% outside 85-100",
+  "avg@600 L6* 50% outside 65-85",
+  "avg@600 L7 96% outside 70-88",
+  "avg@600 L9 54% outside 70-88",
+  "avg@600 L10 50% outside 70-88",
+  "avg@600 L11 75% is >10 pts easier than L9 54%",
+  "avg@600 L16 50% outside 60-80",
+  "avg@600 L17 54% outside 60-80",
+  "avg@600 L18* 21% outside 40-60",
+  "avg@600 L19 79% outside 55-75",
+  "avg@600 L20 54% outside 55-75",
+  "avg@600 L21 75% is >10 pts easier than L20 54%",
+  "avg@600 L22 71% is >10 pts easier than L20 54%",
+  "avg@600 L26 71% outside 50-70",
+  "avg@600 L28 46% outside 50-70",
+  "avg@780 L4 83% outside 85-100",
+  "avg@780 L6* 50% outside 65-85",
+  "avg@780 L7 96% outside 70-88",
+  "avg@780 L9 54% outside 70-88",
+  "avg@780 L10 50% outside 70-88",
+  "avg@780 L11 75% is >10 pts easier than L9 54%",
+  "avg@780 L16 50% outside 60-80",
+  "avg@780 L17 54% outside 60-80",
+  "avg@780 L18* 21% outside 40-60",
+  "avg@780 L19 79% outside 55-75",
+  "avg@780 L20 54% outside 55-75",
+  "avg@780 L21 75% is >10 pts easier than L20 54%",
+  "avg@780 L22 71% is >10 pts easier than L20 54%",
+  "avg@780 L26 71% outside 50-70",
+  "avg@780 L28 46% outside 50-70",
+  "lazy@600 L6 lazy 38% > 30",
+  "lazy@600 L12 lazy 58% > 30",
+  "lazy@600 L17 lazy 17% > 15",
+  "lazy@600 L21 lazy 25% > 15",
+  "lazy@600 L23 lazy 33% > 15",
+  "lazy@600 L29 lazy 17% > 15",
+  "lazy@600 lazy average over L4-12 = 55% > 50",
+  "lazy@780 L6 lazy 38% > 30",
+  "lazy@780 L12 lazy 58% > 30",
+  "lazy@780 L17 lazy 17% > 15",
+  "lazy@780 L21 lazy 25% > 15",
+  "lazy@780 L23 lazy 33% > 15",
+  "lazy@780 L29 lazy 17% > 15",
+  "lazy@780 lazy average over L4-12 = 55% > 50"
+ ]
 }
