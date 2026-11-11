@@ -80,7 +80,7 @@
    },
    "winRate": 1,
    "avgStars": 3,
-   "avgSquad": 18,
+   "avgSquad": 19,
    "noupg": {
     "win": true,
     "squad": 19,
@@ -111,7 +111,7 @@
    },
    "winRate": 1,
    "avgStars": 3,
-   "avgSquad": 29,
+   "avgSquad": 27,
    "noupg": {
     "win": true,
     "squad": 27,
@@ -142,7 +142,7 @@
    },
    "winRate": 1,
    "avgStars": 3,
-   "avgSquad": 30,
+   "avgSquad": 27,
    "noupg": {
     "win": true,
     "squad": 39,
@@ -173,7 +173,7 @@
    },
    "winRate": 1,
    "avgStars": 3,
-   "avgSquad": 20,
+   "avgSquad": 19,
    "noupg": {
     "win": true,
     "squad": 17,
@@ -204,14 +204,14 @@
    },
    "winRate": 1,
    "avgStars": 3,
-   "avgSquad": 25,
+   "avgSquad": 28,
    "noupg": {
     "win": true,
     "squad": 11,
     "stars": 1,
     "progress": 100
    },
-   "noupgRate": 0.9,
+   "noupgRate": 1,
    "god": {
     "time": 77.8,
     "win": true
@@ -235,7 +235,7 @@
    },
    "winRate": 1,
    "avgStars": 3,
-   "avgSquad": 32,
+   "avgSquad": 43,
    "noupg": {
     "win": true,
     "squad": 27,
@@ -266,7 +266,7 @@
    },
    "winRate": 1,
    "avgStars": 3,
-   "avgSquad": 31,
+   "avgSquad": 28,
    "noupg": {
     "win": true,
     "squad": 26,
@@ -296,7 +296,7 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.3,
+   "avgStars": 2,
    "avgSquad": 21,
    "noupg": {
     "win": true,
@@ -304,7 +304,7 @@
     "stars": 1,
     "progress": 100
    },
-   "noupgRate": 0.8,
+   "noupgRate": 1,
    "god": {
     "time": 82.5,
     "win": true
@@ -327,15 +327,15 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.35,
-   "avgSquad": 23,
+   "avgStars": 3,
+   "avgSquad": 25,
    "noupg": {
     "win": false,
     "squad": 0,
     "stars": 0,
     "progress": 65
    },
-   "noupgRate": 0.3,
+   "noupgRate": 0,
    "god": {
     "time": 83.4,
     "win": true
@@ -358,7 +358,7 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.2,
+   "avgStars": 2,
    "avgSquad": 22,
    "noupg": {
     "win": true,
@@ -366,7 +366,7 @@
     "stars": 1,
     "progress": 100
    },
-   "noupgRate": 0.05,
+   "noupgRate": 1,
    "god": {
     "time": 77.8,
     "win": true
@@ -390,14 +390,14 @@
    },
    "winRate": 1,
    "avgStars": 3,
-   "avgSquad": 53,
+   "avgSquad": 48,
    "noupg": {
     "win": false,
     "squad": 0,
     "stars": 0,
     "progress": 72
    },
-   "noupgRate": 0.05,
+   "noupgRate": 0,
    "god": {
     "time": 86.2,
     "win": true
@@ -420,8 +420,8 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.85,
-   "avgSquad": 33,
+   "avgStars": 2,
+   "avgSquad": 28,
    "noupg": {
     "win": false,
     "squad": 0,
@@ -451,15 +451,15 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.3,
-   "avgSquad": 30,
+   "avgStars": 2,
+   "avgSquad": 27,
    "noupg": {
     "win": false,
     "squad": 0,
     "stars": 0,
     "progress": 76
    },
-   "noupgRate": 0.05,
+   "noupgRate": 0,
    "god": {
     "time": 89.1,
     "win": true
@@ -481,9 +481,9 @@
     "lost": 26,
     "progress": 100
    },
-   "winRate": 0.95,
-   "avgStars": 1.5789473684210527,
-   "avgSquad": 23,
+   "winRate": 1,
+   "avgStars": 1,
+   "avgSquad": 21,
    "noupg": {
     "win": false,
     "squad": 0,
@@ -513,15 +513,15 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.2,
-   "avgSquad": 32,
+   "avgStars": 2,
+   "avgSquad": 30,
    "noupg": {
     "win": true,
     "squad": 15,
     "stars": 1,
     "progress": 100
    },
-   "noupgRate": 0.75,
+   "noupgRate": 1,
    "god": {
     "time": 91.9,
     "win": true
@@ -544,8 +544,8 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 1.6,
-   "avgSquad": 23,
+   "avgStars": 2,
+   "avgSquad": 26,
    "noupg": {
     "win": false,
     "squad": 0,
@@ -575,8 +575,8 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.55,
-   "avgSquad": 39,
+   "avgStars": 2,
+   "avgSquad": 38,
    "noupg": {
     "win": true,
     "squad": 12,
@@ -606,15 +606,15 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.3,
-   "avgSquad": 38,
+   "avgStars": 1,
+   "avgSquad": 25,
    "noupg": {
     "win": false,
     "squad": 0,
     "stars": 0,
     "progress": 53
    },
-   "noupgRate": 0.1,
+   "noupgRate": 0,
    "god": {
     "time": 96.6,
     "win": true
@@ -637,15 +637,15 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.05,
-   "avgSquad": 37,
+   "avgStars": 3,
+   "avgSquad": 44,
    "noupg": {
     "win": false,
     "squad": 0,
     "stars": 0,
     "progress": 94
    },
-   "noupgRate": 0.15,
+   "noupgRate": 0,
    "god": {
     "time": 97.6,
     "win": true
@@ -669,7 +669,7 @@
    },
    "winRate": 1,
    "avgStars": 2,
-   "avgSquad": 37,
+   "avgSquad": 35,
    "noupg": {
     "win": true,
     "squad": 10,
@@ -699,15 +699,15 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 1.75,
-   "avgSquad": 33,
+   "avgStars": 3,
+   "avgSquad": 47,
    "noupg": {
     "win": false,
     "squad": 0,
     "stars": 0,
     "progress": 89
    },
-   "noupgRate": 0.25,
+   "noupgRate": 0,
    "god": {
     "time": 100.4,
     "win": true
@@ -730,8 +730,8 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.05,
-   "avgSquad": 42,
+   "avgStars": 2,
+   "avgSquad": 44,
    "noupg": {
     "win": false,
     "squad": 0,
@@ -761,15 +761,15 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 1.9,
-   "avgSquad": 39,
+   "avgStars": 2,
+   "avgSquad": 35,
    "noupg": {
     "win": true,
     "squad": 18,
     "stars": 1,
     "progress": 100
    },
-   "noupgRate": 0.95,
+   "noupgRate": 1,
    "god": {
     "time": 103.3,
     "win": true
@@ -792,15 +792,15 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.25,
-   "avgSquad": 49,
+   "avgStars": 2,
+   "avgSquad": 43,
    "noupg": {
     "win": true,
     "squad": 12,
     "stars": 1,
     "progress": 100
    },
-   "noupgRate": 0.9,
+   "noupgRate": 1,
    "god": {
     "time": 105.2,
     "win": true
@@ -823,8 +823,8 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 2.1,
-   "avgSquad": 49,
+   "avgStars": 2,
+   "avgSquad": 53,
    "noupg": {
     "win": true,
     "squad": 29,
@@ -885,15 +885,15 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 1.65,
-   "avgSquad": 44,
+   "avgStars": 1,
+   "avgSquad": 34,
    "noupg": {
     "win": true,
     "squad": 15,
     "stars": 1,
     "progress": 100
    },
-   "noupgRate": 0.6,
+   "noupgRate": 1,
    "god": {
     "time": 109.1,
     "win": true
@@ -916,8 +916,8 @@
     "progress": 100
    },
    "winRate": 1,
-   "avgStars": 1.4,
-   "avgSquad": 40,
+   "avgStars": 1,
+   "avgSquad": 35,
    "noupg": {
     "win": false,
     "squad": 0,
@@ -942,5 +942,5 @@
   "c_outside60to120": 0,
   "c_ok": true
  },
- "text": "  L  M(real/table) weapon    exp: win stars squad(peak) time  rate | noupg: win prog rate | god time\n  1  1.00/1.00     wand    WIN    3    11( 11)   70  100% |       WIN 100% 100% |    70\n  2  1.00/1.05     wand    WIN    3    16( 16)   71  100% |       WIN 100% 100% |    71\n  3  1.06/1.09     wand    WIN    3    19( 19)   72  100% |       WIN 100% 100% |    72\n  4  1.16/1.14   shaker    WIN    3    27( 27)   74  100% |       WIN 100% 100% |    74\n  5  1.22/1.18   shaker    WIN    3    27( 27)   75  100% |       WIN 100% 100% |    75\n  6* 1.22/1.23   shaker    WIN    3    19( 19)   70  100% |       WIN 100% 100% |    70\n  7  1.33/1.27  gumball    WIN    3    28( 28)   78  100% |       WIN 100%  90% |    78\n  8  1.40/1.32  gumball    WIN    3    43( 43)   80  100% |       WIN 100% 100% |    80\n  9  1.40/1.36  gumball    WIN    3    28( 29)   81  100% |       WIN 100% 100% |    81\n 10  1.45/1.41  gumball    WIN    2    21( 21)   83  100% |       WIN 100%  80% |    83\n 11  1.45/1.45     star    WIN    3    25( 25)   83  100% |      fail  65%  30% |    83\n 12* 1.45/1.50     star    WIN    2    22( 27)   78  100% |       WIN 100%   5% |    78\n 13  1.45/1.54     star    WIN    3    48( 48)   86  100% |      fail  72%   5% |    86\n 14  1.45/1.59     star    WIN    2    28( 28)   88  100% |      fail  23%   0% |    88\n 15  1.60/1.63   cookie    WIN    2    27( 30)   89  100% |      fail  76%   5% |    89\n 16  1.76/1.67   cookie    WIN    1    21( 30)   91   95% |      fail  38%   0% |    91\n 17  1.76/1.72   cookie    WIN    2    30( 30)   92  100% |       WIN 100%  75% |    92\n 18* 1.84/1.77   cookie    WIN    2    26( 35)   84  100% |      fail  73%   0% |    84\n 19  1.92/1.81 confetti    WIN    2    38( 38)   95  100% |       WIN 100% 100% |    95\n 20  1.99/1.86 confetti    WIN    1    25( 29)   97  100% |      fail  53%  10% |    97\n 21  1.99/1.90 confetti    WIN    3    44( 44)   98  100% |      fail  94%  15% |    98\n 22  1.99/1.94 confetti    WIN    2    35( 40)  100  100% |       WIN 100% 100% |   100\n 23  2.08/1.99 confetti    WIN    3    47( 47)  100  100% |      fail  89%  25% |   100\n 24* 2.15/2.04 confetti    WIN    2    44( 52)   86  100% |      fail  86%   0% |    86\n 25  2.24/2.08     beam    WIN    2    35( 37)  103  100% |       WIN 100%  95% |   103\n 26  2.24/2.13     beam    WIN    2    43( 48)  105  100% |       WIN 100%  90% |   105\n 27  2.45/2.17     beam    WIN    2    53( 53)  106  100% |       WIN 100% 100% |   106\n 28  2.56/2.22     beam    WIN    3    82( 82)  108  100% |       WIN 100% 100% |   108\n 29  2.56/2.26     beam    WIN    1    34( 40)  109  100% |       WIN 100%  60% |   109\n 30* 2.56/2.30     beam    WIN    1    35( 59)  110  100% |      fail  75%   0% |   110\ntargets: (a) expected wins 30/30, >=2 stars on 87% -> OK | (b) no-upgrade clears L1-10: 10, fails in L19-30: 5 -> OK | (c) god runs outside 60-120 s: 0 -> OK"
+ "text": "  L  M(real/table) weapon    exp: win stars squad(peak) time  rate | noupg: win prog rate | god time\n  1  1.00/1.00     wand    WIN    3    11( 11)   70  100% |       WIN 100% 100% |    70\n  2  1.00/1.05     wand    WIN    3    16( 16)   71  100% |       WIN 100% 100% |    71\n  3  1.06/1.09     wand    WIN    3    19( 19)   72  100% |       WIN 100% 100% |    72\n  4  1.16/1.14   shaker    WIN    3    27( 27)   74  100% |       WIN 100% 100% |    74\n  5  1.22/1.18   shaker    WIN    3    27( 27)   75  100% |       WIN 100% 100% |    75\n  6* 1.22/1.23   shaker    WIN    3    19( 19)   70  100% |       WIN 100% 100% |    70\n  7  1.33/1.27  gumball    WIN    3    28( 28)   78  100% |       WIN 100% 100% |    78\n  8  1.40/1.32  gumball    WIN    3    43( 43)   80  100% |       WIN 100% 100% |    80\n  9  1.40/1.36  gumball    WIN    3    28( 29)   81  100% |       WIN 100% 100% |    81\n 10  1.45/1.41  gumball    WIN    2    21( 21)   83  100% |       WIN 100% 100% |    83\n 11  1.45/1.45     star    WIN    3    25( 25)   83  100% |      fail  65%   0% |    83\n 12* 1.45/1.50     star    WIN    2    22( 27)   78  100% |       WIN 100% 100% |    78\n 13  1.45/1.54     star    WIN    3    48( 48)   86  100% |      fail  72%   0% |    86\n 14  1.45/1.59     star    WIN    2    28( 28)   88  100% |      fail  23%   0% |    88\n 15  1.60/1.63   cookie    WIN    2    27( 30)   89  100% |      fail  76%   0% |    89\n 16  1.76/1.67   cookie    WIN    1    21( 30)   91  100% |      fail  38%   0% |    91\n 17  1.76/1.72   cookie    WIN    2    30( 30)   92  100% |       WIN 100% 100% |    92\n 18* 1.84/1.77   cookie    WIN    2    26( 35)   84  100% |      fail  73%   0% |    84\n 19  1.92/1.81 confetti    WIN    2    38( 38)   95  100% |       WIN 100% 100% |    95\n 20  1.99/1.86 confetti    WIN    1    25( 29)   97  100% |      fail  53%   0% |    97\n 21  1.99/1.90 confetti    WIN    3    44( 44)   98  100% |      fail  94%   0% |    98\n 22  1.99/1.94 confetti    WIN    2    35( 40)  100  100% |       WIN 100% 100% |   100\n 23  2.08/1.99 confetti    WIN    3    47( 47)  100  100% |      fail  89%   0% |   100\n 24* 2.15/2.04 confetti    WIN    2    44( 52)   86  100% |      fail  86%   0% |    86\n 25  2.24/2.08     beam    WIN    2    35( 37)  103  100% |       WIN 100% 100% |   103\n 26  2.24/2.13     beam    WIN    2    43( 48)  105  100% |       WIN 100% 100% |   105\n 27  2.45/2.17     beam    WIN    2    53( 53)  106  100% |       WIN 100% 100% |   106\n 28  2.56/2.22     beam    WIN    3    82( 82)  108  100% |       WIN 100% 100% |   108\n 29  2.56/2.26     beam    WIN    1    34( 40)  109  100% |       WIN 100% 100% |   109\n 30* 2.56/2.30     beam    WIN    1    35( 59)  110  100% |      fail  75%   0% |   110\ntargets: (a) expected wins 30/30, >=2 stars on 87% -> OK | (b) no-upgrade clears L1-10: 10, fails in L19-30: 5 -> OK | (c) god runs outside 60-120 s: 0 -> OK"
 }
