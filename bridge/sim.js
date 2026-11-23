@@ -8,17 +8,17 @@
     HORDE_X0: 0.26, HORDE_X1: 0.74, TREAS_X0: 0.78,
     X_MIN: 0.1, X_MAX: 0.9,
     COLS: 11, ROW_SP: 0.03, START_FRONT: 0.9,
-    HORDE_V0: 0.018, HORDE_V1: 0.02,      // speed = V0 + V1 * t/90
+    HORDE_V0: 0.0175, HORDE_V1: 0.02,      // speed = V0 + V1 * t/90
     G_HP0: 1, G_HP1: 0.7,                  // grumbly hp = HP0 + HP1 * t/90
     SPILL_GAP: 0.05, SPILL_V: 0.05,
-    LOSS_RATE: 0.55,                       // squad lost per second per column in contact
+    LOSS_RATE: 0.4,                        // squad lost per second per column in contact
     D0: 3.2, DP: 0.72, HERO_MULT: 1.8, SQUAD_MAX: 99,
     SHOT_V: 1.9, SPREAD0: 0.03, SPREAD1: 0.01, SPREAD_MAX: 0.09,
     TILE_SP: 0.09, TILE_V: 0.14, TILE_N: 13,
     TREAS_HP: 360, TREAS_Y: 0.5, GOLD_N: 6, GOLD_VAL: 5, GOLD_V: 0.2, GOLD_SP: 0.085,
-    BOSS: [{ t: 31, hp: 380, dur: 19 }, { t: 68, hp: 1400, dur: 24 }],
+    BOSS: [{ t: 32, hp: 300, dur: 22 }, { t: 68, hp: 1400, dur: 24 }],
     BOSS_HW: 0.085, BOSS_REACH: 0.1, BOSS_PUSH: 0.14,
-    STAR2: 30, STAR3: 50
+    STAR2: 60, STAR3: 85
   };
   var CW = (CFG.HORDE_X1 - CFG.HORDE_X0) / CFG.COLS;
   var EV = { POP: 1, PLUS: 2, LOST: 3, THIT: 4, BREAK: 5, BOSSIN: 6, BOSSHIT: 7, BOSSDOWN: 8, GOLD: 9, WIN: 10, LOSE: 11, SHOT: 12 };

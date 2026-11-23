@@ -1,0 +1,23 @@
+:root { --ink:#4a3b52; --cream:#fff6e6; --pink:#ff7fa8; --pink-d:#d9517f; --gold:#ffc83d; --sky:#8fd3e8; --blue:#4aa8f0; }
+html, body { margin:0; height:100%; background:#6fbfd8; overflow:hidden; overscroll-behavior:none;
+  font-family: ui-rounded, "Arial Rounded MT Bold", "Baloo 2", "Nunito", system-ui, sans-serif; color:var(--ink);
+  -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; -webkit-tap-highlight-color:transparent; }
+#stage { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; touch-action:none; }
+#game { display:block; touch-action:none; background:var(--sky); }
+#mute { position:absolute; width:44px; height:44px; border-radius:50%; border:3px solid var(--ink); background:var(--cream);
+  font-family:inherit; font-weight:700; font-size:18px; line-height:1; color:var(--ink); padding:0; cursor:pointer; }
+#overlay { position:absolute; display:flex; align-items:center; justify-content:center; background:rgba(74,59,82,.38); }
+#overlay[hidden] { display:none; }
+#panel { width:min(82%,300px); background:var(--cream); border:4px solid var(--ink); border-radius:26px; padding:20px 18px 18px;
+  text-align:center; box-shadow:0 8px 0 rgba(74,59,82,.35); }
+#panel h1 { margin:0 0 6px; font-size:28px; line-height:1.1; color:var(--pink-d); text-wrap:balance; }
+#panel p { margin:6px 0; font-size:15px; line-height:1.35; }
+#panel ul { list-style:none; margin:12px 0; padding:0; text-align:left; font-size:14px; line-height:1.3; display:grid; gap:8px; }
+#panel li { display:grid; grid-template-columns:18px 1fr; gap:8px; align-items:center; }
+#panel li i { width:16px; height:16px; border-radius:5px; border:2px solid var(--ink); display:block; }
+#panel .stars { font-size:40px; letter-spacing:4px; color:var(--gold); -webkit-text-stroke:2px var(--ink); margin:4px 0; }
+#panel .stars .off { color:#e6dccb; }
+#panel button { margin-top:12px; min-width:170px; min-height:52px; font-family:inherit; font-weight:800; font-size:21px; line-height:1; color:#fff; background:var(--pink);
+  border:4px solid var(--ink); border-radius:18px; box-shadow:0 5px 0 var(--pink-d); cursor:pointer; }
+#panel button:active { transform:translateY(3px); box-shadow:0 2px 0 var(--pink-d); }
+#panel button:focus-visible, #mute:focus-visible { outline:3px solid var(--blue); outline-offset:3px; }
